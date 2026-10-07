@@ -1,0 +1,6 @@
+preview-calendar.html
+.claude/
+*.log
+node_modules/
+.DS_Store
+Thumbs.db
