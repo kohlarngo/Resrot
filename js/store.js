@@ -194,7 +194,13 @@ const DB = {
     return dbWrite(supa.from('sd_bookings').delete().eq('id', id), 'ลบการจอง');
   },
   _replaceBooking(b) { const i = CACHE.bookings.findIndex(x => x.id === b.id); if (i >= 0) CACHE.bookings[i] = b; else CACHE.bookings.push(b); return b; },
-  async cancelMyBooking(b) { return this._replaceBooking(await rpc('sd_cancel_booking', { p_id: b.id, p_pin: b.pin })); },
+  async cancelMyBooking(b) {
+    const nb = this._replaceBooking(await rpc('sd_cancel_booking', { p_id: b.id, p_pin: b.pin }));
+    // คืนห้องในตารางห้องที่ถูกจอง (ใช้คำนวณห้องว่างฝั่งลูกค้า) ทันที ไม่ต้องรีเฟรชหน้า
+    const i = CACHE.occ.findIndex(o => o.roomId === b.roomId && o.checkIn === b.checkIn && o.checkOut === b.checkOut && o.qty === b.qty);
+    if (i >= 0) CACHE.occ.splice(i, 1);
+    return nb;
+  },
   // ลูกค้าแนบสลิป → เก็บใน bucket ส่วนตัว sd-slips/<รหัสจอง>/ แล้วผูกกับการจอง (เจ้าของรีสอร์ทจะเห็นและกดอนุมัติ)
   async uploadSlip(b, file) {
     const blob = await resizeImage(file, 1600);
