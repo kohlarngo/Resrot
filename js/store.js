@@ -175,7 +175,7 @@ const DB = {
     LS.set('mybk', [{ id: b.id, pin: b.pin }, ...LS.get('mybk', []).filter(x => x.id !== b.id)].slice(0, 30));
     return b;
   },
-  // ปิดห้อง / ขายนอกระบบ — เซิร์ฟเวอร์ตรวจสิทธิ์เจ้าของและห้องว่าง แล้วบันทึกเป็นการจอง source = 'external' (นับเป็นห้องไม่ว่างทันที)
+  // ปิดห้อง — เซิร์ฟเวอร์ตรวจสิทธิ์เจ้าของและห้องว่าง แล้วบันทึกเป็นการจอง source = 'external' (นับเป็นห้องไม่ว่างทันที)
   async blockRooms(input) {
     const b = await rpc('sd_block_rooms', { p: input });
     CACHE.bookings.unshift(b);

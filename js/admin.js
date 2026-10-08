@@ -1057,22 +1057,19 @@ function boBookings(main, params) {
   draw();
 }
 
-// ปิดห้อง / ขายนอกระบบ: ลูกค้ามาจากช่องทางอื่น (เว็บอื่น โทร LINE walk-in) หรือปิดซ่อม → ตัดห้องออกจากระบบทันที กันขายซ้ำ
-const BLOCK_CHANNELS = ['เว็บไซต์อื่น / OTA', 'โทรศัพท์ / LINE', 'Walk-in หน้าร้าน', 'Facebook / โซเชียล', 'ปิดซ่อมบำรุง / ไม่ขาย', 'อื่นๆ'];
+// ปิดห้อง: ลูกค้ามาจากช่องทางอื่น (เว็บอื่น โทร LINE walk-in) หรือปิดซ่อม → ตัดห้องออกจากระบบทันที กันลูกค้าบนเว็บจองซ้ำ
 function blockRoomsModal(h, preset, done) {
   if (!h?.rooms?.length) return toast('ที่พักนี้ยังไม่มีห้องพัก', 'err');
   const ci0 = preset.date || todayISO(), room0 = h.rooms.find(r => r.id === preset.roomId) || h.rooms[0];
-  const m = openModal(`<h2><i class="fa-solid fa-ban"></i> ปิดห้อง / ขายนอกระบบ</h2>
-    <p class="muted small" style="margin:4px 0 12px">${esc(h.name)} — ลูกค้าจากช่องทางอื่นจองห้องแล้ว? บันทึกที่นี่เพื่อตัดห้องออกจากระบบ ไม่ให้ลูกค้าบนเว็บจองซ้ำ</p>
+  const m = openModal(`<h2><i class="fa-solid fa-ban"></i> ปิดห้อง</h2>
+    <p class="muted small" style="margin:4px 0 12px">${esc(h.name)} — เลือกห้องและวันที่ที่ไม่ต้องการให้ลูกค้าบนเว็บจอง (เช่น มีลูกค้าจองทางอื่นแล้ว)</p>
     <form id="bl-f" class="form-grid" novalidate>
       <div class="fg full"><label>ประเภทห้อง</label><select name="roomId">${h.rooms.map(r => `<option value="${r.id}" ${r.id === room0.id ? 'selected' : ''}>${esc(r.name)} (${r.total} ห้อง)</option>`).join('')}</select></div>
       <div class="fg"><label>เข้าพัก</label><input name="checkIn" type="date" value="${ci0}"></div>
       <div class="fg"><label>เช็คเอาท์</label><input name="checkOut" type="date" value="${addDays(ci0, 1)}"></div>
       <div class="fg"><label>จำนวนห้อง</label><input name="qty" type="number" min="1" value="1"></div>
-      <div class="fg"><label>ช่องทางที่ขาย</label><select name="channel">${BLOCK_CHANNELS.map(c => `<option>${c}</option>`).join('')}</select></div>
       <div class="fg"><label>ชื่อลูกค้า (ไม่บังคับ)</label><input name="guestName" placeholder="เช่น คุณสมชาย"></div>
       <div class="fg"><label>เบอร์โทร (ไม่บังคับ)</label><input name="phone" type="tel"></div>
-      <div class="fg"><label>ยอดที่ขายได้ ฿ (ไม่บังคับ)</label><input name="amount" type="number" min="0" placeholder="ใส่เพื่อรวมในรายงานรายได้"></div>
       <div class="fg full"><label>หมายเหตุ</label><input name="note" placeholder="เช่น จองผ่านเว็บ A เลขที่ 12345"></div>
     </form>
     <div class="notice info" id="bl-hint" style="margin-top:8px"></div>
@@ -1095,8 +1092,8 @@ function blockRoomsModal(h, preset, done) {
     if (qty > free) return err.textContent = `ช่วงนี้เหลือห้องว่างแค่ ${free} ห้อง — ปิดได้ไม่เกินนี้`;
     const btn = $('#bl-go', m); btn.disabled = true;
     try {
-      await DB.blockRooms({ hotelId: h.id, roomId: r.id, checkIn: ci, checkOut: co, qty, channel: val('channel'), guestName: val('guestName'), phone: val('phone'), amount: +val('amount') || 0, note: val('note') });
-      DB.log('booking.block', `${h.name} · ${r.name} × ${qty} · ${ci} → ${co} · ${val('channel')}`);
+      await DB.blockRooms({ hotelId: h.id, roomId: r.id, checkIn: ci, checkOut: co, qty, channel: 'ปิดห้อง', guestName: val('guestName'), phone: val('phone'), note: val('note') });
+      DB.log('booking.block', `${h.name} · ${r.name} × ${qty} · ${ci} → ${co}`);
       closeModal(); toast(`ปิดห้อง ${qty} ห้อง (${fmtDate(ci, false)} – ${fmtDate(co, false)}) แล้ว`); done?.();
     } catch (e) { btn.disabled = false; err.textContent = e.message; }
   };
@@ -1109,12 +1106,12 @@ function admCalendar(main) {
   if (!hotels.length) { main.innerHTML = pageHead('ตารางห้องว่าง', '') + '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><h3>ยังไม่มีที่พัก</h3></div></section>'; return; }
   let span = 14;
   const dayDiff = (a, b) => Math.round((new Date(a + 'T00:00:00') - new Date(b + 'T00:00:00')) / 864e5);
-  main.innerHTML = pageHead('ตารางห้องว่าง & ผู้จอง', 'ดูว่าห้องไหนว่าง ใครจอง วันไหนถึงวันไหน — แถบสีคือผู้เข้าพัก คลิกเพื่อดูรายละเอียด · คลิกช่องว่างเพื่อปิดห้อง (ขายนอกระบบ)', `<button class="btn btn-add-room" id="c-block"><i class="fa-solid fa-ban"></i> ปิดห้อง / ขายนอกระบบ</button><select id="c-h" class="sel">${hotels.map(h => `<option value="${h.id}">${esc(h.name)}</option>`).join('')}</select>
+  main.innerHTML = pageHead('ตารางห้องว่าง & ผู้จอง', 'ดูว่าห้องไหนว่าง ใครจอง วันไหนถึงวันไหน — แถบสีคือผู้เข้าพัก คลิกเพื่อดูรายละเอียด · คลิกช่องว่างเพื่อปิดห้อง', `<button class="btn btn-add-room" id="c-block"><i class="fa-solid fa-ban"></i> ปิดห้อง</button><select id="c-h" class="sel">${hotels.map(h => `<option value="${h.id}">${esc(h.name)}</option>`).join('')}</select>
     <select id="c-span" class="sel"><option value="7">7 วัน</option><option value="14" selected>14 วัน</option><option value="30">30 วัน</option></select>
     <button class="btn btn-ghost btn-sm" id="c-prev"><i class="fa-solid fa-chevron-left"></i></button><button class="btn btn-outline btn-sm" id="c-today">วันนี้</button><button class="btn btn-ghost btn-sm" id="c-next"><i class="fa-solid fa-chevron-right"></i></button>`) + `
     <div id="c-sum" class="tl-sum"></div>
     <section class="card flush tl-card" id="c-grid"></section>
-    <div class="legend inline"><div><i class="sw tl-pending"></i>รออนุมัติ</div><div><i class="sw tl-confirmed"></i>ยืนยันแล้ว</div><div><i class="sw tl-inhouse"></i>กำลังเข้าพัก</div><div><i class="sw tl-completed"></i>เช็คเอาท์แล้ว</div><div><i class="sw tl-ext"></i>ขายนอกระบบ / ปิดห้อง</div><div><i class="sw" style="background:#e6f6ec"></i>ว่างมาก</div><div><i class="sw" style="background:#fff4e5"></i>เหลือ ≤ 2</div><div><i class="sw" style="background:#fdecec"></i>เต็ม</div></div>`;
+    <div class="legend inline"><div><i class="sw tl-pending"></i>รออนุมัติ</div><div><i class="sw tl-confirmed"></i>ยืนยันแล้ว</div><div><i class="sw tl-inhouse"></i>กำลังเข้าพัก</div><div><i class="sw tl-completed"></i>เช็คเอาท์แล้ว</div><div><i class="sw tl-ext"></i>ปิดห้อง</div><div><i class="sw" style="background:#e6f6ec"></i>ว่างมาก</div><div><i class="sw" style="background:#fff4e5"></i>เหลือ ≤ 2</div><div><i class="sw" style="background:#fdecec"></i>เต็ม</div></div>`;
   const draw = () => {
     const h = DB.hotel(hid); if (!h) return;
     const today = todayISO(), days = Array.from({ length: span }, (_, i) => addDays(start, i)), end = addDays(start, span);
@@ -1134,11 +1131,11 @@ function admCalendar(main) {
       const avail = days.map(d => r.total - DB.bookedCount(r.id, d, addDays(d, 1)));
       const summary = `<div class="tl-row tl-room" style="--n:${span}"><div class="tl-name"><b>${esc(r.name)}</b><small>${money(r.price)}/คืน · ${r.total} ห้อง</small></div>${avail.map((a, i) => `<div class="tl-av ${a <= 0 ? 'full' : a <= 2 ? 'low' : 'ok'}" style="${col(i)}" title="${fmtDate(days[i])}: ว่าง ${a} จาก ${r.total} ห้อง">${a <= 0 ? 'เต็ม' : 'ว่าง ' + a}</div>`).join('')}</div>`;
       const rows = units.map((u, ui) => `<div class="tl-row tl-unit ${ui >= r.total ? 'over' : ''}" style="--n:${span}"><div class="tl-name small">${ui >= r.total ? '<span class="red">เกินจำนวน</span>' : 'ห้อง ' + (ui + 1)}</div>
-        ${days.map((d, i) => `<div class="tl-c ${d === today ? 'td' : ''} ${new Date(d + 'T00:00:00').getDay() % 6 === 0 ? 'we' : ''}" style="${col(i)}" data-room="${r.id}" data-day="${d}" title="คลิกเพื่อปิดห้อง (ขายนอกระบบ)"></div>`).join('')}
+        ${days.map((d, i) => `<div class="tl-c ${d === today ? 'td' : ''} ${new Date(d + 'T00:00:00').getDay() % 6 === 0 ? 'we' : ''}" style="${col(i)}" data-room="${r.id}" data-day="${d}" title="คลิกเพื่อปิดห้อง"></div>`).join('')}
         ${u.bks.filter(b => b.checkOut > start && b.checkIn < end).map(b => {
           const s = Math.max(0, dayDiff(b.checkIn, start)), e = Math.min(span, dayDiff(b.checkOut, start)), st = boStatus(b);
           const ext = b.source === 'external';
-          return `<button class="tl-bar tl-${ext ? 'ext' : st} ${b.checkIn < start ? 'cl' : ''} ${b.checkOut > end ? 'cr' : ''}" style="grid-column:${s + 2} / ${e + 2}" data-bk="${b.id}" title="${ext ? 'ขายนอกระบบ · ' : ''}${esc(guestName(b))} · ${fmtDate(b.checkIn)} – ${fmtDate(b.checkOut)}">${ext ? '<i class="fa-solid fa-ban"></i> ' : ''}<b>${esc(guestName(b))}</b>${e - s > 1 ? `<small>${ext && b.channel && b.channel !== guestName(b) ? esc(b.channel) + ' · ' : ''}${b.nights} คืน${b.qty > 1 ? ' · ' + b.qty + ' ห้อง' : ''}</small>` : ''}</button>`;
+          return `<button class="tl-bar tl-${ext ? 'ext' : st} ${b.checkIn < start ? 'cl' : ''} ${b.checkOut > end ? 'cr' : ''}" style="grid-column:${s + 2} / ${e + 2}" data-bk="${b.id}" title="${ext ? 'ปิดห้อง · ' : ''}${esc(guestName(b))} · ${fmtDate(b.checkIn)} – ${fmtDate(b.checkOut)}">${ext ? '<i class="fa-solid fa-ban"></i> ' : ''}<b>${esc(guestName(b))}</b>${e - s > 1 ? `<small>${ext && b.channel && b.channel !== guestName(b) ? esc(b.channel) + ' · ' : ''}${b.nights} คืน${b.qty > 1 ? ' · ' + b.qty + ' ห้อง' : ''}</small>` : ''}</button>`;
         }).join('')}</div>`).join('');
       return summary + rows;
     }).join('');
@@ -1146,10 +1143,9 @@ function admCalendar(main) {
     $$('.tl-c[data-day]', $('#c-grid')).forEach(el => el.onclick = () => blockRoomsModal(h, { roomId: el.dataset.room, date: el.dataset.day }, draw));
     $$('[data-bk]', $('#c-grid')).forEach(el => el.onclick = () => {
       const b = DB.booking(el.dataset.bk); if (!b) return;
-      if (b.source === 'external') { // ขายนอกระบบ / ปิดห้อง → ดูรายละเอียด + เปิดห้องคืน
-        const m = openModal(`<h2><i class="fa-solid fa-ban"></i> ${esc(guestName(b))} <span class="status completed">ขายนอกระบบ</span></h2>
+      if (b.source === 'external') { // ปิดห้อง → ดูรายละเอียด + เปิดห้องคืน
+        const m = openModal(`<h2><i class="fa-solid fa-ban"></i> ${esc(guestName(b))} <span class="status completed">ปิดห้อง</span></h2>
           <div class="tl-detail"><div><small>ห้อง</small><b>${esc(b.roomName)} × ${b.qty}</b></div><div><small>วันที่ปิด</small><b>${fmtDate(b.checkIn)} – ${fmtDate(b.checkOut)} (${b.nights} คืน)</b></div>
-          <div><small>ช่องทาง</small><b>${esc(b.channel || '-')}</b></div><div><small>ยอดที่ขายได้</small><b>${b.price.total ? money(b.price.total) : '-'}</b></div>
           ${b.guest.phone ? `<div><small>โทร</small><b>${esc(b.guest.phone)}</b></div>` : ''}${b.guest.note ? `<div><small>หมายเหตุ</small><b>${esc(b.guest.note)}</b></div>` : ''}</div>
           <p class="small muted" style="margin:12px 0 0">ห้องช่วงนี้ถูกนับเป็น "ไม่ว่าง" ลูกค้าบนเว็บจะจองซ้ำไม่ได้ · ถ้าลูกค้ายกเลิก กด "เปิดห้องคืน" เพื่อให้ขายได้อีกครั้ง</p>
           <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn btn-ghost" data-close>ปิด</button><button class="btn btn-danger" id="ext-release"><i class="fa-solid fa-lock-open"></i> เปิดห้องคืน</button></div>`);
