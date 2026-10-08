@@ -176,6 +176,19 @@ body.bo #header:empty { display: none; }
 .cal-tbl th.we { color: var(--bad); }
 .cal-tbl th.td { background: var(--primary-light); color: var(--primary); }
 .cal-tbl td.ok { background: #e6f6ec; } .cal-tbl td.low { background: #fff4e5; } .cal-tbl td.full { background: #fdecec; color: var(--bad); }
+/* หน้าหลักเจ้าของรีสอร์ท: ปุ่มลัด / ขั้นตอนเริ่มต้น / คำอธิบาย */
+.qa-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.qa-tile { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding: 16px; border: 1px solid var(--bo-line); border-radius: 14px; background: #fff; text-decoration: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: box-shadow .15s, transform .15s; }
+.qa-tile:hover { box-shadow: 0 6px 18px rgba(32,103,218,.15); transform: translateY(-2px); border-color: var(--primary); }
+.qa-tile > i { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-size: 18px; background: var(--primary-light); color: var(--primary); margin-bottom: 6px; }
+.qa-tile b { font-size: 15px; } .qa-tile small { color: var(--muted); font-size: 12px; }
+.qa-tile.hot { border-color: #f59e0b; background: #fffaf0; } .qa-tile.hot > i { background: #fff0d1; color: #b35c00; }
+.checklist, .howto { margin-bottom: 16px; }
+.ck-step { display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-top: 1px solid var(--bo-line); text-decoration: none; color: var(--text); }
+.ck-step > div { flex: 1; } .ck-step small { display: block; color: var(--muted); font-size: 12px; }
+.ck-n { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; background: #fff4e5; color: #b35c00; flex: none; }
+.ck-step.done .ck-n { background: #e6f6ec; color: #0a8f3c; } .ck-step.done b { text-decoration: line-through; color: var(--muted); }
+.howto ol { margin: 4px 0 4px; padding-left: 22px; display: grid; gap: 8px; font-size: 14px; }
 .btn-add-room { background: #0a8f3c; color: #fff; box-shadow: 0 2px 8px rgba(10,143,60,.35); font-weight: 700; }
 .btn-add-room:hover { background: #087a33; }
 /* ตารางห้องว่าง & ผู้จอง (timeline) */
@@ -205,6 +218,8 @@ body.bo #header:empty { display: none; }
 .tl-bar.cl { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; } .tl-bar.cr { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
 .tl-pending { background: #f59e0b; } .tl-confirmed { background: #2067da; } .tl-inhouse { background: #0a8f3c; } .tl-completed { background: #8b95a5; }
 .tl-unit.over { background: #fdecec; }
+.tl-ext { background: repeating-linear-gradient(135deg, #5b4b8a 0 8px, #6b5a9e 8px 16px); }
+.tl-c[data-day] { cursor: pointer; } .tl-c[data-day]:hover { background: #dbe8ff; }
 .tl-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; } .tl-detail small { display: block; color: var(--muted); font-size: 12px; }
 .pager { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--bo-line); flex-wrap: wrap; }
 .bo-list { display: flex; flex-direction: column; }

@@ -175,6 +175,13 @@ const DB = {
     LS.set('mybk', [{ id: b.id, pin: b.pin }, ...LS.get('mybk', []).filter(x => x.id !== b.id)].slice(0, 30));
     return b;
   },
+  // ปิดห้อง / ขายนอกระบบ — เซิร์ฟเวอร์ตรวจสิทธิ์เจ้าของและห้องว่าง แล้วบันทึกเป็นการจอง source = 'external' (นับเป็นห้องไม่ว่างทันที)
+  async blockRooms(input) {
+    const b = await rpc('sd_block_rooms', { p: input });
+    CACHE.bookings.unshift(b);
+    CACHE.occ.push({ roomId: b.roomId, checkIn: b.checkIn, checkOut: b.checkOut, qty: b.qty });
+    return b;
+  },
   updateBooking(id, patch) {
     const i = CACHE.bookings.findIndex(b => b.id === id);
     if (i < 0) return null;

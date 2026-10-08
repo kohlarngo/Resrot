@@ -4,26 +4,25 @@
 
 // [key, icon, label, permission, render] — แต่ละบทบาทมีเมนูของตัวเอง
 const BO_NAV_BY_ROLE = {
+  // เมนูเจ้าของรีสอร์ท: เรียงตามลำดับที่ใช้จริง ใช้ภาษาง่ายๆ — รายการที่ 6 (ถ้ามี) = เงื่อนไขการแสดงในเมนู
   owner: [
-    { g: 'งานประจำวัน', items: [
-      ['today', 'fa-sun', 'งานวันนี้', 'ops.view', () => boToday],
-      ['approvals', 'fa-clipboard-check', 'อนุมัติการจอง & สลิป', 'frontdesk', () => boApprovals],
-      ['frontdesk', 'fa-bell-concierge', 'เช็คอิน / เช็คเอาท์', 'frontdesk', () => boFrontdesk],
-      ['calendar', 'fa-table-cells', 'ห้องว่าง (Inventory)', 'inventory', () => admCalendar],
+    { g: 'ใช้ทุกวัน', items: [
+      ['today', 'fa-house', 'หน้าหลัก', 'ops.view', () => boToday],
+      ['approvals', 'fa-clipboard-check', 'ตรวจสลิป & อนุมัติการจอง', 'frontdesk', () => boApprovals],
+      ['calendar', 'fa-table-cells', 'ตารางห้องว่าง / ปิดห้อง', 'inventory', () => admCalendar],
+      ['frontdesk', 'fa-bell-concierge', 'แขกเข้า-ออกวันนี้', 'frontdesk', () => boFrontdesk],
     ] },
-    { g: 'การจอง & ลูกค้า', items: [
-      ['bookings', 'fa-calendar-check', 'การจอง', 'bookings.view', () => boBookings],
-      ['customers', 'fa-users', 'ลูกค้า', 'customers.view', () => boCustomers],
-      ['reviews', 'fa-star', 'รีวิว', 'reviews.view', () => boReviews],
-    ] },
-    { g: 'รีสอร์ทของฉัน', items: [
-      ['hotels', 'fa-hotel', 'รีสอร์ทของฉัน', 'hotels.edit', () => admHotels],
+    { g: 'ตั้งค่ารีสอร์ท', items: [
+      ['hotels', 'fa-hotel', 'ห้องพัก รูป & ราคา', 'hotels.edit', () => admHotels],
+      ['payout', 'fa-building-columns', 'บัญชีรับเงิน', 'payout.edit', () => boPayout],
       ['coupons', 'fa-ticket', 'โค้ดส่วนลด', 'coupons.edit', () => admCoupons],
-      ['payout', 'fa-building-columns', 'บัญชีรับเงิน & ข้อมูลรีสอร์ท', 'payout.edit', () => boPayout],
     ] },
-    { g: 'ยอดขาย', items: [
-      ['overview', 'fa-chart-line', 'ภาพรวม', 'exec.view', () => boOverview],
-      ['properties', 'fa-ranking-star', 'ผลงานแต่ละที่พัก', 'exec.view', () => boProperties],
+    { g: 'ดูผลงาน', items: [
+      ['overview', 'fa-chart-line', 'ยอดขายภาพรวม', 'exec.view', () => boOverview],
+      ['bookings', 'fa-calendar-check', 'รายการจองทั้งหมด', 'bookings.view', () => boBookings],
+      ['reviews', 'fa-star', 'รีวิวจากลูกค้า', 'reviews.view', () => boReviews],
+      ['customers', 'fa-users', 'รายชื่อลูกค้า', 'customers.view', () => boCustomers],
+      ['properties', 'fa-ranking-star', 'เทียบผลงานแต่ละรีสอร์ท', 'exec.view', () => boProperties, () => DB.hotels(true).length > 1],
       ['reports', 'fa-file-invoice-dollar', 'รายงานการเงิน', 'reports.view', () => boReports],
     ] },
   ],
@@ -130,7 +129,7 @@ function pageAdmin(app, params, section) {
     <aside class="bo-side" id="bo-side">
       <a href="#/admin" class="bo-brand"><span class="bo-logo"><i class="fa-solid ${r.icon}"></i></span><div><b>${esc(u.role === 'owner' ? (u.biz?.resortName || u.name) : DB.settings().bizName)}</b><small>${PORTAL_INFO[u.role].title} · v${APP_VERSION}</small></div></a>
       <div class="bo-me" style="--rc:${r.color}"><span class="bo-av" style="background:${r.color}">${esc(u.name[0] || '?')}</span><div><b>${esc(u.name)}</b><small><i class="fa-solid ${r.icon}"></i> ${r.label}</small></div></div>
-      <nav class="bo-nav">${nav.map(g => { const its = g.items.filter(i => can(i[3])); return its.length ? `<div class="bo-g">${g.g}</div>${its.map(([k, ic, l]) => `<a href="#/admin/${k}" class="${k === item[0] ? 'active' : ''}"><i class="fa-solid ${ic}"></i><span>${l}</span>${k === 'sos' && alerts.sos ? `<em>${alerts.sos}</em>` : k === 'frontdesk' && alerts.arrivals ? `<em>${alerts.arrivals}</em>` : k === 'approvals' && alerts.approvals ? `<em>${alerts.approvals}</em>` : k === 'partners' && alerts.apps ? `<em>${alerts.apps}</em>` : ''}</a>`).join('')}` : ''; }).join('')}</nav>
+      <nav class="bo-nav">${nav.map(g => { const its = g.items.filter(i => can(i[3]) && (!i[5] || i[5]() || i[0] === item[0])); return its.length ? `<div class="bo-g">${g.g}</div>${its.map(([k, ic, l]) => `<a href="#/admin/${k}" class="${k === item[0] ? 'active' : ''}"><i class="fa-solid ${ic}"></i><span>${l}</span>${k === 'sos' && alerts.sos ? `<em>${alerts.sos}</em>` : k === 'frontdesk' && alerts.arrivals ? `<em>${alerts.arrivals}</em>` : k === 'approvals' && alerts.approvals ? `<em>${alerts.approvals}</em>` : k === 'partners' && alerts.apps ? `<em>${alerts.apps}</em>` : ''}</a>`).join('')}` : ''; }).join('')}</nav>
       <div class="bo-side-foot"><a href="${siteUrl()}" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i><span>เปิดหน้าเว็บลูกค้า</span></a></div>
     </aside>
     <div class="bo-scrim" id="bo-scrim"></div>
@@ -500,7 +499,7 @@ function boApprovals(main) {
         <div class="small" style="margin-top:4px">${b.payment.slip ? `<span class="pill vip"><i class="fa-solid fa-receipt"></i> ส่งสลิป ${relTime(b.payment.claimedAt)}</span>` : `<span class="pill">จองเมื่อ ${relTime(b.createdAt)}</span>`} <a href="tel:${esc(b.guest.phone)}" onclick="event.stopPropagation()"><i class="fa-solid fa-phone"></i> ${esc(b.guest.phone)}</a></div></div>
       <div class="pay-act">${qaBtn(b, 'approve', '<i class="fa-solid fa-check"></i> อนุมัติ')}${qaBtn(b, 'reject', 'ปฏิเสธ', 'btn-ghost red')}</div></div>`;
   const list = (l, empty) => l.length ? `<div class="pay-list">${l.map(card).join('')}</div>` : `<div class="bo-empty sm"><i class="fa-regular fa-circle-check"></i><p class="muted">${empty}</p></div>`;
-  main.innerHTML = pageHead('อนุมัติการจอง & ตรวจสลิป', 'เปิดแอปธนาคาร → ตรวจว่ายอดเข้าตรงกับสลิป → กด "อนุมัติ" · ถ้ายอดไม่ตรงหรือห้องไม่ว่าง กด "ปฏิเสธ" พร้อมเหตุผล (ลูกค้าจะเห็น)') + `
+  main.innerHTML = pageHead('ตรวจสลิป & อนุมัติการจอง', 'เปิดแอปธนาคาร → ตรวจว่ายอดเข้าตรงกับสลิป → กด "อนุมัติ" · ถ้ายอดไม่ตรงหรือห้องไม่ว่าง กด "ปฏิเสธ" พร้อมเหตุผล (ลูกค้าจะเห็น)') + `
     <div class="kpi-grid k4">
       ${kpi('fa-receipt', 'warn', 'ส่งสลิปแล้ว รอตรวจ', slips.length, money(sum(slips)))}
       ${kpi('fa-hotel', 'info', 'ชำระที่ที่พัก รออนุมัติ', atHotel.length, money(sum(atHotel)))}
@@ -518,7 +517,7 @@ function boApprovals(main) {
 function boPayout(main) {
   const u = DB.currentUser(), b = u.biz || {}, p = u.payout || {};
   const fg = (k, l, v, attrs = '', full = false) => `<div class="fg ${full ? 'full' : ''}"><label>${l}</label><input name="${k}" value="${esc(v ?? '')}" ${attrs}></div>`;
-  main.innerHTML = pageHead('บัญชีรับเงิน & ข้อมูลรีสอร์ท', 'ลูกค้าโอนเงินเข้าบัญชีของคุณโดยตรง — แพลตฟอร์มไม่ได้ถือเงินแทน') + `
+  main.innerHTML = pageHead('บัญชีรับเงิน', 'ลูกค้าโอนเงินเข้าบัญชีของคุณโดยตรง — แพลตฟอร์มไม่ได้ถือเงินแทน') + `
     <form id="po-f"><div class="bo-grid g-1-1">
       <section class="card"><div class="card-h"><h3><i class="fa-solid fa-qrcode"></i> บัญชีรับเงิน</h3></div><div class="form-grid">
         ${fg('promptpayId', 'หมายเลขพร้อมเพย์ (เบอร์มือถือ 10 หลัก หรือเลข 13 หลัก)', p.promptpayId, 'inputmode="numeric" maxlength="13" placeholder="0812345678"', true)}
@@ -911,7 +910,36 @@ function boToday(main) {
   const newToday = DB.bookings().filter(b => isoOf(new Date(b.createdAt)) === today);
   const hotels = DB.hotels(true).map(h => { const tot = h.rooms.reduce((s, r) => s + +r.total, 0); const used = inh.filter(b => b.hotelId === h.id).reduce((s, b) => s + b.qty, 0); return [h.name, used, tot]; }).filter(x => x[1]).sort((a, b) => b[1] / b[2] - a[1] / a[2]).slice(0, 8);
   const d = new Date();
-  main.innerHTML = pageHead('งานวันนี้', `${fmtDate(today)} · สวัสดี${d.getHours() < 12 ? 'ตอนเช้า' : d.getHours() < 17 ? 'ตอนบ่าย' : 'ตอนเย็น'} ${esc(DB.currentUser().name)}`, can('frontdesk') ? '<a class="btn btn-primary" href="#/admin/frontdesk"><i class="fa-solid fa-bell-concierge"></i> เปิดฟรอนต์</a>' : '') + `
+  const u = DB.currentUser(), isOwner = u.role === 'owner', myHotels = DB.hotels(true);
+  // ปุ่มลัด + ขั้นตอนเริ่มต้น + คำอธิบายการทำงาน (เฉพาะเจ้าของรีสอร์ท)
+  let hint = '';
+  if (isOwner) {
+    const tile = (ic, cls, t, s, attrs) => `<${attrs.startsWith('href') ? 'a' : 'button'} class="qa-tile ${cls}" ${attrs}><i class="fa-solid ${ic}"></i><b>${t}</b><small>${s}</small></${attrs.startsWith('href') ? 'a' : 'button'}>`;
+    const tiles = [
+      can('frontdesk') && tile('fa-clipboard-check', pending.filter(readyToApprove).length ? 'hot' : '', 'ตรวจสลิป & อนุมัติ', pending.length ? `มี ${pending.length} รายการรอคุณ` : 'ไม่มีรายการค้าง', 'href="#/admin/approvals"'),
+      can('inventory') && myHotels.length && tile('fa-ban', '', 'ปิดห้อง (ขายทางอื่นแล้ว)', 'กันลูกค้าจองซ้ำ', 'data-qa-do="block"'),
+      can('inventory') && tile('fa-table-cells', '', 'ดูตารางห้องว่าง', 'ใครจอง ห้องไหนว่าง', 'href="#/admin/calendar"'),
+      can('hotels.edit') && myHotels.length && tile('fa-share-nodes', '', 'แชร์โปรโมต', 'Facebook · TikTok · LINE', 'data-qa-do="share"'),
+      can('hotels.edit') && tile('fa-pen-to-square', '', 'แก้ห้อง รูป & ราคา', 'เพิ่มห้อง ปรับราคา', 'href="#/admin/hotels"'),
+    ].filter(Boolean);
+    const po = u.payout || {};
+    const steps = [
+      [myHotels.some(h => h.rooms.length), 'เพิ่มรีสอร์ทและห้องพัก', 'ใส่ชื่อ รูป ห้อง ราคา และจำนวนห้อง', '#/admin/hotels'],
+      [isPromptpayId(po.promptpayId) || !!(po.bankInfo || '').trim(), 'ตั้งบัญชีรับเงิน', 'ใส่พร้อมเพย์หรือเลขบัญชี เพื่อให้ลูกค้าโอนเงินให้คุณได้', '#/admin/payout'],
+      [myHotels.some(h => Object.keys(h.social || {}).length), 'ใส่ลิงก์ Facebook / TikTok / LINE ของรีสอร์ท', 'ใช้แสดงในหน้ารีสอร์ทและข้อความโปรโมต', '#/admin/hotels'],
+    ];
+    const todo = steps.filter(s => !s[0]).length;
+    let howHidden = false; try { howHidden = localStorage.getItem('sd_howto_hidden') === '1'; } catch {}
+    hint = `<div class="qa-grid">${tiles.join('')}</div>
+      ${todo ? `<section class="card checklist"><div class="card-h"><h3><i class="fa-solid fa-list-check"></i> เริ่มต้นใช้งาน — เหลืออีก ${todo} ขั้นตอน</h3><span class="small muted">${steps.length - todo}/${steps.length} เสร็จแล้ว</span></div>
+        ${steps.map(([ok, t, s, h], i) => `<a class="ck-step ${ok ? 'done' : ''}" href="${h}"><span class="ck-n">${ok ? '<i class="fa-solid fa-check"></i>' : i + 1}</span><div><b>${t}</b><small>${s}</small></div>${ok ? '' : '<i class="fa-solid fa-chevron-right muted"></i>'}</a>`).join('')}</section>` : ''}
+      ${howHidden ? '' : `<section class="card howto"><div class="card-h"><h3><i class="fa-solid fa-circle-question"></i> ระบบนี้ทำงานยังไง?</h3><button class="btn btn-ghost btn-sm" id="howto-hide">ซ่อน</button></div>
+        <ol><li><b>ลูกค้าจองบนเว็บ</b> แล้วโอนเงินเข้าบัญชีของคุณ พร้อมแนบสลิป</li>
+          <li><b>คุณเช็คยอดในแอปธนาคาร</b> แล้วกด "อนุมัติ" ที่เมนู <a href="#/admin/approvals">ตรวจสลิป & อนุมัติการจอง</a></li>
+          <li><b>ถึงวันเข้าพัก</b> กด "เช็คอิน" ที่ <a href="#/admin/frontdesk">แขกเข้า-ออกวันนี้</a> (วันกลับกด "เช็คเอาท์")</li>
+          <li><b>ขายห้องทางอื่นไปแล้ว</b> (โทร, LINE, เว็บอื่น) กด "ปิดห้อง" เพื่อไม่ให้ลูกค้าบนเว็บจองซ้ำ</li></ol></section>`}`;
+  }
+  main.innerHTML = pageHead(isOwner ? 'หน้าหลัก' : 'งานวันนี้', `${fmtDate(today)} · สวัสดี${d.getHours() < 12 ? 'ตอนเช้า' : d.getHours() < 17 ? 'ตอนบ่าย' : 'ตอนเย็น'} ${esc(u.name)}`, !isOwner && can('frontdesk') ? '<a class="btn btn-primary" href="#/admin/frontdesk"><i class="fa-solid fa-bell-concierge"></i> แขกเข้า-ออก</a>' : '') + hint + `
     <div class="kpi-grid">
       ${kpi('fa-plane-arrival', 'warn', 'เช็คอินวันนี้', `${arr.filter(b => b.checkedInAt).length}<small>/${arr.length}</small>`, 'เช็คอินแล้ว / ทั้งหมด')}
       ${kpi('fa-door-open', 'info', 'เช็คเอาท์วันนี้', `${dep.filter(b => b.checkedOutAt).length}<small>/${dep.length}</small>`, 'เช็คเอาท์แล้ว / ทั้งหมด')}
@@ -933,6 +961,16 @@ function boToday(main) {
     </div>
     <section class="card"><div class="card-h"><h3>การจองล่าสุด</h3><a class="small" href="#/admin/bookings">ทั้งหมด →</a></div>${bkRows(DB.bookings().slice(0, 6), { right: b => `<span class="small muted hide-m">${relTime(b.createdAt)}</span> ${stChip(b)}` })}</section>`;
   bindBk(main);
+  $('#howto-hide', main)?.addEventListener('click', () => { try { localStorage.setItem('sd_howto_hidden', '1'); } catch {} boToday(main); });
+  $$('[data-qa-do]', main).forEach(b => b.onclick = () => pickHotel(b.dataset.qaDo === 'block' ? 'ปิดห้องของรีสอร์ทไหน?' : 'แชร์โปรโมตรีสอร์ทไหน?', h => b.dataset.qaDo === 'block' ? blockRoomsModal(h, {}, () => boToday(main)) : sharePromo(h)));
+}
+// เลือกรีสอร์ท (ถ้ามีแห่งเดียวข้ามขั้นนี้) แล้วทำต่อ
+function pickHotel(title, cb) {
+  const list = DB.hotels(true);
+  if (!list.length) return toast('ยังไม่มีที่พัก — เพิ่มรีสอร์ทก่อน', 'err');
+  if (list.length === 1) return cb(list[0]);
+  const m = openModal(`<h2>${title}</h2><div style="margin-top:12px">${list.map(h => `<button class="btn btn-outline btn-block" style="justify-content:flex-start;margin-bottom:8px" data-pick="${h.id}">${esc(h.name)}</button>`).join('')}</div>`);
+  $$('[data-pick]', m).forEach(b => b.onclick = () => { closeModal(); cb(DB.hotel(b.dataset.pick)); });
 }
 
 // ================= Ops: Front desk =================
@@ -951,7 +989,7 @@ function boFrontdesk(main, params) {
     if (b.checkedOutAt) return '<span class="pill ok">ออกแล้ว</span>';
     return b.checkedInAt ? qaBtn(b, 'checkout', '<i class="fa-solid fa-right-from-bracket"></i> เช็คเอาท์') : '<span class="pill">ยังไม่เช็คอิน</span>';
   };
-  main.innerHTML = pageHead('ฟรอนต์ — เช็คอิน / เช็คเอาท์', 'คลิกที่รายการเพื่อดูรายละเอียด เพิ่มโน้ต หรือรับชำระเงิน',
+  main.innerHTML = pageHead('แขกเข้า-ออก (เช็คอิน / เช็คเอาท์)', 'แขกมาถึงกดเช็คอิน แขกกลับกดเช็คเอาท์ · คลิกที่รายการเพื่อดูรายละเอียด เพิ่มโน้ต หรือรับเงินสด',
     `<a class="btn btn-ghost btn-sm" href="${q(tab, addDays(date, -1))}"><i class="fa-solid fa-chevron-left"></i></a><input type="date" id="fd-d" class="sel" value="${date}"><a class="btn btn-ghost btn-sm" href="${q(tab, addDays(date, 1))}"><i class="fa-solid fa-chevron-right"></i></a>${date !== todayISO() ? `<a class="btn btn-outline btn-sm" href="${q(tab, todayISO())}">วันนี้</a>` : ''}`) + `
     <div class="tabs">${Object.entries(sets).map(([k, [ic, l, arr]]) => `<a href="${q(k)}" class="${k === tab ? 'on' : ''}"><i class="fa-solid ${ic}"></i> ${l} <em>${arr.length}</em></a>`).join('')}</div>
     <section class="card flush">${list.length ? `<div class="table-scroll"><table class="tbl"><thead><tr><th>แขก</th><th>ที่พัก / ห้อง</th><th>เข้าพัก</th><th>การชำระ</th><th>โน้ต</th><th style="text-align:right">ดำเนินการ</th></tr></thead><tbody>
@@ -970,7 +1008,7 @@ function boFrontdesk(main, params) {
 function boBookings(main, params) {
   const f = { q: params.get('q') || '', st: params.get('st') || '', hotel: '', pay: '', from: '', to: '', page: 1 };
   const PER = 15;
-  main.innerHTML = pageHead('การจอง', 'ค้นหา กรอง และจัดการการจองทั้งหมด', `<button class="btn btn-outline btn-sm" id="bk-csv"><i class="fa-solid fa-file-csv"></i> ส่งออก CSV</button>`) + `
+  main.innerHTML = pageHead('รายการจองทั้งหมด', 'ค้นหา กรอง และจัดการการจองทั้งหมด', `<button class="btn btn-outline btn-sm" id="bk-csv"><i class="fa-solid fa-file-csv"></i> ส่งออก CSV</button>`) + `
     <div class="filters">
       <div class="f-search"><i class="fa-solid fa-magnifying-glass"></i><input id="bk-q" placeholder="รหัส / ชื่อ / อีเมล / เบอร์" value="${esc(f.q)}"></div>
       <select id="bk-h" class="sel"><option value="">ทุกที่พัก</option>${DB.hotels(true).map(h => `<option value="${h.id}">${esc(h.name)}</option>`).join('')}</select>
@@ -1019,6 +1057,51 @@ function boBookings(main, params) {
   draw();
 }
 
+// ปิดห้อง / ขายนอกระบบ: ลูกค้ามาจากช่องทางอื่น (เว็บอื่น โทร LINE walk-in) หรือปิดซ่อม → ตัดห้องออกจากระบบทันที กันขายซ้ำ
+const BLOCK_CHANNELS = ['เว็บไซต์อื่น / OTA', 'โทรศัพท์ / LINE', 'Walk-in หน้าร้าน', 'Facebook / โซเชียล', 'ปิดซ่อมบำรุง / ไม่ขาย', 'อื่นๆ'];
+function blockRoomsModal(h, preset, done) {
+  if (!h?.rooms?.length) return toast('ที่พักนี้ยังไม่มีห้องพัก', 'err');
+  const ci0 = preset.date || todayISO(), room0 = h.rooms.find(r => r.id === preset.roomId) || h.rooms[0];
+  const m = openModal(`<h2><i class="fa-solid fa-ban"></i> ปิดห้อง / ขายนอกระบบ</h2>
+    <p class="muted small" style="margin:4px 0 12px">${esc(h.name)} — ลูกค้าจากช่องทางอื่นจองห้องแล้ว? บันทึกที่นี่เพื่อตัดห้องออกจากระบบ ไม่ให้ลูกค้าบนเว็บจองซ้ำ</p>
+    <form id="bl-f" class="form-grid" novalidate>
+      <div class="fg full"><label>ประเภทห้อง</label><select name="roomId">${h.rooms.map(r => `<option value="${r.id}" ${r.id === room0.id ? 'selected' : ''}>${esc(r.name)} (${r.total} ห้อง)</option>`).join('')}</select></div>
+      <div class="fg"><label>เข้าพัก</label><input name="checkIn" type="date" value="${ci0}"></div>
+      <div class="fg"><label>เช็คเอาท์</label><input name="checkOut" type="date" value="${addDays(ci0, 1)}"></div>
+      <div class="fg"><label>จำนวนห้อง</label><input name="qty" type="number" min="1" value="1"></div>
+      <div class="fg"><label>ช่องทางที่ขาย</label><select name="channel">${BLOCK_CHANNELS.map(c => `<option>${c}</option>`).join('')}</select></div>
+      <div class="fg"><label>ชื่อลูกค้า (ไม่บังคับ)</label><input name="guestName" placeholder="เช่น คุณสมชาย"></div>
+      <div class="fg"><label>เบอร์โทร (ไม่บังคับ)</label><input name="phone" type="tel"></div>
+      <div class="fg"><label>ยอดที่ขายได้ ฿ (ไม่บังคับ)</label><input name="amount" type="number" min="0" placeholder="ใส่เพื่อรวมในรายงานรายได้"></div>
+      <div class="fg full"><label>หมายเหตุ</label><input name="note" placeholder="เช่น จองผ่านเว็บ A เลขที่ 12345"></div>
+    </form>
+    <div class="notice info" id="bl-hint" style="margin-top:8px"></div>
+    <div class="red small" id="bl-err" style="margin-top:6px"></div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary" id="bl-go"><i class="fa-solid fa-ban"></i> ปิดห้อง</button></div>`);
+  const f = $('#bl-f', m), val = n => f.elements[n].value;
+  const hint = () => {
+    const r = h.rooms.find(x => x.id === val('roomId')), ci = val('checkIn'), co = val('checkOut');
+    const ok = r && ci && co && co > ci;
+    $('#bl-hint', m).innerHTML = ok ? `<i class="fa-solid fa-circle-info"></i><div>ช่วง ${fmtDate(ci, false)} – ${fmtDate(co, false)} (${diffDays(ci, co)} คืน) ห้องว่างน้อยที่สุด <b>${DB.available(r, ci, co)}</b> จาก ${r.total} ห้อง</div>` : '<i class="fa-solid fa-triangle-exclamation"></i><div>เลือกวันเช็คเอาท์หลังวันเข้าพัก</div>';
+    if (ok) f.elements.qty.max = Math.max(1, DB.available(r, ci, co));
+  };
+  f.addEventListener('input', hint); hint();
+  $('#bl-go', m).onclick = async () => {
+    const err = $('#bl-err', m); err.textContent = '';
+    const r = h.rooms.find(x => x.id === val('roomId')), ci = val('checkIn'), co = val('checkOut'), qty = Math.floor(+val('qty'));
+    if (!ci || !co || co <= ci) return err.textContent = 'วันที่ไม่ถูกต้อง — เช็คเอาท์ต้องหลังวันเข้าพัก';
+    if (!(qty >= 1)) return err.textContent = 'ใส่จำนวนห้องอย่างน้อย 1 ห้อง';
+    const free = DB.available(r, ci, co);
+    if (qty > free) return err.textContent = `ช่วงนี้เหลือห้องว่างแค่ ${free} ห้อง — ปิดได้ไม่เกินนี้`;
+    const btn = $('#bl-go', m); btn.disabled = true;
+    try {
+      await DB.blockRooms({ hotelId: h.id, roomId: r.id, checkIn: ci, checkOut: co, qty, channel: val('channel'), guestName: val('guestName'), phone: val('phone'), amount: +val('amount') || 0, note: val('note') });
+      DB.log('booking.block', `${h.name} · ${r.name} × ${qty} · ${ci} → ${co} · ${val('channel')}`);
+      closeModal(); toast(`ปิดห้อง ${qty} ห้อง (${fmtDate(ci, false)} – ${fmtDate(co, false)}) แล้ว`); done?.();
+    } catch (e) { btn.disabled = false; err.textContent = e.message; }
+  };
+}
+
 // ================= Inventory calendar =================
 function admCalendar(main) {
   const hotels = DB.hotels(true);
@@ -1026,12 +1109,12 @@ function admCalendar(main) {
   if (!hotels.length) { main.innerHTML = pageHead('ตารางห้องว่าง', '') + '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><h3>ยังไม่มีที่พัก</h3></div></section>'; return; }
   let span = 14;
   const dayDiff = (a, b) => Math.round((new Date(a + 'T00:00:00') - new Date(b + 'T00:00:00')) / 864e5);
-  main.innerHTML = pageHead('ตารางห้องว่าง & ผู้จอง', 'ดูว่าห้องไหนว่าง ใครจอง วันไหนถึงวันไหน — แถบสีคือผู้เข้าพัก คลิกเพื่อดูรายละเอียด', `<select id="c-h" class="sel">${hotels.map(h => `<option value="${h.id}">${esc(h.name)}</option>`).join('')}</select>
+  main.innerHTML = pageHead('ตารางห้องว่าง & ผู้จอง', 'ดูว่าห้องไหนว่าง ใครจอง วันไหนถึงวันไหน — แถบสีคือผู้เข้าพัก คลิกเพื่อดูรายละเอียด · คลิกช่องว่างเพื่อปิดห้อง (ขายนอกระบบ)', `<button class="btn btn-add-room" id="c-block"><i class="fa-solid fa-ban"></i> ปิดห้อง / ขายนอกระบบ</button><select id="c-h" class="sel">${hotels.map(h => `<option value="${h.id}">${esc(h.name)}</option>`).join('')}</select>
     <select id="c-span" class="sel"><option value="7">7 วัน</option><option value="14" selected>14 วัน</option><option value="30">30 วัน</option></select>
     <button class="btn btn-ghost btn-sm" id="c-prev"><i class="fa-solid fa-chevron-left"></i></button><button class="btn btn-outline btn-sm" id="c-today">วันนี้</button><button class="btn btn-ghost btn-sm" id="c-next"><i class="fa-solid fa-chevron-right"></i></button>`) + `
     <div id="c-sum" class="tl-sum"></div>
     <section class="card flush tl-card" id="c-grid"></section>
-    <div class="legend inline"><div><i class="sw tl-pending"></i>รออนุมัติ</div><div><i class="sw tl-confirmed"></i>ยืนยันแล้ว</div><div><i class="sw tl-inhouse"></i>กำลังเข้าพัก</div><div><i class="sw tl-completed"></i>เช็คเอาท์แล้ว</div><div><i class="sw" style="background:#e6f6ec"></i>ว่างมาก</div><div><i class="sw" style="background:#fff4e5"></i>เหลือ ≤ 2</div><div><i class="sw" style="background:#fdecec"></i>เต็ม</div></div>`;
+    <div class="legend inline"><div><i class="sw tl-pending"></i>รออนุมัติ</div><div><i class="sw tl-confirmed"></i>ยืนยันแล้ว</div><div><i class="sw tl-inhouse"></i>กำลังเข้าพัก</div><div><i class="sw tl-completed"></i>เช็คเอาท์แล้ว</div><div><i class="sw tl-ext"></i>ขายนอกระบบ / ปิดห้อง</div><div><i class="sw" style="background:#e6f6ec"></i>ว่างมาก</div><div><i class="sw" style="background:#fff4e5"></i>เหลือ ≤ 2</div><div><i class="sw" style="background:#fdecec"></i>เต็ม</div></div>`;
   const draw = () => {
     const h = DB.hotel(hid); if (!h) return;
     const today = todayISO(), days = Array.from({ length: span }, (_, i) => addDays(start, i)), end = addDays(start, span);
@@ -1051,16 +1134,31 @@ function admCalendar(main) {
       const avail = days.map(d => r.total - DB.bookedCount(r.id, d, addDays(d, 1)));
       const summary = `<div class="tl-row tl-room" style="--n:${span}"><div class="tl-name"><b>${esc(r.name)}</b><small>${money(r.price)}/คืน · ${r.total} ห้อง</small></div>${avail.map((a, i) => `<div class="tl-av ${a <= 0 ? 'full' : a <= 2 ? 'low' : 'ok'}" style="${col(i)}" title="${fmtDate(days[i])}: ว่าง ${a} จาก ${r.total} ห้อง">${a <= 0 ? 'เต็ม' : 'ว่าง ' + a}</div>`).join('')}</div>`;
       const rows = units.map((u, ui) => `<div class="tl-row tl-unit ${ui >= r.total ? 'over' : ''}" style="--n:${span}"><div class="tl-name small">${ui >= r.total ? '<span class="red">เกินจำนวน</span>' : 'ห้อง ' + (ui + 1)}</div>
-        ${days.map((d, i) => `<div class="tl-c ${d === today ? 'td' : ''} ${new Date(d + 'T00:00:00').getDay() % 6 === 0 ? 'we' : ''}" style="${col(i)}"></div>`).join('')}
+        ${days.map((d, i) => `<div class="tl-c ${d === today ? 'td' : ''} ${new Date(d + 'T00:00:00').getDay() % 6 === 0 ? 'we' : ''}" style="${col(i)}" data-room="${r.id}" data-day="${d}" title="คลิกเพื่อปิดห้อง (ขายนอกระบบ)"></div>`).join('')}
         ${u.bks.filter(b => b.checkOut > start && b.checkIn < end).map(b => {
           const s = Math.max(0, dayDiff(b.checkIn, start)), e = Math.min(span, dayDiff(b.checkOut, start)), st = boStatus(b);
-          return `<button class="tl-bar tl-${st} ${b.checkIn < start ? 'cl' : ''} ${b.checkOut > end ? 'cr' : ''}" style="grid-column:${s + 2} / ${e + 2}" data-bk="${b.id}" title="${esc(guestName(b))} · ${fmtDate(b.checkIn)} – ${fmtDate(b.checkOut)}"><b>${esc(guestName(b))}</b>${e - s > 1 ? `<small>${b.nights} คืน${b.qty > 1 ? ' · ' + b.qty + ' ห้อง' : ''}</small>` : ''}</button>`;
+          const ext = b.source === 'external';
+          return `<button class="tl-bar tl-${ext ? 'ext' : st} ${b.checkIn < start ? 'cl' : ''} ${b.checkOut > end ? 'cr' : ''}" style="grid-column:${s + 2} / ${e + 2}" data-bk="${b.id}" title="${ext ? 'ขายนอกระบบ · ' : ''}${esc(guestName(b))} · ${fmtDate(b.checkIn)} – ${fmtDate(b.checkOut)}">${ext ? '<i class="fa-solid fa-ban"></i> ' : ''}<b>${esc(guestName(b))}</b>${e - s > 1 ? `<small>${ext && b.channel && b.channel !== guestName(b) ? esc(b.channel) + ' · ' : ''}${b.nights} คืน${b.qty > 1 ? ' · ' + b.qty + ' ห้อง' : ''}</small>` : ''}</button>`;
         }).join('')}</div>`).join('');
       return summary + rows;
     }).join('');
     $('#c-grid').innerHTML = `<div class="tl-scroll"><div class="tl" style="--n:${span}">${head}${body}</div></div>`;
+    $$('.tl-c[data-day]', $('#c-grid')).forEach(el => el.onclick = () => blockRoomsModal(h, { roomId: el.dataset.room, date: el.dataset.day }, draw));
     $$('[data-bk]', $('#c-grid')).forEach(el => el.onclick = () => {
       const b = DB.booking(el.dataset.bk); if (!b) return;
+      if (b.source === 'external') { // ขายนอกระบบ / ปิดห้อง → ดูรายละเอียด + เปิดห้องคืน
+        const m = openModal(`<h2><i class="fa-solid fa-ban"></i> ${esc(guestName(b))} <span class="status completed">ขายนอกระบบ</span></h2>
+          <div class="tl-detail"><div><small>ห้อง</small><b>${esc(b.roomName)} × ${b.qty}</b></div><div><small>วันที่ปิด</small><b>${fmtDate(b.checkIn)} – ${fmtDate(b.checkOut)} (${b.nights} คืน)</b></div>
+          <div><small>ช่องทาง</small><b>${esc(b.channel || '-')}</b></div><div><small>ยอดที่ขายได้</small><b>${b.price.total ? money(b.price.total) : '-'}</b></div>
+          ${b.guest.phone ? `<div><small>โทร</small><b>${esc(b.guest.phone)}</b></div>` : ''}${b.guest.note ? `<div><small>หมายเหตุ</small><b>${esc(b.guest.note)}</b></div>` : ''}</div>
+          <p class="small muted" style="margin:12px 0 0">ห้องช่วงนี้ถูกนับเป็น "ไม่ว่าง" ลูกค้าบนเว็บจะจองซ้ำไม่ได้ · ถ้าลูกค้ายกเลิก กด "เปิดห้องคืน" เพื่อให้ขายได้อีกครั้ง</p>
+          <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn btn-ghost" data-close>ปิด</button><button class="btn btn-danger" id="ext-release"><i class="fa-solid fa-lock-open"></i> เปิดห้องคืน</button></div>`);
+        $('#ext-release', m).onclick = () => {
+          DB.updateBooking(b.id, { status: 'cancelled', cancelledBy: 'เจ้าของ (เปิดห้องคืน)', cancelledAt: new Date().toISOString() });
+          DB.log('booking.release', `${b.id} · ${b.roomName} × ${b.qty} · ${b.checkIn} → ${b.checkOut}`); closeModal(); toast('เปิดห้องคืนแล้ว — ลูกค้าจองห้องนี้ได้อีกครั้ง'); draw();
+        };
+        return;
+      }
       const m = openModal(`<h2>${esc(guestName(b))} ${stChip(b)}</h2>
         <div class="tl-detail"><div><small>ห้อง</small><b>${esc(b.roomName)} × ${b.qty}</b></div><div><small>เข้าพัก</small><b>${fmtDate(b.checkIn)} – ${fmtDate(b.checkOut)} (${b.nights} คืน)</b></div>
         <div><small>โทร</small><b><a href="tel:${esc(b.guest.phone)}">${esc(b.guest.phone || '-')}</a></b></div><div><small>ผู้เข้าพัก</small><b>${b.adults} ผู้ใหญ่${b.children ? ` + ${b.children} เด็ก` : ''}</b></div>
@@ -1070,6 +1168,7 @@ function admCalendar(main) {
     });
   };
   $('#c-h').onchange = e => { hid = e.target.value; draw(); };
+  $('#c-block').onclick = () => blockRoomsModal(DB.hotel(hid), {}, draw);
   $('#c-span').onchange = e => { span = +e.target.value; draw(); };
   $('#c-prev').onclick = () => { start = addDays(start, -Math.min(span, 7)); draw(); };
   $('#c-next').onclick = () => { start = addDays(start, Math.min(span, 7)); draw(); };
@@ -1094,7 +1193,7 @@ function ownerResorts(main) {
     <div class="table-scroll"><table class="tbl" style="margin-top:16px"><thead><tr><th>ประเภทห้อง</th><th>ราคา/คืน</th><th>ส่วนลด</th><th>จำนวนห้อง</th><th>พักได้</th><th>เงื่อนไข</th></tr></thead><tbody>
       ${h.rooms.map(r => `<tr><td><b>${esc(r.name)}</b><div class="small muted">${esc(r.bed)} · ${r.size} ตร.ม. · ${esc(r.view)}</div></td><td><b>${money(r.price)}</b></td><td>${r.discount ? r.discount + '%' : '-'}</td><td>${r.total} ห้อง</td><td>${r.maxGuests} คน</td>
         <td class="small">${[r.breakfast && 'อาหารเช้า', r.freeCancel && 'ยกเลิกฟรี', r.payAtHotel && 'จ่ายที่พักได้'].filter(Boolean).join(' · ') || '-'}</td></tr>`).join('')}</tbody></table></div></section>`;
-  main.innerHTML = pageHead('รีสอร์ทของฉัน', list.length ? 'แก้ไขข้อมูล รูป ห้องพัก ราคา และจำนวนห้องได้ที่ปุ่ม "แก้ไข" · ปิดการขายชั่วคราวได้ที่สวิตช์' : 'ยังไม่มีที่พัก — เพิ่มรีสอร์ทของคุณเพื่อเริ่มรับจอง',
+  main.innerHTML = pageHead('ห้องพัก รูป & ราคา', list.length ? 'แก้ไขข้อมูล รูป ห้องพัก ราคา และจำนวนห้องได้ที่ปุ่ม "แก้ไข" · ปิดการขายชั่วคราวได้ที่สวิตช์' : 'ยังไม่มีที่พัก — เพิ่มรีสอร์ทของคุณเพื่อเริ่มรับจอง',
     `${list.length ? '<button class="btn btn-add-room" data-roomadd><i class="fa-solid fa-bed"></i> เพิ่มห้องพัก</button>' : ''}<button class="btn ${list.length ? 'btn-outline' : 'btn-primary'}" data-hadd><i class="fa-solid fa-plus"></i> ${list.length ? 'เพิ่มรีสอร์ทอีกแห่ง' : 'เพิ่มรีสอร์ทของคุณ'}</button>`) +
     (list.length ? list.map(card).join('') : `<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><h3>ยังไม่มีรีสอร์ท</h3><p class="muted">เพิ่มข้อมูลรีสอร์ท รูป ห้องพัก และราคา แล้วลูกค้าจะจองได้ทันที</p><button class="btn btn-primary" data-hadd>เพิ่มรีสอร์ทของคุณ</button></div></section>`);
   $$('[data-hadd]', main).forEach(b => b.onclick = () => hotelForm(null, () => ownerResorts(main)));
@@ -1347,7 +1446,7 @@ function boCustomers(main) {
   });
   const all = Object.values(map).map(c => { const ok = c.bks.filter(b => b.status !== 'cancelled'); return { ...c, n: ok.length, spend: ok.reduce((s, b) => s + b.price.total, 0), last: ok.map(b => b.checkIn).sort().pop() }; }).sort((a, b) => b.spend - a.spend);
   let q = '', seg = '';
-  main.innerHTML = pageHead('ลูกค้า', `${all.length} ราย · สมาชิก ${all.filter(c => c.member).length} · ผู้จองทั่วไป ${all.filter(c => !c.member).length}`, '<button class="btn btn-outline btn-sm" id="cu-csv"><i class="fa-solid fa-file-csv"></i> ส่งออก CSV</button>') + `
+  main.innerHTML = pageHead('รายชื่อลูกค้า', `${all.length} ราย · สมาชิก ${all.filter(c => c.member).length} · ผู้จองทั่วไป ${all.filter(c => !c.member).length}`, '<button class="btn btn-outline btn-sm" id="cu-csv"><i class="fa-solid fa-file-csv"></i> ส่งออก CSV</button>') + `
     <div class="filters"><div class="f-search"><i class="fa-solid fa-magnifying-glass"></i><input id="cu-q" placeholder="ชื่อ / อีเมล / เบอร์"></div>
     <select id="cu-s" class="sel"><option value="">ทุกกลุ่ม</option><option value="vip">VIP (ใช้จ่าย ≥ ฿20,000)</option><option value="repeat">ลูกค้าประจำ (≥ 2 ครั้ง)</option><option value="member">สมาชิก</option><option value="guest">ผู้จองทั่วไป</option></select></div>
     <section class="card flush" id="cu-list"></section>`;
