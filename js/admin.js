@@ -5,40 +5,43 @@
 // [key, icon, label, permission, render] — แต่ละบทบาทมีเมนูของตัวเอง
 const BO_NAV_BY_ROLE = {
   // เมนูเจ้าของรีสอร์ท: เรียงตามลำดับที่ใช้จริง ใช้ภาษาง่ายๆ — รายการที่ 6 (ถ้ามี) = เงื่อนไขการแสดงในเมนู
+  // โครงสร้างแบบ kohlardgo: แท็บหลักมีแค่ 4 อัน (การจอง · ห้องพัก · หน้ารีสอร์ท · ตารางห้องว่าง) ที่เหลือรวมไว้ในกลุ่มเดียว
   owner: [
-    { g: 'ใช้ทุกวัน', items: [
-      ['today', 'fa-house', 'หน้าหลัก', 'ops.view', () => boToday],
-      ['approvals', 'fa-clipboard-check', 'ตรวจสลิป & อนุมัติการจอง', 'frontdesk', () => boApprovals],
+    { g: 'จัดการ', items: [
+      ['bookings', 'fa-calendar-check', 'การจอง', 'bookings.view', () => boOwnerBookings],
+      ['rooms', 'fa-bed', 'ห้องพัก', 'hotels.edit', () => boRoomsPage],
+      ['shop', 'fa-store', 'หน้ารีสอร์ท', 'hotels.edit', () => boShopPage],
       ['calendar', 'fa-table-cells', 'ตารางห้องว่าง / ปิดห้อง', 'inventory', () => admCalendar],
-      ['frontdesk', 'fa-bell-concierge', 'แขกเข้า-ออกวันนี้', 'frontdesk', () => boFrontdesk],
     ] },
-    { g: 'ตั้งค่ารีสอร์ท', items: [
-      ['hotels', 'fa-hotel', 'ห้องพัก รูป & ราคา', 'hotels.edit', () => admHotels],
+    { g: 'ตั้งค่า & รายงาน', items: [
       ['payout', 'fa-building-columns', 'บัญชีรับเงิน', 'payout.edit', () => boPayout],
       ['coupons', 'fa-ticket', 'โค้ดส่วนลด', 'coupons.edit', () => admCoupons],
-    ] },
-    { g: 'ดูผลงาน', items: [
+      ['today', 'fa-sun', 'ภาพรวมวันนี้', 'ops.view', () => boToday],
+      ['frontdesk', 'fa-bell-concierge', 'แขกเข้า-ออกวันนี้', 'frontdesk', () => boFrontdesk],
       ['overview', 'fa-chart-line', 'ยอดขายภาพรวม', 'exec.view', () => boOverview],
-      ['bookings', 'fa-calendar-check', 'รายการจองทั้งหมด', 'bookings.view', () => boBookings],
       ['reviews', 'fa-star', 'รีวิวจากลูกค้า', 'reviews.view', () => boReviews],
       ['customers', 'fa-users', 'รายชื่อลูกค้า', 'customers.view', () => boCustomers],
-      ['properties', 'fa-ranking-star', 'เทียบผลงานแต่ละรีสอร์ท', 'exec.view', () => boProperties, () => DB.hotels(true).length > 1],
       ['reports', 'fa-file-invoice-dollar', 'รายงานการเงิน', 'reports.view', () => boReports],
+      ['allbookings', 'fa-table-list', 'ตารางการจอง / ส่งออก CSV', 'bookings.view', () => boBookings],
+      ['approvals', 'fa-clipboard-check', 'ตรวจสลิป (มุมมองการ์ด)', 'frontdesk', () => boApprovals],
+      ['properties', 'fa-ranking-star', 'เทียบผลงานแต่ละรีสอร์ท', 'exec.view', () => boProperties, () => DB.hotels(true).length > 1],
+      ['hotels', 'fa-hotel', 'ฟอร์มที่พักแบบเต็ม', 'hotels.edit', () => admHotels, () => false],
     ] },
   ],
+  // แอดมินแพลตฟอร์ม: โครงสร้างแบบ kohlardgo — แท็บหลัก การจอง · ที่พัก · เจ้าของรีสอร์ท แล้วค่อยเป็นภาพรวม/ช่วยเหลือ
   admin: [
-    { g: 'แพลตฟอร์ม', items: [
+    { g: 'จัดการ', items: [
+      ['bookings', 'fa-calendar-check', 'การจองทั้งหมด', 'bookings.view', () => boBookings],
+      ['hotels', 'fa-hotel', 'ที่พักทั้งหมด', 'hotels.edit', () => admHotels],
+      ['partners', 'fa-handshake', 'เจ้าของรีสอร์ท', 'partners.manage', () => boPartners],
+      ['coupons', 'fa-ticket', 'โค้ดส่วนลด', 'coupons.edit', () => admCoupons],
+    ] },
+    { g: 'ภาพรวม & รายงาน', items: [
       ['overview', 'fa-chart-line', 'ภาพรวมแพลตฟอร์ม', 'exec.view', () => boOverview],
       ['properties', 'fa-ranking-star', 'ผลงานทุกรีสอร์ท', 'exec.view', () => boProperties],
       ['reports', 'fa-file-invoice-dollar', 'รายงานการเงิน', 'reports.view', () => boReports],
     ] },
-    { g: 'พาร์ทเนอร์', items: [
-      ['partners', 'fa-handshake', 'เจ้าของรีสอร์ท', 'partners.manage', () => boPartners],
-      ['hotels', 'fa-hotel', 'ที่พักทั้งหมด', 'hotels.edit', () => admHotels],
-      ['coupons', 'fa-ticket', 'โค้ดส่วนลด', 'coupons.edit', () => admCoupons],
-    ] },
     { g: 'ช่วยเหลือ (Support)', items: [
-      ['bookings', 'fa-calendar-check', 'การจองทั้งหมด', 'bookings.view', () => boBookings],
       ['customers', 'fa-users', 'ลูกค้า', 'customers.view', () => boCustomers],
       ['reviews', 'fa-star', 'รีวิว', 'reviews.view', () => boReviews],
       ['sos', 'fa-bell', 'แจ้งเหตุฉุกเฉิน', 'sos.manage', () => admSos],
@@ -236,7 +239,7 @@ function bindShell(alerts) {
 // ================= Login =================
 // ข้อมูลของแต่ละหน้าหลังบ้าน (owner.html / admin.html)
 const PORTAL_INFO = {
-  owner: { title: 'ระบบเจ้าของรีสอร์ท', en: 'Resort Owner', home: 'today', headline: 'จัดการรีสอร์ทของคุณ<br>ฟรี ครบในที่เดียว', blurb: 'ลงห้องพัก ตั้งราคา ตรวจสลิป และอนุมัติการจองเอง — ลูกค้าโอนเงินเข้าบัญชีคุณโดยตรง',
+  owner: { title: 'ระบบเจ้าของรีสอร์ท', en: 'Resort Owner', home: 'bookings', headline: 'จัดการรีสอร์ทของคุณ<br>ฟรี ครบในที่เดียว', blurb: 'ลงห้องพัก ตั้งราคา ตรวจสลิป และอนุมัติการจองเอง — ลูกค้าโอนเงินเข้าบัญชีคุณโดยตรง',
     bullets: [['fa-clipboard-check', 'ตรวจสลิปโอนเงิน แล้วกดอนุมัติ / ปฏิเสธการจอง'], ['fa-hotel', 'จัดการรูป ห้อง ราคา และจำนวนห้องว่าง'], ['fa-qrcode', 'รับเงินผ่านพร้อมเพย์ / บัญชีของคุณเอง'], ['fa-chart-line', 'ดูยอดขาย อัตราเข้าพัก และรายงาน']] },
   admin: { title: 'ระบบผู้ดูแลแพลตฟอร์ม', en: 'Platform Admin', home: 'overview', headline: 'ดูแลแพลตฟอร์ม<br>และพาร์ทเนอร์ทั้งหมด', blurb: 'อนุมัติรีสอร์ทใหม่ ดูภาพรวมทั้งระบบ และช่วยเหลือเจ้าของรีสอร์ทกับลูกค้า',
     bullets: [['fa-handshake', 'อนุมัติ / ระงับเจ้าของรีสอร์ทที่สมัครเข้ามา'], ['fa-chart-line', 'ภาพรวมการจองและยอดขายทั้งแพลตฟอร์ม'], ['fa-life-ring', 'ช่วยแก้ปัญหาการจองให้ลูกค้าและเจ้าของรีสอร์ท'], ['fa-box-archive', 'สำรอง & กู้คืนข้อมูล']] },
@@ -524,7 +527,7 @@ function boPayout(main) {
     </div><div class="save-bar"><button class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> บันทึก</button></div></form>`;
   const f = $('#po-f');
   const prev = () => {
-    const id = f.promptpayId.value.replace(/\D/g, ''), box = $('#pp-prev');
+    const id = f.elements.promptpayId.value.replace(/\D/g, ''), box = $('#pp-prev');
     if (box.dataset.id === id) return;
     box.dataset.id = id;
     box.innerHTML = isPromptpayId(id) ? `<img src="${promptpayQr(id)}" alt="QR พร้อมเพย์" style="width:120px;height:120px">` : '<span class="small muted" style="line-height:1.4;display:block;padding:8px">ใส่หมายเลขพร้อมเพย์เพื่อดูตัวอย่าง</span>';

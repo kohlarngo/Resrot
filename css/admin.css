@@ -459,3 +459,29 @@ body[data-portal] .bo-side { border-top: 4px solid var(--pc); }
 .resort-card .resort-top { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
 .resort-card .resort-top > img { width: 260px; height: 180px; object-fit: cover; border-radius: 12px; flex-shrink: 0; }
 @media (max-width: 720px) { .resort-card .resort-top > img { width: 100%; height: 200px; } }
+
+/* ===== หลังบ้านเจ้าของรีสอร์ทแบบเรียบง่าย (การจอง · ห้องพัก · หน้ารีสอร์ท) ===== */
+.ob-tool { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--bo-line); margin-bottom: 6px; }
+.ob-card { display: flex; gap: 14px; align-items: center; padding: 14px 6px; border-bottom: 1px solid var(--bo-line); cursor: pointer; }
+.ob-card:hover { background: #f8faff; } .ob-card:last-child { border-bottom: 0; }
+.ob-info { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.ob-side { text-align: right; display: grid; gap: 6px; justify-items: end; }
+.ob-side > b { font-size: 17px; } .ob-pills { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; } .ob-acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 720px) { .ob-card { flex-wrap: wrap; } .ob-side { width: 100%; text-align: left; justify-items: start; } .ob-pills, .ob-acts { justify-content: flex-start; } }
+.rm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+.rm-card { border: 1px solid var(--bo-line); border-radius: 14px; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
+.rm-img { position: relative; aspect-ratio: 4 / 3; background: #eef1f6; } .rm-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rm-chg { position: absolute; right: 10px; bottom: 10px; border: 0; border-radius: 999px; padding: 7px 12px; background: rgba(15,21,35,.78); color: #fff; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.rm-chg:hover { background: #2067da; }
+.rm-body { padding: 14px; display: grid; gap: 6px; } .rm-price b { font-size: 18px; } .rm-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.imageField { display: flex; gap: 14px; align-items: flex-start; } .imageField img { width: 160px; height: 120px; object-fit: cover; border-radius: 10px; background: #eef1f6; flex: none; }
+.im-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-bottom: 8px; }
+.im-item { position: relative; aspect-ratio: 4 / 3; border-radius: 10px; overflow: hidden; border: 2px solid transparent; background: #eef1f6; } .im-item.cover { border-color: #2067da; }
+.im-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.im-badge { position: absolute; left: 6px; top: 6px; background: #2067da; color: #fff; border-radius: 6px; font-size: 11px; font-weight: 700; padding: 2px 7px; }
+.im-item button { position: absolute; border: 0; width: 26px; height: 26px; border-radius: 50%; background: rgba(15,21,35,.75); color: #fff; cursor: pointer; font-size: 12px; }
+.im-star { left: 6px; top: 6px; } .im-x { right: 6px; top: 6px; } .im-item button:hover { background: #d12c2c; } .im-star:hover { background: #f59e0b !important; }
+.im-add { aspect-ratio: 4 / 3; border: 2px dashed #b9c3d6; border-radius: 10px; display: grid; place-content: center; justify-items: center; gap: 4px; color: #5b6b8a; cursor: pointer; font-size: 13px; } .im-add:hover { border-color: #2067da; color: #2067da; background: #f3f7ff; } .im-add i { font-size: 20px; }
+.im-url { width: 100%; }
+.sh-card { padding: 0; overflow: hidden; } .sh-cover { position: relative; aspect-ratio: 21 / 8; background: #eef1f6; } .sh-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sh-body { padding: 18px 20px 20px; } .sh-thumbs { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; } .sh-thumbs img { width: 72px; height: 54px; object-fit: cover; border-radius: 8px; }

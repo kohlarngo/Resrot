@@ -380,6 +380,25 @@ async function uploadImage(blob) {
   return supa.storage.from('sd-media').getPublicUrl(path).data.publicUrl;
 }
 
+// เสียง "ติ๊งหน่อง" สั้นๆ ด้วย Web Audio (ไม่ต้องมีไฟล์เสียง) — เบราว์เซอร์บางตัวต้องมีการคลิกในหน้าก่อนจึงจะเล่นเสียงได้
+function playDing() {
+  try {
+    const A = window.AudioContext || window.webkitAudioContext; if (!A) return;
+    const ctx = new A(), now = ctx.currentTime;
+    [[880, 0], [1175, .16]].forEach(([hz, at]) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = hz; o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.0001, now + at); g.gain.exponentialRampToValueAtTime(0.25, now + at + .02); g.gain.exponentialRampToValueAtTime(0.0001, now + at + .45);
+      o.start(now + at); o.stop(now + at + .5);
+    });
+    setTimeout(() => ctx.close().catch(() => {}), 1200);
+  } catch {}
+}
+function notifyNewBooking(b, n) {
+  playDing();
+  toast(n > 1 ? `มีการจองใหม่ ${n} รายการ` : `มีการจองใหม่: ${(b.guest.firstName + ' ' + b.guest.lastName).trim()} · ${b.hotelName}`, 'info');
+}
+
 // ---- Realtime: หลังบ้านอัปเดตเองเมื่อมีการจอง / แจ้งเหตุใหม่จากเครื่องอื่น ----
 let rtChannel = null, rtFor = null;
 function watchRealtime() {
@@ -390,7 +409,11 @@ function watchRealtime() {
   if (!uid) return;
   const refresh = debounce(async () => {
     if (Date.now() - lastLocalWrite < 3000) return; // การเปลี่ยนแปลงที่เราเพิ่งทำเอง
+    const known = new Set(CACHE.bookings.map(b => b.id));
     await DB.load();
+    // มีการจองใหม่จากลูกค้า → ส่งเสียง + ข้อความแจ้งเตือน (เปิดหน้าหลังบ้านค้างไว้ก็ได้ยิน)
+    const fresh = CACHE.bookings.filter(b => !known.has(b.id) && b.source !== 'external' && b.status === 'pending');
+    if (fresh.length && CACHE.me?.role !== 'dev') { notifyNewBooking(fresh[0], fresh.length); }
     const busy = $('#modal') || ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
     if (!location.hash.startsWith('#/admin')) return;
     if (busy) toast('มีข้อมูลอัปเดตใหม่ — เปลี่ยนหน้าหรือรีเฟรชเพื่อดู', 'info'); else render();
