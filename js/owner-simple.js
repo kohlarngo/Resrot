@@ -231,3 +231,37 @@ function shopModal(h, done) {
     DB.saveHotel(h); DB.log('hotel.decorate', h.name); closeModal(); toast('บันทึกหน้ารีสอร์ทแล้ว'); done?.();
   };
 }
+
+// ================= นักพัฒนา: สไลด์ & รูปของทุกรีสอร์ท =================
+// เปิด/ปิดสไลด์ ตั้งเวลา จัดการรูป ของรีสอร์ททุกแห่ง (ต้องมีสิทธิ์ hotels.media — ตรวจที่ฐานข้อมูลด้วย RLS)
+function boDevMedia(main) {
+  const hotels = DB.hotels(true);
+  const sec = h => Math.min(15, Math.max(2, Math.round(+h.slideshow?.seconds || 4)));
+  const ownerName = h => { const o = h.ownerId ? DB.owner(h.ownerId) : null; return o ? (o.biz?.resortName || o.name) : 'แพลตฟอร์ม'; };
+  main.innerHTML = pageHead('สไลด์ & รูปรีสอร์ท', `${hotels.length} รีสอร์ท · เปิด/ปิดสไลด์ ตั้งเวลา และจัดการรูปของรีสอร์ททุกแห่ง (เจ้าของรีสอร์ทยังแก้ของตัวเองได้เหมือนเดิม)`) + `
+    <section class="card"><div class="card-h"><h3><i class="fa-solid fa-wand-magic-sparkles"></i> ตั้งค่าให้ทุกรีสอร์ทพร้อมกัน</h3></div>
+      <div class="row wrap" style="gap:12px;align-items:center"><label class="row" style="gap:8px"><input type="checkbox" id="bulk-on" checked> เปิดสไลด์อัตโนมัติ</label>
+        <span class="small">เปลี่ยนรูปทุก</span><input type="range" id="bulk-sec" min="2" max="15" step="1" value="4" style="width:200px"><b id="bulk-v" style="min-width:64px">4 วินาที</b>
+        <button class="btn btn-primary btn-sm" id="bulk-go"><i class="fa-solid fa-check-double"></i> ใช้กับทุกรีสอร์ท</button></div></section>
+    ${hotels.map(h => `<section class="card sh-card" data-h="${h.id}"><div class="sh-cover" style="aspect-ratio:21/6">${imgTag(h.images[0], 900, '', h.id)}<span class="im-badge">ภาพปก</span></div>
+      <div class="sh-body"><div class="row between wrap" style="gap:10px"><div><h3 style="margin:0">${esc(h.name)}</h3><div class="small muted">เจ้าของ: ${esc(ownerName(h))} · ${h.images.length} รูป · ${h.rooms.length} ประเภทห้อง${h.active === false ? ' · <span class="red">ปิดการขาย</span>' : ''}</div></div>
+          <div class="row wrap" style="gap:8px;align-items:center"><label class="row" style="gap:6px"><input type="checkbox" data-sl-on="${h.id}" ${h.slideshow?.on !== false ? 'checked' : ''} ${h.images.length < 2 ? 'disabled' : ''}> สไลด์</label>
+            <input type="range" data-sl-sec="${h.id}" min="2" max="15" step="1" value="${sec(h)}" style="width:150px" ${h.images.length < 2 ? 'disabled' : ''}><b data-sl-v="${h.id}" style="min-width:64px">${sec(h)} วินาที</b></div></div>
+        <div class="sh-thumbs" style="margin-top:10px">${h.images.slice(0, 8).map(i => imgTag(i, 160)).join('')}${h.images.length > 8 ? `<span class="small muted">+${h.images.length - 8}</span>` : ''}</div>
+        <div class="row wrap" style="gap:8px;margin-top:12px"><button class="btn btn-primary btn-sm" data-deco="${h.id}"><i class="fa-solid fa-paintbrush"></i> จัดการรูป & ตกแต่งหน้า</button>
+          <a class="btn btn-outline btn-sm" href="${siteUrl('#/hotel/' + (h.slug || h.id))}" target="_blank" rel="noopener"><i class="fa-solid fa-eye"></i> ดูหน้าเว็บ</a></div></div></section>`).join('') || '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><p class="muted">ยังไม่มีรีสอร์ทในระบบ</p></div></section>'}`;
+  const save = (id, patch) => { const h = JSON.parse(JSON.stringify(DB.hotel(id))); h.slideshow = { on: h.slideshow?.on !== false, seconds: sec(h), ...patch }; DB.saveHotel(h); DB.log('hotel.slideshow', `${h.name} → ${h.slideshow.on ? 'เปิด ' + h.slideshow.seconds + ' วินาที' : 'ปิด'}`); };
+  $$('[data-sl-on]', main).forEach(c => c.onchange = () => { save(c.dataset.slOn, { on: c.checked }); toast(c.checked ? 'เปิดสไลด์แล้ว' : 'ปิดสไลด์แล้ว'); });
+  $$('[data-sl-sec]', main).forEach(r => {
+    r.oninput = () => $(`[data-sl-v="${r.dataset.slSec}"]`, main).textContent = r.value + ' วินาที';
+    r.onchange = () => { save(r.dataset.slSec, { seconds: +r.value }); toast(`ตั้งเวลาสไลด์ ${r.value} วินาทีแล้ว`); };
+  });
+  $$('[data-deco]', main).forEach(b => b.onclick = () => shopModal(JSON.parse(JSON.stringify(DB.hotel(b.dataset.deco))), () => boDevMedia(main)));
+  $('#bulk-sec', main).oninput = e => $('#bulk-v', main).textContent = e.target.value + ' วินาที';
+  $('#bulk-go', main).onclick = async () => {
+    const on = $('#bulk-on', main).checked, seconds = +$('#bulk-sec', main).value;
+    if (!(await confirmBox(`ตั้งสไลด์ของ <b>ทุกรีสอร์ท (${hotels.length} แห่ง)</b> เป็น ${on ? 'เปิด · เปลี่ยนรูปทุก ' + seconds + ' วินาที' : 'ปิด'} ?`, 'ใช้กับทุกรีสอร์ท'))) return;
+    hotels.forEach(h => save(h.id, { on, seconds }));
+    toast(`ตั้งค่าสไลด์ให้ ${hotels.length} รีสอร์ทแล้ว`); boDevMedia(main);
+  };
+}

@@ -109,7 +109,11 @@ const DB = {
   saveHotel(hotel) {
     const i = CACHE.hotels.findIndex(h => h.id === hotel.id);
     if (i >= 0) CACHE.hotels[i] = hotel; else CACHE.hotels.push(hotel);
-    return dbWrite(supa.from('sd_hotels').upsert({ id: hotel.id, data: hotel, owner_id: hotel.ownerId || null }), 'ที่พัก');
+    // ที่พักที่มีอยู่แล้ว = อัปเดตอย่างเดียว (ไม่แตะเจ้าของ) — นักพัฒนาแก้ได้แต่สร้าง/ลบรีสอร์ทไม่ได้ จึงใช้ upsert ไม่ได้ · ที่พักใหม่ = สร้าง
+    // RLS ปฏิเสธการอัปเดตจะไม่ error แต่แก้ 0 แถว → ตรวจจำนวนแถวแล้วแจ้งเตือน (กันบันทึกเงียบๆ ที่ไม่สำเร็จ)
+    const req = i >= 0 ? supa.from('sd_hotels').update({ data: hotel }).eq('id', hotel.id).select('id').then(r => (!r.error && !r.data?.length ? { error: new Error('ไม่มีสิทธิ์แก้ไขที่พักนี้') } : r))
+      : supa.from('sd_hotels').insert({ id: hotel.id, data: hotel, owner_id: hotel.ownerId || null });
+    return dbWrite(req, 'ที่พัก');
   },
   owner(id) { return CACHE.owners[id] || null; }, // ข้อมูลสาธารณะของเจ้าของรีสอร์ท
   deleteHotel(id) {
@@ -448,7 +452,8 @@ const PERMS = {
   'bookings.edit': 'ยืนยัน / ยกเลิก / รับชำระเงิน',
   'bookings.delete': 'ลบการจองถาวร',
   'inventory': 'ดูตารางห้องว่าง',
-  'hotels.edit': 'จัดการที่พัก ห้อง รูป และราคา',
+  'hotels.media': 'แก้รูป / สไลด์ / ข้อมูลที่พักของทุกรีสอร์ท (นักพัฒนา)',
+  'hotels.edit':'จัดการที่พัก ห้อง รูป และราคา',
   'coupons.edit': 'จัดการโค้ดส่วนลด',
   'payout.edit': 'ตั้งค่าบัญชีรับเงินของรีสอร์ท',
   'reviews.view': 'ดูรีวิวจากลูกค้า',
@@ -468,7 +473,7 @@ const PERMS = {
 const ROLE_PERMS = {
   owner: ['exec.view', 'reports.view', 'ops.view', 'frontdesk', 'bookings.view', 'bookings.edit', 'inventory', 'hotels.edit', 'coupons.edit', 'reviews.view', 'customers.view', 'payout.edit'],
   admin: ['exec.view', 'reports.view', 'partners.manage', 'bookings.view', 'bookings.edit', 'inventory', 'hotels.edit', 'coupons.edit', 'reviews.view', 'reviews.manage', 'customers.view', 'sos.manage', 'data.backup', 'data.reset'],
-  dev: ['staff.manage', 'audit.view', 'settings.business', 'dev.console', 'flags.edit'],
+  dev: ['staff.manage', 'audit.view', 'settings.business', 'dev.console', 'flags.edit', 'hotels.media'],
   user: [],
 };
 const STAFF_ROLES = ['owner', 'admin', 'dev'];

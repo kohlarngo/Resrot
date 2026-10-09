@@ -52,6 +52,10 @@ const BO_NAV_BY_ROLE = {
   ],
   // นักพัฒนา: ตั้งค่าเว็บไซต์ + เครื่องมือเทคนิค
   dev: [
+    { g: 'รีสอร์ททุกแห่ง', items: [
+      ['media', 'fa-images', 'สไลด์ & รูปรีสอร์ท', 'hotels.media', () => boDevMedia],
+      ['devrooms', 'fa-bed', 'ห้อง & รูปห้อง', 'hotels.media', () => boRoomsPage],
+    ] },
     { g: 'เทคนิค', items: [
       ['system', 'fa-microchip', 'สถานะระบบ', 'dev.console', () => boSystem],
       ['logs', 'fa-bug', 'Error logs', 'dev.console', () => boLogs],
@@ -243,7 +247,7 @@ const PORTAL_INFO = {
     bullets: [['fa-clipboard-check', 'ตรวจสลิปโอนเงิน แล้วกดอนุมัติ / ปฏิเสธการจอง'], ['fa-hotel', 'จัดการรูป ห้อง ราคา และจำนวนห้องว่าง'], ['fa-qrcode', 'รับเงินผ่านพร้อมเพย์ / บัญชีของคุณเอง'], ['fa-chart-line', 'ดูยอดขาย อัตราเข้าพัก และรายงาน']] },
   admin: { title: 'ระบบผู้ดูแลแพลตฟอร์ม', en: 'Platform Admin', home: 'overview', headline: 'ดูแลแพลตฟอร์ม<br>และพาร์ทเนอร์ทั้งหมด', blurb: 'อนุมัติรีสอร์ทใหม่ ดูภาพรวมทั้งระบบ และช่วยเหลือเจ้าของรีสอร์ทกับลูกค้า',
     bullets: [['fa-handshake', 'อนุมัติ / ระงับเจ้าของรีสอร์ทที่สมัครเข้ามา'], ['fa-chart-line', 'ภาพรวมการจองและยอดขายทั้งแพลตฟอร์ม'], ['fa-life-ring', 'ช่วยแก้ปัญหาการจองให้ลูกค้าและเจ้าของรีสอร์ท'], ['fa-box-archive', 'สำรอง & กู้คืนข้อมูล']] },
-  dev: { title: 'ระบบนักพัฒนา', en: 'Developer Console', home: 'system', headline: 'ดูแลระบบ<br>ให้ทำงานราบรื่น', blurb: 'จัดการทีมงาน สถานะระบบ error logs ข้อมูลดิบ โหมดปิดปรับปรุง และตั้งค่าเว็บไซต์',
+  dev: { title: 'ระบบนักพัฒนา', en: 'Developer Console', home: 'media', headline: 'ดูแลระบบ<br>ให้ทำงานราบรื่น', blurb: 'จัดการทีมงาน สถานะระบบ error logs ข้อมูลดิบ โหมดปิดปรับปรุง และตั้งค่าเว็บไซต์',
     bullets: [['fa-microchip', 'สถานะระบบ & ตรวจความถูกต้องของข้อมูล'], ['fa-bug', 'Error logs จากผู้ใช้ทุกเครื่อง'], ['fa-users-gear', 'เพิ่ม / ระงับ / รีเซ็ตรหัสทีมผู้ดูแลและนักพัฒนา'], ['fa-gear', 'ตั้งค่าเว็บไซต์ โหมดปิดปรับปรุง และประกาศ']] },
 };
 const portalLink = role => `<a href="${portalUrl(role)}">${PORTAL_INFO[role].title} (${role}.html)</a>`;
