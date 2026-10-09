@@ -8,7 +8,7 @@
   --green-light: #e6f6ec;
   --yellow: #ffb400;
   --text: #2a2a2e;
-  --logo-h: 96px; /* ความสูงโลโก้ (เดิม 48px × 2) — มือถือดูท้ายไฟล์ */
+  --logo-h: 72px; /* ความสูงโลโก้ (เดิม 48px × 1.5) — มือถือดูท้ายไฟล์ */
   --header-h: calc(var(--logo-h) + 16px); /* ความสูงหัวเว็บ = โลโก้ + ช่องไฟบนล่าง */
   --muted: #6b6f7a;
   --border: #dfe2e7;
@@ -56,7 +56,7 @@ img { display: block; max-width: 100%; }
 .logo span:nth-child(7) { color: #2067da; }
 .logo-img { align-items: center; flex: none; }
 .logo-img img { height: var(--logo-h); width: auto; display: block; }
-@media (max-width: 820px) { :root { --logo-h: 64px; } }
+@media (max-width: 820px) { :root { --logo-h: 60px; } }
 .logo .dot { width: 7px; height: 7px; border-radius: 50%; background: #e12d2d; margin-left: 3px; display: inline-block; }
 .nav { display: flex; gap: 4px; flex: 1; }
 .nav a { color: var(--text); padding: 8px 12px; border-radius: 8px; font-weight: 500; font-size: 14px; }
