@@ -64,20 +64,26 @@ function edDecorate() {
     if (ED.dirty.texts[LANG][el.dataset.edit] !== undefined || ED.dirty.styles[el.dataset.edit] !== undefined) el.classList.add('ed-dirty');
   });
   $$('[data-img-slot]').forEach(el => {
-    if (el.querySelector(':scope > .ed-chg')) return;
+    if (el.querySelector(':scope > .ed-imgtools')) return;
     const slot = SITE_IMAGE_SLOTS.find(s => s.key === el.dataset.imgSlot); if (!slot) return;
-    const b = document.createElement('button');
-    b.type = 'button'; b.className = 'ed-chg'; b.setAttribute('data-notr', ''); b.innerHTML = '<i class="fa-solid fa-camera"></i> เปลี่ยนรูป';
-    b.onclick = async e => {
-      e.preventDefault(); e.stopPropagation();
+    const tools = document.createElement('div');
+    tools.className = 'ed-imgtools'; tools.setAttribute('data-notr', '');
+    const mk = (cls, html, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'ed-chg ' + cls; b.innerHTML = html; b.onclick = async e => { e.preventDefault(); e.stopPropagation(); await fn(); }; tools.appendChild(b); };
+    mk('', '<i class="fa-solid fa-camera"></i> เปลี่ยนรูป', async () => {
       try {
         toast('เลือกรูปจากเครื่อง...', 'info');
         const url = await pickAndUploadImage(slot.max); if (!url) return;
         const r = await DB.saveSiteImages({ [slot.key]: url }); if (!r) return;
         DB.log('site.image', `${slot.label} → เปลี่ยนรูป (โหมดแก้ไข)`); applySiteIcons(); toast('เปลี่ยนรูปแล้ว'); render();
       } catch (err) { toast('อัปโหลดรูปไม่สำเร็จ: ' + err.message, 'err'); }
-    };
-    el.appendChild(b);
+    });
+    // รูปที่เปลี่ยนไปแล้วต้องคืนรูปเดิมได้จากตรงนี้ด้วย
+    if (DB.siteImages()[slot.key]) mk('rst', '<i class="fa-solid fa-rotate-left"></i> คืนรูปเดิม', async () => {
+      if (!(await confirmBox(`คืนรูปเดิมของ "${esc(slot.label)}"?`, 'คืนรูปเดิม'))) return;
+      const r = await DB.saveSiteImages({ [slot.key]: null }); if (!r) return;
+      DB.log('site.image', `${slot.label} → คืนค่าเดิม (โหมดแก้ไข)`); applySiteIcons(); toast('คืนรูปเดิมแล้ว'); render();
+    });
+    el.appendChild(tools);
   });
 }
 
