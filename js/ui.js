@@ -294,11 +294,11 @@ function bindHeader() {
 }
 function footerHtml() {
   return `<footer><div class="container"><div class="foot-grid">
-    <div><h4>ช่วยเหลือ</h4><a href="#/help">ศูนย์ช่วยเหลือ</a><a href="#/help">คำถามที่พบบ่อย</a><a href="#/help">นโยบายความเป็นส่วนตัว</a><a href="#/help">ข้อกำหนดการใช้งาน</a></div>
+    <div><h4 data-edit="footer.help.title">ช่วยเหลือ</h4><a href="#/help"><span data-edit="footer.help1">ศูนย์ช่วยเหลือ</span></a><a href="#/help"><span data-edit="footer.help2">คำถามที่พบบ่อย</span></a><a href="#/help"><span data-edit="footer.help3">นโยบายความเป็นส่วนตัว</span></a><a href="#/help"><span data-edit="footer.help4">ข้อกำหนดการใช้งาน</span></a></div>
     ${sosFooterHtml()}
-    <div><h4>จุดหมายยอดนิยม</h4>${DESTINATIONS.slice(0, 5).map(d => `<a href="#/search?q=${encodeURIComponent(d.name)}">ที่พัก${d.name}</a>`).join('')}</div>
-    <div><h4>พาร์ทเนอร์</h4><a href="owner.html#/admin/signup">ลงทะเบียนรีสอร์ทฟรี</a><a href="#/help">ร่วมเป็นพันธมิตร</a></div>
-  </div><div class="foot-bottom">© ${new Date().getFullYear()} StayDee — ระบบจองที่พักเกาะล้าน · ราคาทั้งหมดเป็นสกุลเงินบาท (THB)</div></div></footer>`;
+    <div><h4 data-edit="footer.dest.title">จุดหมายยอดนิยม</h4>${DESTINATIONS.slice(0, 5).map((d, i) => `<a href="#/search?q=${encodeURIComponent(d.name)}"><span data-edit="footer.dest${i}">ที่พัก${d.name}</span></a>`).join('')}</div>
+    <div><h4 data-edit="footer.partner.title">พาร์ทเนอร์</h4><a href="owner.html#/admin/signup"><span data-edit="footer.partner1">ลงทะเบียนรีสอร์ทฟรี</span></a><a href="#/help"><span data-edit="footer.partner2">ร่วมเป็นพันธมิตร</span></a></div>
+  </div><div class="foot-bottom"><span data-edit="footer.copy" data-edit-n="${new Date().getFullYear()}">© ${new Date().getFullYear()} StayDee — ระบบจองที่พักเกาะล้าน · ราคาทั้งหมดเป็นสกุลเงินบาท (THB)</span></div></div></footer>`;
 }
 
 // ---------- Auth modal ----------

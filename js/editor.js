@@ -56,7 +56,7 @@ function edKeyText(el) { // ข้อความที่จะเก็บ: �
 function edDecorate() {
   $$('[data-edit]').forEach(el => {
     el.setAttribute('contenteditable', 'true'); el.setAttribute('spellcheck', 'false');
-    el.onclick = e => e.stopPropagation(); // กันคลิกทะลุไปโดนลิงก์ / ปุ่มของกล่องที่ครอบอยู่
+    el.onclick = e => { e.stopPropagation(); e.preventDefault(); }; // กันคลิกทะลุไปโดนลิงก์ / ปุ่มของกล่องที่ครอบอยู่
     el.onfocus = () => edSelect(el);
     el.oninput = () => { ED.dirty.texts[LANG][el.dataset.edit] = edKeyText(el); el.classList.add('ed-dirty'); edUpdateBar(); };
     el.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); el.blur(); } };
