@@ -289,14 +289,20 @@ function pageHotel(app, params, id) {
   DB.pushRecent(h.id);
   const reviews = DB.reviews(h.id);
   const best = DB.cheapest(h, S);
+  const slideOn = h.slideshow?.on !== false && h.images.length > 1; // สไลด์รูปอัตโนมัติ (เจ้าของเปิด/ปิด และตั้งเวลาได้ในหลังบ้าน)
   const guestsPerRoom = Math.ceil((S.adults + S.children) / S.rooms);
-  const cats = [['ความสะอาด', 0.2], ['ทำเลที่ตั้ง', 0.35], ['การบริการ', 0.1], ['สิ่งอำนวยความสะดวก', -0.2], ['ความคุ้มค่า', -0.05], ['ห้องพัก', 0]];
+  const cats =[['ความสะอาด', 0.2], ['ทำเลที่ตั้ง', 0.35], ['การบริการ', 0.1], ['สิ่งอำนวยความสะดวก', -0.2], ['ความคุ้มค่า', -0.05], ['ห้องพัก', 0]];
 
   app.innerHTML = `${searchBoxHtml('mini')}
   <div class="container">
     <div class="breadcrumb"><a href="#/">หน้าแรก</a> › <a href="#/search?q=${encodeURIComponent(h.city)}">${esc(h.city)}</a> › ${esc(h.name)}</div>
-    <div class="gallery" id="gallery">${h.images.slice(0, 5).map((im, i) => `<img src="${imgUrl(im, i ? 600 : 1200)}" data-i="${i}" onerror="${fallback(h.id + i)}" alt="">`).join('')}
-      <button class="btn btn-sm more" style="background:#fff" data-i="0"><i class="fa-regular fa-images"></i> ดูรูปทั้งหมด (${h.images.length + h.rooms.length})</button></div>
+    ${slideOn
+      ? `<div class="gallery slider" id="gallery" role="region" aria-roledescription="carousel">${h.images.map((im, i) => `<img class="sl-slide ${i === 0 ? 'on' : ''}" src="${imgUrl(im, 1400)}" data-i="${i}" ${i ? 'loading="lazy"' : ''} onerror="${fallback(h.id + i)}" alt="">`).join('')}
+        <button class="sl-nav prev" aria-label="รูปก่อนหน้า"><i class="fa-solid fa-chevron-left"></i></button><button class="sl-nav next" aria-label="รูปถัดไป"><i class="fa-solid fa-chevron-right"></i></button>
+        <div class="sl-dots">${h.images.map((_, i) => `<button class="sl-dot ${i === 0 ? 'on' : ''}" data-d="${i}" aria-label="รูปที่ ${i + 1}"></button>`).join('')}</div>
+        <button class="btn btn-sm more" style="background:#fff" data-i="0"><i class="fa-regular fa-images"></i> ดูรูปทั้งหมด (${h.images.length + h.rooms.length})</button></div>`
+      : `<div class="gallery" id="gallery">${h.images.slice(0, 5).map((im, i) => `<img src="${imgUrl(im, i ? 600 : 1200)}" data-i="${i}" onerror="${fallback(h.id + i)}" alt="">`).join('')}
+      <button class="btn btn-sm more" style="background:#fff" data-i="0"><i class="fa-regular fa-images"></i> ดูรูปทั้งหมด (${h.images.length + h.rooms.length})</button></div>`}
   </div>
   <div class="d-tabs"><div class="container">
     <a href="javascript:" data-go="ov">ภาพรวม</a><a href="javascript:" data-go="rooms">ห้องพัก</a><a href="javascript:" data-go="amen">สิ่งอำนวยความสะดวก</a><a href="javascript:" data-go="rev">รีวิว</a><a href="javascript:" data-go="loc">ที่ตั้ง</a><a href="javascript:" data-go="pol">นโยบาย</a>
@@ -369,6 +375,7 @@ function pageHotel(app, params, id) {
   $$('[data-go]', app).forEach(a => a.onclick = () => { const t = $('#' + a.dataset.go); scrollTo({ top: t.getBoundingClientRect().top + scrollY - ($('.header')?.offsetHeight || 64) - 66, behavior: 'smooth' }); });
   $('#chg').onclick = () => { scrollTo({ top: 0, behavior: 'smooth' }); setTimeout(() => $('.date-field').dispatchEvent(new MouseEvent('mousedown', { bubbles: true })), 300); };
   $('#share').onclick = () => { copyText(resortLink(h)); toast('คัดลอกลิงก์รีสอร์ทแล้ว'); };
+  if (slideOn) initSlider($('#gallery'), h.slideshow?.seconds);
   const allImgs = [...h.images, ...h.rooms.map(r => r.img)];
   $$('#gallery [data-i]').forEach(el => el.onclick = () => lightbox(allImgs, +el.dataset.i));
   $$('[data-rimg]', app).forEach(el => el.onclick = () => lightbox(allImgs, h.images.length + +el.dataset.rimg));
@@ -388,6 +395,27 @@ function pageHotel(app, params, id) {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(m);
     L.marker([h.lat, h.lng]).addTo(m).bindPopup(esc(h.name)).openPopup();
   }
+}
+// สไลด์รูปอัตโนมัติ: เปลี่ยนรูปทุก N วินาที (2–15) · หยุดเมื่อเอาเมาส์ชี้/แตะ · ปัดซ้ายขวาบนมือถือ · ไม่เล่นเองถ้าผู้ใช้ตั้งลดการเคลื่อนไหว
+function initSlider(el, seconds) {
+  if (!el) return;
+  const slides = $$('.sl-slide', el), dots = $$('.sl-dot', el), sec = Math.min(15, Math.max(2, Math.round(+seconds || 4)));
+  let i = 0, timer = null, hover = false;
+  const show = n => { i = (n + slides.length) % slides.length; slides.forEach((s, k) => s.classList.toggle('on', k === i)); dots.forEach((d, k) => d.classList.toggle('on', k === i)); };
+  const stop = () => { clearInterval(timer); timer = null; };
+  const play = () => {
+    stop();
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    timer = setInterval(() => { if (!document.body.contains(el)) return stop(); if (!hover && !document.hidden) show(i + 1); }, sec * 1000);
+  };
+  $('.prev', el).onclick = e => { e.stopPropagation(); show(i - 1); play(); };
+  $('.next', el).onclick = e => { e.stopPropagation(); show(i + 1); play(); };
+  dots.forEach(d => d.onclick = e => { e.stopPropagation(); show(+d.dataset.d); play(); });
+  el.addEventListener('mouseenter', () => hover = true); el.addEventListener('mouseleave', () => hover = false);
+  let x0 = null;
+  el.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; hover = true; }, { passive: true });
+  el.addEventListener('touchend', e => { hover = false; if (x0 != null) { const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 40) { show(i + (dx < 0 ? 1 : -1)); play(); } } x0 = null; });
+  el.dataset.interval = sec; play();
 }
 function roomHtml(h, r, guestsPerRoom) {
   const avail = DB.available(r, S.checkIn, S.checkOut);
