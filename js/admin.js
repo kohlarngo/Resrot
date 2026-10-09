@@ -55,6 +55,7 @@ const BO_NAV_BY_ROLE = {
     { g: 'รีสอร์ททุกแห่ง', items: [
       ['media', 'fa-images', 'สไลด์ & รูปรีสอร์ท', 'hotels.media', () => boDevMedia],
       ['devrooms', 'fa-bed', 'ห้อง & รูปห้อง', 'hotels.media', () => boRoomsPage],
+      ['content', 'fa-pen-to-square', 'แก้หน้าเว็บ (ข้อความ / สี / รูป)', 'hotels.media', () => boDevContent],
       ['siteimg', 'fa-image', 'รูปทั้งเว็บ (โลโก้ แบนเนอร์ ชายหาด)', 'hotels.media', () => boDevSiteImages],
     ] },
     { g: 'เทคนิค', items: [

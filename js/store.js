@@ -352,6 +352,12 @@ const DB = {
     Object.keys(next).forEach(k => { if (!next[k]) delete next[k]; });
     return this._kv('images', Object.keys(next).length ? next : null);
   },
+  // เนื้อหาหน้าเว็บที่แก้สดได้ (Inline Content Editor): { texts: { th|en|zh: { key: ข้อความ } }, styles: { key: { color, size, bold, align } } }
+  content() { const c = CACHE.kv.content || {}; return { texts: { th: {}, en: {}, zh: {}, ...c.texts }, styles: { ...c.styles } }; },
+  saveContent(c) {
+    const empty = !['th', 'en', 'zh'].some(l => Object.keys(c.texts[l] || {}).length) && !Object.keys(c.styles || {}).length;
+    return this._kv('content', empty ? null : { texts: c.texts, styles: c.styles || {} });
+  },
   sosContacts() { return CACHE.kv.sos_contacts || DEFAULT_SOS_CONTACTS; },
   saveSosContacts(list) { return this._kv('sos_contacts', list); },
 
@@ -419,6 +425,16 @@ function notifyNewBooking(b, n) {
   playDing();
   toast(n > 1 ? `มีการจองใหม่ ${n} รายการ` : `มีการจองใหม่: ${(b.guest.firstName + ' ' + b.guest.lastName).trim()} · ${b.hotelName}`, 'info');
 }
+
+// เลือกไฟล์ → ย่อ → อัปโหลด → คืน URL (ใช้กับปุ่ม "เปลี่ยนรูป")
+function pickAndUploadImage(max = 1600) {
+  return new Promise((res, rej) => {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+    inp.onchange = async () => { const file = inp.files[0]; if (!file) return res(null); try { res(await uploadImage(await resizeImage(file, max))); } catch (e) { rej(e); } };
+    inp.click();
+  });
+}
+
 
 // ---- Realtime: หลังบ้านอัปเดตเองเมื่อมีการจอง / แจ้งเหตุใหม่จากเครื่องอื่น ----
 let rtChannel = null, rtFor = null;

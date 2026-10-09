@@ -49,6 +49,7 @@ function render() {
   else app.innerHTML = '<div class="container"><div class="empty" style="margin-top:30px"><h3>ไม่พบหน้านี้</h3><a href="#/" class="btn btn-primary">กลับหน้าแรก</a></div></div>';
   $('footer')?.remove();
   if (!isBO) { document.body.insertAdjacentHTML('beforeend', footerHtml()); bindSosLinks($('footer')); }
+  if (!PORTAL) afterRender(); // เนื้อหาที่แก้สด + โหมดแก้ไข (editor.js)
   if (path !== lastPath) scrollTo(0, 0);
   lastPath = path;
 }

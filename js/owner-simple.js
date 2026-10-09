@@ -93,15 +93,6 @@ function imgManager(box, imgs, { min = 1 } = {}) {
   };
   draw();
 }
-// เลือกไฟล์ → ย่อ → อัปโหลด → คืน URL (ใช้กับปุ่ม "เปลี่ยนรูป")
-function pickAndUploadImage(max = 1600) {
-  return new Promise((res, rej) => {
-    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
-    inp.onchange = async () => { const file = inp.files[0]; if (!file) return res(null); try { res(await uploadImage(await resizeImage(file, max))); } catch (e) { rej(e); } };
-    inp.click();
-  });
-}
-
 // ================= 2) ห้องพัก =================
 function boRoomsPage(main) {
   const hotels = DB.hotels(true);
@@ -287,4 +278,27 @@ function boDevSiteImages(main) {
     if (!/^https:\/\/[^\s'"()<>]+$/.test(v.trim())) return toast('ลิงก์ไม่ถูกต้อง — ต้องขึ้นต้น https:// และห้ามมีช่องว่างหรืออักขระพิเศษ', 'err');
     save(s.key, v.trim(), s.label); });
   $$('[data-reset]', main).forEach(b => b.onclick = async () => { const s = slot(b.dataset.reset); if (await confirmBox(`คืนรูปเดิมของ "${esc(s.label)}"?`, 'คืนค่าเดิม')) save(s.key, null, s.label); });
+}
+
+// ================= นักพัฒนา: แก้หน้าเว็บ (เนื้อหา JSON) =================
+// ปุ่มเปิดโหมดแก้ไขบนหน้าเว็บ + รายการข้อความที่แก้ไว้ (คืนค่าตั้งต้นทีละรายการหรือทั้งหมด)
+function boDevContent(main) {
+  const c = DB.content(), langs = [['th', '🇹🇭 ไทย'], ['en', '🇬🇧 English'], ['zh', '🇨🇳 中文']];
+  const rows = langs.flatMap(([l, name]) => Object.entries(c.texts[l] || {}).map(([k, v]) => ({ l, name, k, v })));
+  const styled = Object.keys(c.styles);
+  main.innerHTML = pageHead('แก้หน้าเว็บ', 'แก้ข้อความ สี ขนาดตัวอักษร และรูป บนหน้าเว็บจริงได้เลย ไม่ต้องแก้โค้ด — เนื้อหาเก็บในฐานข้อมูลและเห็นผลกับลูกค้าทันทีที่กดบันทึก', `<a class="btn btn-primary" href="${siteUrl('#/?edit=1')}" target="_blank" rel="noopener"><i class="fa-solid fa-pen-to-square"></i> เปิดหน้าเว็บในโหมดแก้ไข</a>`) + `
+    <section class="card"><div class="card-h"><h3><i class="fa-solid fa-circle-question"></i> วิธีใช้</h3></div>
+      <ol class="small" style="margin:0;padding-left:22px;display:grid;gap:6px"><li>กด <b>"เปิดหน้าเว็บในโหมดแก้ไข"</b> (ต้องล็อกอินด้วยบัญชีนักพัฒนาในหน้าเว็บลูกค้า — หรือกดปุ่ม "แก้ไขหน้าเว็บ" มุมขวาล่างของหน้าเว็บ)</li>
+        <li>คลิกข้อความที่มีกรอบเส้นประเพื่อพิมพ์แก้ · เลือกสี/ขนาด/ตัวหนา/จัดวางจากแถบเครื่องมือด้านล่าง</li>
+        <li>คลิก <b>"เปลี่ยนรูป"</b> บนรูปเพื่ออัปโหลดรูปใหม่ (รูปบันทึกทันที)</li>
+        <li>กด <b>"บันทึก"</b> — ข้อความที่แก้จะแสดงกับลูกค้าทันที · <b>เปลี่ยนภาษาแล้วแก้ต่อ</b> จะเป็นการแก้ข้อความของภาษานั้นๆ (ไทย / English / 中文 แยกกัน)</li></ol></section>
+    <section class="card"><div class="card-h"><h3>ข้อความที่แก้ไว้ (${rows.length}) · สไตล์ที่ตั้งไว้ (${styled.length})</h3>${rows.length || styled.length ? '<button class="btn btn-ghost btn-sm red" id="ct-all"><i class="fa-solid fa-rotate-left"></i> คืนค่าตั้งต้นทั้งหมด</button>' : ''}</div>
+      ${rows.length || styled.length ? `<div class="table-scroll"><table class="tbl"><thead><tr><th>ภาษา</th><th>ตำแหน่ง (คีย์)</th><th>ข้อความ</th><th></th></tr></thead><tbody>
+        ${rows.map(r => `<tr><td>${r.name}</td><td><code>${esc(r.k)}</code></td><td>${esc(r.v)}</td><td style="text-align:right"><button class="btn btn-ghost btn-sm red" data-ctdel="${r.l}|${esc(r.k)}"><i class="fa-solid fa-rotate-left"></i> คืนค่า</button></td></tr>`).join('')}
+        ${styled.map(k => `<tr><td>ทุกภาษา</td><td><code>${esc(k)}</code></td><td class="small muted">สไตล์: ${esc(JSON.stringify(c.styles[k]))}</td><td style="text-align:right"><button class="btn btn-ghost btn-sm red" data-ctsty="${esc(k)}"><i class="fa-solid fa-rotate-left"></i> คืนค่า</button></td></tr>`).join('')}</tbody></table></div>`
+      : '<div class="bo-empty sm"><i class="fa-regular fa-file-lines"></i><p class="muted">ยังไม่มีการแก้ไข — ทุกข้อความเป็นค่าตั้งต้น</p></div>'}</section>`;
+  const commit = async (fn, msg) => { const n = DB.content(); fn(n); const r = await DB.saveContent(n); if (r) { DB.log('site.content', msg); toast('คืนค่าแล้ว'); boDevContent(main); } };
+  $$('[data-ctdel]', main).forEach(b => b.onclick = () => { const [l, k] = b.dataset.ctdel.split('|'); commit(n => delete n.texts[l][k], `คืนค่าข้อความ ${l}/${k}`); });
+  $$('[data-ctsty]', main).forEach(b => b.onclick = () => commit(n => delete n.styles[b.dataset.ctsty], `คืนค่าสไตล์ ${b.dataset.ctsty}`));
+  $('#ct-all', main)?.addEventListener('click', async () => { if (await confirmBox('คืนข้อความและสไตล์ <b>ทั้งหมด</b> กลับเป็นค่าตั้งต้น? (รูปไม่ถูกแตะ)', 'คืนค่าทั้งหมด')) commit(n => { n.texts = { th: {}, en: {}, zh: {} }; n.styles = {}; }, 'คืนค่าเนื้อหาทั้งหมด'); });
 }

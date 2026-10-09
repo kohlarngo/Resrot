@@ -285,7 +285,7 @@ const i18nSeen = new WeakMap();
 const i18nOn = () => LANG !== 'th' && !PORTAL;
 function i18nText(n) {
   const v = n.nodeValue;
-  if (!THAI.test(v) || i18nSeen.get(n) === v) return;
+  if (!THAI.test(v) || i18nSeen.get(n) === v || n.parentElement?.closest('[data-notr]')) return;
   const o = tr(v);
   if (o !== v) n.nodeValue = o;
   i18nSeen.set(n, n.nodeValue);
