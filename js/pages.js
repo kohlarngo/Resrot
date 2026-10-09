@@ -366,7 +366,7 @@ function pageHotel(app, params, id) {
   </div>`;
   bindSearchBox(app, () => go(`/hotel/${h.id}?${searchQuery()}`));
   bindFavs(app);
-  $$('[data-go]', app).forEach(a => a.onclick = () => { const t = $('#' + a.dataset.go); scrollTo({ top: t.getBoundingClientRect().top + scrollY - 130, behavior: 'smooth' }); });
+  $$('[data-go]', app).forEach(a => a.onclick = () => { const t = $('#' + a.dataset.go); scrollTo({ top: t.getBoundingClientRect().top + scrollY - ($('.header')?.offsetHeight || 64) - 66, behavior: 'smooth' }); });
   $('#chg').onclick = () => { scrollTo({ top: 0, behavior: 'smooth' }); setTimeout(() => $('.date-field').dispatchEvent(new MouseEvent('mousedown', { bubbles: true })), 300); };
   $('#share').onclick = () => { copyText(resortLink(h)); toast('คัดลอกลิงก์รีสอร์ทแล้ว'); };
   const allImgs = [...h.images, ...h.rooms.map(r => r.img)];
