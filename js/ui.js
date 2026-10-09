@@ -260,7 +260,7 @@ function headerHtml() {
   const a = (href, label) => `<a href="#${href}" class="${path === href ? 'active' : ''}">${label}</a>`;
   return `<header class="header"><div class="container header-inner">
     <button class="menu-toggle" id="menu-t"><i class="fa-solid fa-bars"></i></button>
-    <a href="#/" class="logo"><span>s</span><span>t</span><span>a</span><span>y</span><span>d</span><span>e</span><span>e</span><i class="dot"></i></a>
+    <a href="#/" class="logo logo-img" aria-label="kohlarngo — ชมรมรีสอร์ทและที่พักเกาะล้าน"><img src="assets/logo-360.jpg" alt="kohlarngo — ชมรมรีสอร์ท & ที่พัก เกาะล้าน" width="72" height="48"></a>
     <nav class="nav" id="nav">
       ${a('/', 'หน้าแรก')}${a('/search', 'ค้นหาที่พัก')}${a('/deals', 'ดีลสุดคุ้ม')}${a('/my-bookings', 'การจองของฉัน')}${a('/favorites', 'รายการโปรด')}
       ${isStaff(u) ? `<a href="${portalUrl(u.role)}"><i class="fa-solid fa-gauge"></i> หลังบ้าน</a>` : ''}
