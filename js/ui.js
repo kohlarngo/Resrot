@@ -263,7 +263,6 @@ function headerHtml() {
     <a href="#/" class="logo logo-img" aria-label="kohlarngo — ชมรมรีสอร์ทและที่พักเกาะล้าน"><img src="assets/logo-800.jpg" alt="kohlarngo — ชมรมรีสอร์ท & ที่พัก เกาะล้าน" width="108" height="72"></a>
     <nav class="nav" id="nav">
       ${a('/', 'หน้าแรก')}${a('/search', 'ค้นหาที่พัก')}${a('/deals', 'ดีลสุดคุ้ม')}${a('/my-bookings', 'การจองของฉัน')}${a('/favorites', 'รายการโปรด')}
-      ${isStaff(u) ? `<a href="${portalUrl(u.role)}"><i class="fa-solid fa-gauge"></i> หลังบ้าน</a>` : ''}
     </nav>
     <div class="header-right">
       <button class="btn btn-ghost btn-sm hide-m" title="สกุลเงิน">THB ฿</button>
@@ -287,7 +286,6 @@ function bindHeader() {
       <a href="#/my-bookings"><i class="fa-solid fa-suitcase"></i> การจองของฉัน</a>
       <a href="#/favorites"><i class="fa-regular fa-heart"></i> รายการโปรด</a>
       <a href="#/profile"><i class="fa-regular fa-user"></i> ข้อมูลส่วนตัว</a>
-      ${isStaff(u) ? `<a href="${portalUrl(u.role)}"><i class="fa-solid fa-gauge"></i> ระบบหลังบ้าน</a>` : ''}
       <button id="logout"><i class="fa-solid fa-right-from-bracket"></i> ออกจากระบบ</button>`;
     chip.appendChild(dd);
     $('#logout', dd).onclick = async () => { await DB.logout(); toast('ออกจากระบบแล้ว'); render(); };
@@ -299,7 +297,7 @@ function footerHtml() {
     <div><h4>ช่วยเหลือ</h4><a href="#/help">ศูนย์ช่วยเหลือ</a><a href="#/help">คำถามที่พบบ่อย</a><a href="#/help">นโยบายความเป็นส่วนตัว</a><a href="#/help">ข้อกำหนดการใช้งาน</a></div>
     ${sosFooterHtml()}
     <div><h4>จุดหมายยอดนิยม</h4>${DESTINATIONS.slice(0, 5).map(d => `<a href="#/search?q=${encodeURIComponent(d.name)}">ที่พัก${d.name}</a>`).join('')}</div>
-    <div><h4>พาร์ทเนอร์</h4><a href="owner.html#/admin/signup">ลงทะเบียนรีสอร์ทฟรี</a><a href="owner.html">ระบบเจ้าของรีสอร์ท</a><a href="#/help">ร่วมเป็นพันธมิตร</a></div>
+    <div><h4>พาร์ทเนอร์</h4><a href="owner.html#/admin/signup">ลงทะเบียนรีสอร์ทฟรี</a><a href="#/help">ร่วมเป็นพันธมิตร</a></div>
   </div><div class="foot-bottom">© ${new Date().getFullYear()} StayDee — ระบบจองที่พักเกาะล้าน · ราคาทั้งหมดเป็นสกุลเงินบาท (THB)</div></div></footer>`;
 }
 

@@ -10,7 +10,6 @@ const ROUTES = [
   [/^\/favorites$/, pageFavorites],
   [/^\/profile$/, pageProfile],
   [/^\/help$/, pageHelp],
-  [/^\/admin(?:\/(\w+))?$/, pageStaffHub],
 ];
 
 function go(path, replace = false) {
@@ -44,7 +43,7 @@ function render() {
   }
   const route = ROUTES.find(([re]) => re.test(path));
   if (!isBO && DB.flags().maintenance && !isStaff(DB.currentUser())) {
-    app.innerHTML = `<div class="container"><div class="maint"><i class="fa-solid fa-screwdriver-wrench"></i><h1>ปิดปรับปรุงชั่วคราว</h1><p class="muted">${esc(DB.flags().maintenanceMsg)}</p><p class="small muted">ติดต่อ ${esc(DB.settings().phone)} · LINE ${esc(DB.settings().line)}</p><a href="#/admin" class="btn btn-ghost btn-sm">เข้าสู่ระบบทีมงาน</a></div></div>`;
+    app.innerHTML = `<div class="container"><div class="maint"><i class="fa-solid fa-screwdriver-wrench"></i><h1>ปิดปรับปรุงชั่วคราว</h1><p class="muted">${esc(DB.flags().maintenanceMsg)}</p><p class="small muted">ติดต่อ ${esc(DB.settings().phone)} · LINE ${esc(DB.settings().line)}</p></div></div>`;
   } else if (PORTAL) pageAdmin(app, params, path.match(/^\/admin(?:\/(\w+))?$/)?.[1]);
   else if (route) route[1](app, params, ...path.match(route[0]).slice(1));
   else app.innerHTML = '<div class="container"><div class="empty" style="margin-top:30px"><h3>ไม่พบหน้านี้</h3><a href="#/" class="btn btn-primary">กลับหน้าแรก</a></div></div>';

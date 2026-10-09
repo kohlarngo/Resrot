@@ -355,15 +355,6 @@ function boOwnerPending(app, u) {
   $('#pd-refresh')?.addEventListener('click', async () => { await DB.load(); render(); });
 }
 
-// index.html#/admin — ทีมงานถูกส่งไปหน้าของบทบาทตัวเอง · คนอื่นเห็นทางเข้าทั้ง 2 หน้า
-function pageStaffHub(app) {
-  const u = DB.currentUser();
-  if (isStaff(u)) return location.replace(portalUrl(u.role));
-  app.innerHTML = `<div class="container" style="max-width:900px;padding-top:30px"><h1 class="sec-title">สำหรับพาร์ทเนอร์และทีมงาน</h1><p class="muted">เลือกหน้าตามบทบาทของคุณ</p>
-    <div class="portal-cards">${STAFF_ROLES.map(r => `<a class="portal-card" href="${portalUrl(r)}" style="--pc:${ROLES[r].color};--pb:${ROLES[r].bg}"><i class="fa-solid ${ROLES[r].icon}"></i><b>${PORTAL_INFO[r].title}</b><span class="small muted">${PORTAL_INFO[r].blurb}</span><code class="small">${r}.html</code></a>`).join('')}
-      <a class="portal-card" href="${portalUrl('owner', '#/admin/signup')}" style="--pc:#0a8f3c;--pb:#e6f6ec"><i class="fa-solid fa-store"></i><b>ลงทะเบียนรีสอร์ทฟรี</b><span class="small muted">มีรีสอร์ทบนเกาะล้าน? สมัครเพื่อลงห้องพักและรับจองผ่านแพลตฟอร์ม</span><code class="small">owner.html#/admin/signup</code></a></div></div>`;
-}
-
 // ================= Booking drawer & actions =================
 async function bkAction(id, act, refresh = () => render()) {
   const b = DB.booking(id);
