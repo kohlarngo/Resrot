@@ -37,7 +37,7 @@ function pageHome(app) {
   const recent = DB.recent().map(id => DB.hotel(id)).filter(Boolean);
   const deals = [...hotels].sort((a, b) => Math.max(...b.rooms.map(r => r.discount)) - Math.max(...a.rooms.map(r => r.discount))).slice(0, 8);
   app.innerHTML = `
-  <div class="hero"><div class="container">
+  <div class="hero" style="background:linear-gradient(180deg,rgba(10,25,60,.35),rgba(10,25,60,.55)),url(${siteImgUrl('hero', IMG.pool2, 1800)}) center/cover"><div class="container">
     <h1>ค้นหาที่พักราคาดีที่สุด</h1>
     <p class="sub">ที่พัก รีสอร์ท และพูลวิลล่ากว่า ${hotels.length} แห่งทั่วเกาะล้าน พร้อมราคาพิเศษเฉพาะสมาชิก</p>
     ${searchBoxHtml('hero')}
@@ -46,15 +46,15 @@ function pageHome(app) {
     <section class="block" style="padding-top:56px">
       <h2 class="sec-title">โปรโมชั่นที่คุณไม่ควรพลาด</h2>
       <div class="promo-row">
-        <div class="promo" style="background-image:url(${imgUrl(IMG.beach1, 700)})" data-q="หาดแสม"><span class="tag">ลดสูงสุด 35%</span><h3>ทะเลใสเกาะล้านเรียกหา</h3><p>รีสอร์ทริมหาดแสม ราคาพิเศษ</p></div>
-        <div class="promo" style="background-image:url(${imgUrl(IMG.pool2, 700)})" data-copy="WELCOME10"><span class="tag">สมาชิกใหม่</span><h3>ลดเพิ่ม 10%</h3><p>ใช้โค้ด <code>WELCOME10</code> (คลิกเพื่อคัดลอก)</p></div>
-        <div class="promo" style="background-image:url(${imgUrl(IMG.villa1, 700)})" data-copy="SUMMER500"><span class="tag">ดีลพูลวิลล่า</span><h3>ลดทันที ฿500</h3><p>ใช้โค้ด <code>SUMMER500</code> เมื่อจองครบ ฿3,000</p></div>
+        <div class="promo" style="background-image:url(${siteImgUrl('promo1', IMG.beach1, 700)})" data-q="หาดแสม"><span class="tag">ลดสูงสุด 35%</span><h3>ทะเลใสเกาะล้านเรียกหา</h3><p>รีสอร์ทริมหาดแสม ราคาพิเศษ</p></div>
+        <div class="promo" style="background-image:url(${siteImgUrl('promo2', IMG.pool2, 700)})" data-copy="WELCOME10"><span class="tag">สมาชิกใหม่</span><h3>ลดเพิ่ม 10%</h3><p>ใช้โค้ด <code>WELCOME10</code> (คลิกเพื่อคัดลอก)</p></div>
+        <div class="promo" style="background-image:url(${siteImgUrl('promo3', IMG.villa1, 700)})" data-copy="SUMMER500"><span class="tag">ดีลพูลวิลล่า</span><h3>ลดทันที ฿500</h3><p>ใช้โค้ด <code>SUMMER500</code> เมื่อจองครบ ฿3,000</p></div>
       </div>
     </section>
     ${recent.length ? `<section class="block"><h2 class="sec-title">ที่พักที่คุณดูล่าสุด</h2><div class="card-grid">${recent.slice(0, 4).map(hotelCard).join('')}</div></section>` : ''}
     <section class="block">
       <h2 class="sec-title">จุดหมายปลายทางยอดนิยมในเกาะล้าน</h2>
-      <div class="dest-grid">${DESTINATIONS.slice(0, 6).map(d => `<div class="dest" data-q="${d.name}"><div class="img">${imgTag(d.img, 400, '', d.en)}</div><div class="n">${d.name}</div><div class="c">${hotels.filter(h => h.city === d.name).length} ที่พัก</div></div>`).join('')}</div>
+      <div class="dest-grid">${DESTINATIONS.slice(0, 6).map(d => `<div class="dest" data-q="${d.name}"><div class="img">${imgTag(siteImgId('dest' + DESTINATIONS.indexOf(d), d.img), 400, '', d.en)}</div><div class="n">${d.name}</div><div class="c">${hotels.filter(h => h.city === d.name).length} ที่พัก</div></div>`).join('')}</div>
     </section>
     <section class="block">
       <div class="sec-title-row"><h2 class="sec-title">ดีลสุดคุ้มวันนี้ <i class="fa-solid fa-fire red"></i></h2><a href="#/deals">ดูทั้งหมด <i class="fa-solid fa-chevron-right small"></i></a></div>
@@ -156,7 +156,7 @@ function renderFilters() {
   const types = [...new Set(base.map(x => x.h.type))];
   const areas = [...new Set(base.map(x => x.h.area))];
   $('#filters').innerHTML = `
-    <div class="map-preview"><button class="btn btn-primary btn-sm" id="map-open"><i class="fa-solid fa-map-location-dot"></i> ดูบนแผนที่</button></div>
+    <div class="map-preview" style="background-image:url(${siteImgUrl('mapbg', 'photo-1524661135-423995f22d0b', 600)})"><button class="btn btn-primary btn-sm" id="map-open"><i class="fa-solid fa-map-location-dot"></i> ดูบนแผนที่</button></div>
     <div class="f-sec"><div class="row between"><h4 style="margin:0">ตัวกรอง</h4><a href="javascript:" id="f-clear" class="small">ล้างทั้งหมด</a></div></div>
     <div class="f-sec"><h4>งบประมาณต่อคืน</h4>
       <input type="range" id="f-max" min="0" max="${maxP}" step="100" value="${F.max || maxP}">

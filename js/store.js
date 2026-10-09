@@ -345,6 +345,13 @@ const DB = {
   saveSettings(patch) { return this._kv('settings', { ...this.settings(), ...patch }); },
   flags() { return { ...DEFAULT_FLAGS, ...CACHE.kv.flags }; },
   saveFlags(patch) { return this._kv('flags', { ...this.flags(), ...patch }); },
+  // รูปทั้งเว็บที่นักพัฒนาตั้งไว้ (ดู SITE_IMAGE_SLOTS ใน data.js) — ค่า null = คืนรูปตั้งต้น
+  siteImages() { return CACHE.kv.images || {}; },
+  saveSiteImages(patch) {
+    const next = { ...this.siteImages(), ...patch };
+    Object.keys(next).forEach(k => { if (!next[k]) delete next[k]; });
+    return this._kv('images', Object.keys(next).length ? next : null);
+  },
   sosContacts() { return CACHE.kv.sos_contacts || DEFAULT_SOS_CONTACTS; },
   saveSosContacts(list) { return this._kv('sos_contacts', list); },
 
@@ -382,6 +389,16 @@ async function uploadImage(blob) {
   const { error } = await supa.storage.from('sd-media').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
   if (error) throw error;
   return supa.storage.from('sd-media').getPublicUrl(path).data.publicUrl;
+}
+
+// รูปทั้งเว็บ: id/URL ที่ตั้งไว้ (หรือรูปตั้งต้น) · siteImgUrl = แปลงเป็น URL พร้อมใช้
+const siteImgId = (key, def) => CACHE.kv.images?.[key] || def;
+const siteImgUrl = (key, def, w = 800) => imgUrl(siteImgId(key, def), w);
+// ไอคอนแท็บ (favicon) ตามรูปที่ตั้งไว้
+function applySiteIcons() {
+  const icon = siteImgId('icon', 'assets/icon-192.png');
+  document.querySelector('link[rel=icon]')?.setAttribute('href', icon);
+  document.querySelector('link[rel=apple-touch-icon]')?.setAttribute('href', icon);
 }
 
 // เสียง "ติ๊งหน่อง" สั้นๆ ด้วย Web Audio (ไม่ต้องมีไฟล์เสียง) — เบราว์เซอร์บางตัวต้องมีการคลิกในหน้าก่อนจึงจะเล่นเสียงได้

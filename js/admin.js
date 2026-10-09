@@ -55,6 +55,7 @@ const BO_NAV_BY_ROLE = {
     { g: 'รีสอร์ททุกแห่ง', items: [
       ['media', 'fa-images', 'สไลด์ & รูปรีสอร์ท', 'hotels.media', () => boDevMedia],
       ['devrooms', 'fa-bed', 'ห้อง & รูปห้อง', 'hotels.media', () => boRoomsPage],
+      ['siteimg', 'fa-image', 'รูปทั้งเว็บ (โลโก้ แบนเนอร์ ชายหาด)', 'hotels.media', () => boDevSiteImages],
     ] },
     { g: 'เทคนิค', items: [
       ['system', 'fa-microchip', 'สถานะระบบ', 'dev.console', () => boSystem],
@@ -134,7 +135,7 @@ function pageAdmin(app, params, section) {
   const alerts = boAlerts();
   app.innerHTML = `<div class="bo">
     <aside class="bo-side" id="bo-side">
-      <a href="#/admin" class="bo-brand"><span class="bo-logo"><img src="assets/icon-192.png" alt=""></span><div><b>${esc(u.role === 'owner' ? (u.biz?.resortName || u.name) : DB.settings().bizName)}</b><small>${PORTAL_INFO[u.role].title} · v${APP_VERSION}</small></div></a>
+      <a href="#/admin" class="bo-brand"><span class="bo-logo"><img src="${esc(siteImgId('icon', 'assets/icon-192.png'))}" alt=""></span><div><b>${esc(u.role === 'owner' ? (u.biz?.resortName || u.name) : DB.settings().bizName)}</b><small>${PORTAL_INFO[u.role].title} · v${APP_VERSION}</small></div></a>
       <div class="bo-me" style="--rc:${r.color}"><span class="bo-av" style="background:${r.color}">${esc(u.name[0] || '?')}</span><div><b>${esc(u.name)}</b><small><i class="fa-solid ${r.icon}"></i> ${r.label}</small></div></div>
       <nav class="bo-nav">${nav.map(g => { const its = g.items.filter(i => can(i[3]) && (!i[5] || i[5]() || i[0] === item[0])); return its.length ? `<div class="bo-g">${g.g}</div>${its.map(([k, ic, l]) => `<a href="#/admin/${k}" class="${k === item[0] ? 'active' : ''}"><i class="fa-solid ${ic}"></i><span>${l}</span>${k === 'sos' && alerts.sos ? `<em>${alerts.sos}</em>` : k === 'frontdesk' && alerts.arrivals ? `<em>${alerts.arrivals}</em>` : k === 'approvals' && alerts.approvals ? `<em>${alerts.approvals}</em>` : k === 'partners' && alerts.apps ? `<em>${alerts.apps}</em>` : ''}</a>`).join('')}` : ''; }).join('')}</nav>
       <div class="bo-side-foot"><a href="${siteUrl()}" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i><span>เปิดหน้าเว็บลูกค้า</span></a></div>
@@ -254,8 +255,8 @@ const portalLink = role => `<a href="${portalUrl(role)}">${PORTAL_INFO[role].tit
 function loginArt(role) {
   const P = PORTAL_INFO[role], R = ROLES[role];
   return `<div class="bo-login-art">
-      <a href="${siteUrl()}" class="bo-brand"><span class="bo-logo"><img src="assets/icon-192.png" alt=""></span><div><b>${esc(DB.settings().bizName)}</b><small>${P.en}</small></div></a>
-      <img class="bo-login-logo" src="assets/logo-800.jpg" alt="kohlarngo — ชมรมรีสอร์ท & ที่พัก เกาะล้าน" width="320" height="213">
+      <a href="${siteUrl()}" class="bo-brand"><span class="bo-logo"><img src="${esc(siteImgId('icon', 'assets/icon-192.png'))}" alt=""></span><div><b>${esc(DB.settings().bizName)}</b><small>${P.en}</small></div></a>
+      <img class="bo-login-logo" src="${esc(siteImgId('logo', 'assets/logo-800.jpg'))}" alt="kohlarngo — ชมรมรีสอร์ท & ที่พัก เกาะล้าน" width="320" height="213">
       <div><div class="portal-tag"><i class="fa-solid ${R.icon}"></i> ${P.title}</div><h1>${P.headline}</h1><p>${P.blurb}</p>
         <ul>${P.bullets.map(([ic, t]) => `<li><i class="fa-solid ${ic}"></i> ${t}</li>`).join('')}</ul></div>
       <small>© ${new Date().getFullYear()} ${esc(DB.settings().legalName)}</small>

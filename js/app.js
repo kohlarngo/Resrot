@@ -58,6 +58,7 @@ window.addEventListener('hashchange', () => CACHE.loaded && render());
 function boot() {
   $('#app').innerHTML = '<div class="container"><div class="empty" style="margin-top:60px"><i class="fa-solid fa-spinner fa-spin"></i><p class="muted">กำลังโหลดข้อมูล...</p></div></div>';
   DB.load().then(() => {
+    applySiteIcons();
     // กลับมาจากการล็อกอินด้วย Google / Facebook: พากลับหน้าที่ลูกค้าอยู่ก่อนกดล็อกอิน + แจ้งต้อนรับ / แจ้ง error
     const qs = new URLSearchParams(location.search);
     const oauthErr = qs.get('error_description') || qs.get('error');

@@ -485,3 +485,9 @@ body[data-portal] .bo-side { border-top: 4px solid var(--pc); }
 .im-url { width: 100%; }
 .sh-card { padding: 0; overflow: hidden; } .sh-cover { position: relative; aspect-ratio: 21 / 8; background: #eef1f6; } .sh-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .sh-body { padding: 18px 20px 20px; } .sh-thumbs { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; } .sh-thumbs img { width: 72px; height: 54px; object-fit: cover; border-radius: 8px; }
+
+/* รูปทั้งเว็บ (dev) */
+.si-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+.si-tile { border: 1px solid var(--bo-line); border-radius: 12px; overflow: hidden; background: #fff; }
+.si-img { position: relative; background: #eef1f6; width: 100%; } .si-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.si-body { padding: 12px; font-size: 13px; }
