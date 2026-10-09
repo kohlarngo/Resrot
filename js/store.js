@@ -398,7 +398,11 @@ async function uploadImage(blob) {
 }
 
 // รูปทั้งเว็บ: id/URL ที่ตั้งไว้ (หรือรูปตั้งต้น) · siteImgUrl = แปลงเป็น URL พร้อมใช้
-const siteImgId = (key, def) => CACHE.kv.images?.[key] || def;
+// ค่ารูปของช่อง: ข้อความ URL เดียว หรือ { list: [url...], seconds } (สไลด์หลายรูป)
+const siteImgVal = key => CACHE.kv.images?.[key];
+const siteImgList = (key, def) => { const v = siteImgVal(key); const l = v && typeof v === 'object' ? (v.list || []).filter(Boolean) : v ? [v] : []; return l.length ? l : [def]; };
+const siteImgSec = key => { const v = siteImgVal(key); return Math.min(15, Math.max(2, Math.round(+(v && typeof v === 'object' && v.seconds) || 5))); };
+const siteImgId = (key, def) => siteImgList(key, def)[0];
 const siteImgUrl = (key, def, w = 800) => imgUrl(siteImgId(key, def), w);
 // ไอคอนแท็บ (favicon) ตามรูปที่ตั้งไว้
 function applySiteIcons() {

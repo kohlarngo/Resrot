@@ -32,12 +32,20 @@ function bindCards(root) {
 }
 
 // ================= Home =================
+// รูปพื้นหลังที่สไลด์ได้ (แบนเนอร์ + โปรโมชั่น): เรียงรูปซ้อนกันแล้วค่อยๆ สลับ — ตั้งรูป/เวลาได้ในโหมดแก้ไข
+const bgSlides = (key, def, w) => `<div class="bgs" data-slide-sec="${siteImgSec(key)}">${siteImgList(key, def).map((u, i) => `<i class="${i ? '' : 'on'}" style="background-image:url('${esc(imgUrl(u, w))}')"></i>`).join('')}</div>`;
+function initBgSlides(root) {
+  $$('.bgs[data-slide-sec]', root).forEach(box => {
+    const layers = $$('i', box); if (layers.length < 2 || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    let i = 0; const t = setInterval(() => { if (!document.body.contains(box)) return clearInterval(t); if (document.hidden) return; layers[i].classList.remove('on'); i = (i + 1) % layers.length; layers[i].classList.add('on'); }, Math.max(2, +box.dataset.slideSec || 5) * 1000);
+  });
+}
 function pageHome(app) {
   const hotels = DB.hotels();
   const recent = DB.recent().map(id => DB.hotel(id)).filter(Boolean);
   const deals = [...hotels].sort((a, b) => Math.max(...b.rooms.map(r => r.discount)) - Math.max(...a.rooms.map(r => r.discount))).slice(0, 8);
   app.innerHTML = `
-  <div class="hero" data-img-slot="hero" style="background:linear-gradient(180deg,rgba(10,25,60,.35),rgba(10,25,60,.55)),url(${siteImgUrl('hero', IMG.pool2, 1800)}) center/cover"><div class="container">
+  <div class="hero" data-img-slot="hero">${bgSlides('hero', IMG.pool2, 1800)}<div class="hero-shade"></div><div class="container">
     <h1 data-edit="home.hero.title">ค้นหาที่พักราคาดีที่สุด</h1>
     <p class="sub" data-edit="home.hero.sub" data-edit-n="${hotels.length}">ที่พัก รีสอร์ท และพูลวิลล่ากว่า ${hotels.length} แห่งทั่วเกาะล้าน พร้อมราคาพิเศษเฉพาะสมาชิก</p>
     ${searchBoxHtml('hero')}
@@ -46,9 +54,9 @@ function pageHome(app) {
     <section class="block" style="padding-top:56px">
       <h2 class="sec-title" data-edit="home.promo.title">โปรโมชั่นที่คุณไม่ควรพลาด</h2>
       <div class="promo-row">
-        <div class="promo" data-img-slot="promo1" style="background-image:url(${siteImgUrl('promo1', IMG.beach1, 700)})" data-q="หาดแสม"><span class="tag" data-edit="home.promo1.tag">ลดสูงสุด 35%</span><h3 data-edit="home.promo1.title">ทะเลใสเกาะล้านเรียกหา</h3><p data-edit="home.promo1.text">รีสอร์ทริมหาดแสม ราคาพิเศษ</p></div>
-        <div class="promo" data-img-slot="promo2" style="background-image:url(${siteImgUrl('promo2', IMG.pool2, 700)})" data-copy="WELCOME10"><span class="tag" data-edit="home.promo2.tag">สมาชิกใหม่</span><h3 data-edit="home.promo2.title">ลดเพิ่ม 10%</h3><p>ใช้โค้ด <code>WELCOME10</code> (คลิกเพื่อคัดลอก)</p></div>
-        <div class="promo" data-img-slot="promo3" style="background-image:url(${siteImgUrl('promo3', IMG.villa1, 700)})" data-copy="SUMMER500"><span class="tag" data-edit="home.promo3.tag">ดีลพูลวิลล่า</span><h3 data-edit="home.promo3.title">ลดทันที ฿500</h3><p>ใช้โค้ด <code>SUMMER500</code> เมื่อจองครบ ฿3,000</p></div>
+        <div class="promo" data-img-slot="promo1" data-q="หาดแสม">${bgSlides('promo1', IMG.beach1, 700)}<span class="tag" data-edit="home.promo1.tag">ลดสูงสุด 35%</span><h3 data-edit="home.promo1.title">ทะเลใสเกาะล้านเรียกหา</h3><p data-edit="home.promo1.text">รีสอร์ทริมหาดแสม ราคาพิเศษ</p></div>
+        <div class="promo" data-img-slot="promo2" data-copy="WELCOME10">${bgSlides('promo2', IMG.pool2, 700)}<span class="tag" data-edit="home.promo2.tag">สมาชิกใหม่</span><h3 data-edit="home.promo2.title">ลดเพิ่ม 10%</h3><p>ใช้โค้ด <code>WELCOME10</code> (คลิกเพื่อคัดลอก)</p></div>
+        <div class="promo" data-img-slot="promo3" data-copy="SUMMER500">${bgSlides('promo3', IMG.villa1, 700)}<span class="tag" data-edit="home.promo3.tag">ดีลพูลวิลล่า</span><h3 data-edit="home.promo3.title">ลดทันที ฿500</h3><p>ใช้โค้ด <code>SUMMER500</code> เมื่อจองครบ ฿3,000</p></div>
       </div>
     </section>
     ${recent.length ? `<section class="block"><h2 class="sec-title">ที่พักที่คุณดูล่าสุด</h2><div class="card-grid">${recent.slice(0, 4).map(hotelCard).join('')}</div></section>` : ''}
@@ -76,6 +84,7 @@ function pageHome(app) {
     </section>
   </div>`;
   bindSearchBox(app);
+  initBgSlides(app);
   const showCity = c => { $('#city-grid').innerHTML = hotels.filter(h => h.city === c).slice(0, 4).map(hotelCard).join('') || '<p class="muted">ยังไม่มีที่พักในบริเวณนี้</p>'; bindCards($('#city-grid')); };
   $$('#city-chips .chip').forEach(c => c.onclick = () => { $$('#city-chips .chip').forEach(x => x.classList.toggle('active', x === c)); showCity(c.dataset.city); });
   showCity(DESTINATIONS[0].name);

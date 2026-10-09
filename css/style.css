@@ -83,7 +83,14 @@ img { display: block; max-width: 100%; }
 .menu-toggle { display: none; background: none; border: 0; font-size: 22px; }
 
 /* ---------- Hero / Search ---------- */
-.hero { position: relative; padding: 40px 0 70px; background: linear-gradient(180deg, rgba(10,25,60,.35), rgba(10,25,60,.55)), url('https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=1800&q=70') center/cover; }
+.hero { position: relative; padding: 40px 0 70px; background: #1b3a6e; }
+.hero > .container { position: relative; z-index: 1; }
+/* พื้นหลังสไลด์ได้ (แบนเนอร์ + โปรโมชั่น): ชั้นรูปซ้อนกัน สลับด้วยการจาง */
+.bgs { position: absolute; inset: 0; overflow: hidden; }
+.bgs i { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: 0; transition: opacity 1.1s ease; }
+.bgs i.on { opacity: 1; }
+.hero-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,25,60,.35), rgba(10,25,60,.55)); }
+.promo > .bgs { z-index: 0; } .promo::before { z-index: 1; } .promo > :not(.bgs) { z-index: 2; }
 .hero h1 { color: #fff; text-align: center; font-size: 34px; margin: 10px 0 4px; text-shadow: 0 2px 8px rgba(0,0,0,.3); }
 .hero p.sub { color: #fff; text-align: center; margin: 0 0 24px; font-size: 17px; opacity: .95; }
 .search-card { background: #fff; border-radius: 16px; box-shadow: var(--shadow-lg); padding: 24px 24px 28px; position: relative; }

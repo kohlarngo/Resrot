@@ -156,10 +156,10 @@ function buildSeedHotels() {
 const SITE_IMAGE_SLOTS = [
   { key: 'logo', group: 'แบรนด์', label: 'โลโก้เต็ม — หัวเว็บและหน้าล็อกอินหลังบ้าน', def: 'assets/logo-800.jpg', max: 1200, ratio: '3 / 2' },
   { key: 'icon', group: 'แบรนด์', label: 'ไอคอนสี่เหลี่ยม — แท็บเบราว์เซอร์และแถบข้างหลังบ้าน', def: 'assets/icon-192.png', max: 512, ratio: '1 / 1' },
-  { key: 'hero', group: 'หน้าแรก', label: 'พื้นหลังแบนเนอร์ค้นหา', def: IMG.pool2, max: 1800, ratio: '21 / 9' },
-  { key: 'promo1', group: 'หน้าแรก', label: 'โปรโมชั่น 1 — ทะเลใสเกาะล้าน (หาดแสม)', def: IMG.beach1, max: 900, ratio: '16 / 10' },
-  { key: 'promo2', group: 'หน้าแรก', label: 'โปรโมชั่น 2 — สมาชิกใหม่ ลดเพิ่ม 10%', def: IMG.pool2, max: 900, ratio: '16 / 10' },
-  { key: 'promo3', group: 'หน้าแรก', label: 'โปรโมชั่น 3 — ดีลพูลวิลล่า', def: IMG.villa1, max: 900, ratio: '16 / 10' },
+  { key: 'hero', group: 'หน้าแรก', label: 'พื้นหลังแบนเนอร์ค้นหา', def: IMG.pool2, max: 1800, ratio: '21 / 9', multi: true },
+  { key: 'promo1', group: 'หน้าแรก', label: 'โปรโมชั่น 1 — ทะเลใสเกาะล้าน (หาดแสม)', def: IMG.beach1, max: 900, ratio: '16 / 10', multi: true },
+  { key: 'promo2', group: 'หน้าแรก', label: 'โปรโมชั่น 2 — สมาชิกใหม่ ลดเพิ่ม 10%', def: IMG.pool2, max: 900, ratio: '16 / 10', multi: true },
+  { key: 'promo3', group: 'หน้าแรก', label: 'โปรโมชั่น 3 — ดีลพูลวิลล่า', def: IMG.villa1, max: 900, ratio: '16 / 10', multi: true },
   ...DESTINATIONS.slice(0, 6).map((d, i) => ({ key: 'dest' + i, group: 'ชายหาด / จุดหมาย', label: d.name, def: d.img, max: 800, ratio: '4 / 3' })),
   { key: 'mapbg', group: 'อื่นๆ', label: 'พื้นหลังปุ่ม "ดูบนแผนที่" (หน้าค้นหา)', def: 'photo-1524661135-423995f22d0b', max: 700, ratio: '5 / 2' },
 ];

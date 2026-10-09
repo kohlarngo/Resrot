@@ -261,15 +261,16 @@ function boDevMedia(main) {
 // ทุกช่องมีรูปตั้งต้นในโค้ด — ถ้าตั้งรูปใหม่ที่นี่จะใช้รูปใหม่ทั่วเว็บทันที · "คืนค่าเดิม" = กลับไปใช้รูปตั้งต้น
 function boDevSiteImages(main) {
   const cur = DB.siteImages(), groups = [...new Set(SITE_IMAGE_SLOTS.map(s => s.group))];
-  const tile = s => { const own = cur[s.key], src = own ? imgUrl(own, 700) : (/^(https?:|data:|assets\/)/.test(s.def) ? s.def : imgUrl(s.def, 700));
-    return `<div class="si-tile"><div class="si-img" style="aspect-ratio:${s.ratio}"><img src="${esc(src)}" alt="" onerror="this.onerror=null;this.src='https://picsum.photos/seed/${s.key}/600/400'">${own ? '<span class="im-badge">เปลี่ยนแล้ว</span>' : ''}</div>
-      <div class="si-body"><b>${esc(s.label)}</b><div class="row wrap" style="gap:6px;margin-top:8px"><button class="btn btn-primary btn-sm" data-up="${s.key}"><i class="fa-solid fa-camera"></i> เปลี่ยนรูป</button>
-        <button class="btn btn-outline btn-sm" data-url="${s.key}" title="วางลิงก์รูป"><i class="fa-solid fa-link"></i></button>${own ? `<button class="btn btn-ghost btn-sm" data-reset="${s.key}"><i class="fa-solid fa-rotate-left"></i> คืนค่าเดิม</button>` : ''}</div></div></div>`; };
+  const tile = s => { const own = cur[s.key], first = own && typeof own === 'object' ? own.list?.[0] : own, src = first ? imgUrl(first, 700) : (/^(https?:|data:|assets\/)/.test(s.def) ? s.def : imgUrl(s.def, 700));
+    return `<div class="si-tile"><div class="si-img" style="aspect-ratio:${s.ratio}"><img src="${esc(src)}" alt="" onerror="this.onerror=null;this.src='https://picsum.photos/seed/${s.key}/600/400'">${own ? `<span class="im-badge">${typeof own === 'object' ? 'สไลด์ ' + (own.list || []).length + ' รูป' : 'เปลี่ยนแล้ว'}</span>` : ''}</div>
+      <div class="si-body"><b>${esc(s.label)}</b><div class="row wrap" style="gap:6px;margin-top:8px">${s.multi ? `<button class="btn btn-primary btn-sm" data-slide="${s.key}"><i class="fa-solid fa-images"></i> สไลด์รูป</button>` : `<button class="btn btn-primary btn-sm" data-up="${s.key}"><i class="fa-solid fa-camera"></i> เปลี่ยนรูป</button>`}
+        ${s.multi ? '' : `<button class="btn btn-outline btn-sm" data-url="${s.key}" title="วางลิงก์รูป"><i class="fa-solid fa-link"></i></button>`}${own ? `<button class="btn btn-ghost btn-sm" data-reset="${s.key}"><i class="fa-solid fa-rotate-left"></i> คืนค่าเดิม</button>` : ''}</div></div></div>`; };
   main.innerHTML = pageHead('รูปทั้งเว็บ', 'เปลี่ยนรูปทุกอย่างในเว็บได้จากที่นี่ — โลโก้ ไอคอน แบนเนอร์และโปรโมชั่นหน้าแรก รูปชายหาด (รูปของแต่ละรีสอร์ทและห้องอยู่ที่เมนู "สไลด์ & รูปรีสอร์ท" / "ห้อง & รูปห้อง")')
     + groups.map(g => `<section class="card"><div class="card-h"><h3>${esc(g)}</h3></div><div class="si-grid">${SITE_IMAGE_SLOTS.filter(s => s.group === g).map(tile).join('')}</div></section>`).join('')
     + '<div class="notice info"><i class="fa-solid fa-circle-info"></i><div>รูปที่ลูกค้าเห็นตอนแชร์ลิงก์ใน Facebook / LINE (og-image) เป็นไฟล์ในเว็บ แก้ได้เฉพาะโดยการเปลี่ยนไฟล์ <code>assets/og-image.jpg</code></div></div>';
   const save = async (key, url, label) => { try { const r = await DB.saveSiteImages({ [key]: url }); if (!r) return; DB.log('site.image', `${label} ${url ? '→ เปลี่ยนรูป' : '→ คืนค่าเดิม'}`); applySiteIcons(); toast(url ? 'เปลี่ยนรูปแล้ว' : 'คืนรูปเดิมแล้ว'); boDevSiteImages(main); } catch (e) { toast('บันทึกไม่สำเร็จ: ' + e.message, 'err'); } };
   const slot = k => SITE_IMAGE_SLOTS.find(s => s.key === k);
+  $$('[data-slide]', main).forEach(b => b.onclick = () => slideSlotModal(slot(b.dataset.slide), () => boDevSiteImages(main)));
   $$('[data-up]', main).forEach(b => b.onclick = async () => { const s = slot(b.dataset.up);
     try { toast('เลือกรูปจากเครื่อง...', 'info'); const url = await pickAndUploadImage(s.max); if (url) await save(s.key, url, s.label); } catch (e) { toast('อัปโหลดรูปไม่สำเร็จ: ' + e.message, 'err'); } });
   $$('[data-url]', main).forEach(b => b.onclick = async () => { const s = slot(b.dataset.url);
@@ -301,4 +302,24 @@ function boDevContent(main) {
   $$('[data-ctdel]', main).forEach(b => b.onclick = () => { const [l, k] = b.dataset.ctdel.split('|'); commit(n => delete n.texts[l][k], `คืนค่าข้อความ ${l}/${k}`); });
   $$('[data-ctsty]', main).forEach(b => b.onclick = () => commit(n => delete n.styles[b.dataset.ctsty], `คืนค่าสไตล์ ${b.dataset.ctsty}`));
   $('#ct-all', main)?.addEventListener('click', async () => { if (await confirmBox('คืนข้อความและสไตล์ <b>ทั้งหมด</b> กลับเป็นค่าตั้งต้น? (รูปไม่ถูกแตะ)', 'คืนค่าทั้งหมด')) commit(n => { n.texts = { th: {}, en: {}, zh: {} }; n.styles = {}; }, 'คืนค่าเนื้อหาทั้งหมด'); });
+}
+
+// ================= สไลด์รูปของช่องรูปทั้งเว็บ (แบนเนอร์ / โปรโมชั่น) =================
+// ใส่ได้หลายรูป (อัปโหลดหรือวางลิงก์) + ตั้งเวลาเปลี่ยนรูป 2–15 วินาที — เก็บเป็น { list, seconds } ใน sd_kv 'images'
+// ไม่ใส่รูปเลย = ใช้รูปตั้งต้น · ใช้ทั้งในโหมดแก้ไขบนหน้าเว็บและหน้า dev "รูปทั้งเว็บ"
+function slideSlotModal(slot, done) {
+  const v = DB.siteImages()[slot.key];
+  const imgs = v ? (typeof v === 'object' ? [...(v.list || [])] : [v]) : [];
+  const sec0 = v && typeof v === 'object' && v.seconds ? Math.min(15, Math.max(2, Math.round(+v.seconds))) : 5;
+  const m = openModal(`<h2><i class="fa-solid fa-images"></i> สไลด์รูป <span class="small muted">· ${esc(slot.label)}</span></h2>
+    <p class="small muted" style="margin:6px 0 12px">ใส่ได้หลายรูป — ถ้ามีมากกว่า 1 รูปจะสไลด์อัตโนมัติ · รูปแรกแสดงก่อน · ไม่มีรูปเลย = ใช้รูปตั้งต้น</p>
+    <div id="ss-imgs"></div>
+    <div class="fg" style="margin-top:14px"><label>เปลี่ยนรูปทุก <b id="ss-v"></b></label><input type="range" id="ss-sec" min="2" max="15" step="1" value="${sec0}" style="width:100%;max-width:360px"></div>
+    <div class="row wrap" style="justify-content:flex-end;gap:8px;margin-top:16px"><button class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-outline" id="ss-reset"><i class="fa-solid fa-rotate-left"></i> คืนรูปเดิมทั้งหมด</button><button class="btn btn-primary" id="ss-save">บันทึก</button></div>`, 'wide');
+  imgManager($('#ss-imgs', m), imgs, { min: 0 });
+  const lbl = () => $('#ss-v', m).textContent = $('#ss-sec', m).value + ' วินาที';
+  $('#ss-sec', m).oninput = lbl; lbl();
+  const commit = async value => { const r = await DB.saveSiteImages({ [slot.key]: value }); if (!r) return; DB.log('site.image', `${slot.label} → ${value ? 'สไลด์ ' + (value.list ? value.list.length : 1) + ' รูป' : 'คืนค่าเดิม'}`); closeModal(); applySiteIcons(); toast(value ? 'บันทึกสไลด์แล้ว' : 'คืนรูปเดิมแล้ว'); done?.(); };
+  $('#ss-save', m).onclick = () => { const l = imgs.filter(Boolean); commit(!l.length ? null : l.length === 1 ? l[0] : { list: l, seconds: +$('#ss-sec', m).value }); };
+  $('#ss-reset', m).onclick = () => commit(null);
 }

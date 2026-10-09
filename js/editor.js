@@ -69,7 +69,8 @@ function edDecorate() {
     const tools = document.createElement('div');
     tools.className = 'ed-imgtools'; tools.setAttribute('data-notr', '');
     const mk = (cls, html, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'ed-chg ' + cls; b.innerHTML = html; b.onclick = async e => { e.preventDefault(); e.stopPropagation(); await fn(); }; tools.appendChild(b); };
-    mk('', '<i class="fa-solid fa-camera"></i> เปลี่ยนรูป', async () => {
+    if (slot.multi) mk('', '<i class="fa-solid fa-images"></i> สไลด์รูป', async () => slideSlotModal(slot, () => render()));
+    else mk('', '<i class="fa-solid fa-camera"></i> เปลี่ยนรูป', async () => {
       try {
         toast('เลือกรูปจากเครื่อง...', 'info');
         const url = await pickAndUploadImage(slot.max); if (!url) return;
