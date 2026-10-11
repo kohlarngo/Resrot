@@ -87,7 +87,7 @@ function readSearchFromParams(p) {
 function searchBoxHtml(mode = 'hero') {
   const fields = `
     <div class="field" data-pop="dest"><i class="fa-solid fa-magnifying-glass icon"></i>
-      <input id="sb-q" placeholder="ระบุหาด หรือชื่อที่พักบนเกาะล้าน" value="${esc(S.q)}" autocomplete="off">
+      <input id="sb-q" placeholder="ระบุหาด ชื่อที่พัก หรือสิ่งที่ต้องการ เช่น สัตว์เลี้ยงเข้าพักได้ ติดทะเล เช่า จยย" value="${esc(S.q)}" autocomplete="off">
     </div>
     <div class="field date-field" data-pop="cal">
       <div><i class="fa-regular fa-calendar icon"></i><span class="lbl" data-edit="search.checkin">เช็คอิน</span><span class="val" id="sb-in">${fmtDate(S.checkIn)}</span></div>
@@ -149,12 +149,15 @@ function bindSearchBox(root, onSearch) {
     const areas = [...new Set(hotels.filter(h => h.area.toLowerCase().includes(term)).map(h => h.area + '|' + h.city))];
     areas.slice(0, 4).forEach(a => { const [ar, c] = a.split('|'); out.push({ kind: 'area', t: ar, s: `ย่าน · ${c}`, v: ar }); });
     hotels.filter(h => h.name.toLowerCase().includes(term)).slice(0, 6).forEach(h => out.push({ kind: 'hotel', t: h.name, s: `${h.type} · ${h.city}`, v: h.name, id: h.id }));
-    return out;
+    // สิ่งที่ลูกค้าต้องการ (สัตว์เลี้ยง / ติดทะเล / เช่ามอเตอร์ไซค์ ...) — พิมพ์บางส่วนหรือพิมพ์ครบประโยคก็เจอ
+    AMEN_WORDS.forEach(g => { const k = g[0][0], label = AMENITIES[k][1];
+      if (label.toLowerCase().includes(term) || g.slice(1).some(w => w.includes(term) || term.includes(w))) out.push({ kind: 'feat', t: label, s: `สิ่งอำนวยความสะดวก · ${hotels.filter(h => g[0].some(x => h.amenities.includes(x))).length} ที่พัก`, v: g[1] }); });
+    return out.slice(0, 10);
   }
   function renderAc() {
     const items = acItems();
     acIndex = Math.min(acIndex, items.length - 1);
-    const icon = { city: 'fa-location-dot', area: 'fa-map-pin', hotel: 'fa-hotel' };
+    const icon = { city: 'fa-location-dot', area: 'fa-map-pin', hotel: 'fa-hotel', feat: 'fa-wand-magic-sparkles' };
     pop.innerHTML = `<div class="ac-list">${!q.value.trim() ? '<div class="ac-head">ชายหาดยอดนิยมบนเกาะล้าน</div>' : ''}${items.length ? items.map((it, i) => `<div class="ac-item ${i === acIndex ? 'active' : ''}" data-i="${i}"><i class="fa-solid ${icon[it.kind]}"></i><div><div class="t">${esc(it.t)}</div><div class="s">${esc(it.s)}</div></div></div>`).join('') : '<div class="ac-item muted">ไม่พบผลลัพธ์ — ลองคำค้นอื่น</div>'}</div>`;
     $$('.ac-item[data-i]', pop).forEach(el => el.onclick = () => pickAc(items[+el.dataset.i]));
   }

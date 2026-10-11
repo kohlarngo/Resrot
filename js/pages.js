@@ -154,10 +154,17 @@ resetFilters();
 
 function matchQuery(h, q) {
   if (!q) return true;
-  const t = q.toLowerCase();
+  const t = q.toLowerCase().trim();
   const d = DESTINATIONS.find(x => x.name === q || x.en.toLowerCase() === t);
   if (d) return h.city === d.name;
-  return [h.name, h.city, h.area, h.type].some(v => v.toLowerCase().includes(t));
+  if ([h.name, h.city, h.area, h.type].some(v => v.toLowerCase().includes(t))) return true; // พิมพ์ชื่อ/ย่านตรงๆ
+  // ค้นแบบธรรมชาติ: สิ่งอำนวยความสะดวก (ทุกข้อที่พิมพ์ต้องมี) + ชายหาด + คำที่เหลือต้องอยู่ในชื่อ/ย่าน/จุดเด่น/ชื่อห้อง
+  const p = parseSearch(q);
+  if (p.groups.length && !p.groups.every(gi => AMEN_WORDS[gi][0].some(k => h.amenities.includes(k)))) return false;
+  if (p.dest && h.city !== p.dest.name) return false;
+  if (!p.groups.length && !p.dest && p.tokens.length < 2) return false; // คำเดียวที่ไม่รู้จัก = ต้องตรงตามเดิม (ด้านบน)
+  const hay = [h.name, h.city, h.area, h.type, ...(h.highlights || []), ...h.rooms.map(r => r.name)].join(' ').toLowerCase();
+  return p.tokens.every(w => hay.includes(w));
 }
 
 function pageSearch(app, params) {
@@ -171,7 +178,7 @@ function pageSearch(app, params) {
       <div class="results-layout" style="padding-top:0">
         <aside class="filters" id="filters"></aside>
         <div>
-          <div class="res-head"><h2 id="res-title"></h2>
+          <div class="res-head"><div><h2 id="res-title"></h2><div id="res-hint" class="small muted" style="margin-top:2px"></div></div>
             <div class="row"><button class="btn btn-outline btn-sm" id="f-toggle" style="display:none"><i class="fa-solid fa-sliders"></i> <span data-edit="search.filter.toggle">ตัวกรอง</span></button>
             <button class="btn btn-outline btn-sm" id="view-t"></button></div></div>
           <div class="sort-bar" id="sort-bar">
@@ -230,7 +237,7 @@ function renderFilters() {
     <div class="f-sec"><h4 data-edit="search.filter.stars">ระดับดาว</h4>${[5, 4, 3, 2].map(s => ck('stars', s, starsHtml(s), count(h => h.stars === s))).join('')}</div>
     <div class="f-sec"><h4 data-edit="search.filter.score">คะแนนรีวิว</h4>${[[9, 'ยอดเยี่ยม 9+'], [8.5, 'ดีเยี่ยม 8.5+'], [8, 'ดีมาก 8+'], [7, 'ดี 7+'], [0, 'ทั้งหมด']].map(([v, l]) => `<label class="ck"><input type="radio" name="score" value="${v}" ${F.score === v ? 'checked' : ''}> ${l}<span class="cnt">${count(h => h.rating >= v)}</span></label>`).join('')}</div>
     <div class="f-sec"><h4 data-edit="search.filter.type">ประเภทที่พัก</h4>${types.map(t => ck('types', t, t, count(h => h.type === t))).join('')}</div>
-    <div class="f-sec"><h4 data-edit="search.filter.amen">สิ่งอำนวยความสะดวก</h4>${['pool', 'beach', 'spa', 'gym', 'parking', 'airport', 'kids', 'pets', 'restaurant'].map(a => ck('amen', a, `<i class="fa-solid ${AMENITIES[a][0]} muted" style="width:16px"></i> ${AMENITIES[a][1]}`, count(h => h.amenities.includes(a)))).join('')}</div>
+    <div class="f-sec"><h4 data-edit="search.filter.amen">สิ่งอำนวยความสะดวก</h4>${['pool', 'beach', 'spa', 'gym', 'parking', 'airport', 'kids', 'pets', 'freebike', 'restaurant'].map(a => ck('amen', a, `<i class="fa-solid ${AMENITIES[a][0]} muted" style="width:16px"></i> ${AMENITIES[a][1]}`, count(h => h.amenities.includes(a)))).join('')}</div>
     ${areas.length > 1 ? `<div class="f-sec"><h4 data-edit="search.filter.area">ย่าน / พื้นที่</h4>${areas.map(a => ck('areas', a, a, count(h => h.area === a))).join('')}</div>` : ''}`;
   const fl = $('#filters');
   const upd = () => { page = 1; renderResults(); };
@@ -296,6 +303,8 @@ function renderResults() {
   const list = sortList(applyFilters(baseResults()));
   const available = list.filter(x => x.best).length;
   $('#res-title').textContent = `${S.q || 'ทุกจุดหมาย'}: พบที่พัก ${list.length} แห่ง${available < list.length ? ` (ว่าง ${available})` : ''}`;
+  const ps = S.q ? parseSearch(S.q) : null; // บอกลูกค้าว่าระบบเข้าใจคำค้นว่าอย่างไร
+  $('#res-hint').innerHTML = ps && (ps.groups.length || ps.dest) ? `<i class="fa-solid fa-wand-magic-sparkles"></i> กรองตาม: ${[ps.dest && 'ย่าน' + ps.dest.name, ...ps.labels].filter(Boolean).map(esc).join(' · ')}` : '';
   $('#view-t').innerHTML = viewMode === 'list' ? '<i class="fa-solid fa-map"></i> แผนที่' : '<i class="fa-solid fa-list"></i> รายการ';
   const box = $('#results');
   if (mapInst) { mapInst.remove(); mapInst = null; }

@@ -35,6 +35,69 @@ const DESTINATIONS = [
   { name: 'หาดสังวาลย์', en: 'Sangwan Beach', img: 'photo-1610641818989-c2051b5e2cfd', lat: 12.92655, lng: 100.77275 },
 ];
 
+// คำค้นแบบธรรมชาติ: พิมพ์สิ่งที่ต้องการได้เลย เช่น "สัตว์เลี้ยงเข้าพักได้ ติดทะเล เช่า จยย" → แปลงเป็นสิ่งอำนวยความสะดวกที่ที่พักต้องมี
+// [คำที่แสดงในช่องค้นหา, ...คำพ้องความหมาย (ตัวพิมพ์เล็ก)] · คีย์ตรงกับ AMENITIES · ค่าเป็น array = มีอย่างใดอย่างหนึ่งก็ผ่าน
+const AMEN_WORDS = [
+  [['pets'], 'สัตว์เลี้ยง', 'น้องหมา', 'น้องแมว', 'พาหมา', 'พาแมว', 'หมา', 'แมว', 'เลี้ยงสัตว์', 'pets', 'pet', 'dogs', 'dog', 'cats', 'cat'],
+  [['beach'], 'ติดทะเล', 'ติดชายหาด', 'ริมทะเล', 'ริมหาด', 'ติดหาด', 'หน้าหาด', 'วิวทะเล', 'beachfront', 'seaside', 'oceanfront'],
+  [['freebike'], 'แถมมอเตอร์ไซค์', 'แถมรถ'], // พิมพ์ "แถม จยย" / "จยย ฟรี" ก็ถูกจับเป็นกลุ่มนี้ (ดู parseSearch)
+  [['bike', 'freebike'], 'เช่ามอเตอร์ไซค์', 'มอเตอร์ไซค์', 'มอเตอร์ไซด์', 'มอเตอร์ไซต์', 'มอไซค์', 'มอไซด์', 'มอไซ', 'จยย', 'จักรยาน', 'เช่ารถ', 'motorbike', 'motorcycle', 'scooter', 'bicycle', 'bike'],
+  [['pool'], 'สระว่ายน้ำ', 'สระน้ำ', 'สระ', 'พูล', 'swimming', 'pool'],
+  [['wifi'], 'ไวไฟ', 'อินเทอร์เน็ต', 'อินเตอร์เน็ต', 'wi-fi', 'wifi'],
+  [['parking'], 'ที่จอดรถ', 'จอดรถ', 'parking'],
+  [['breakfast'], 'อาหารเช้า', 'breakfast'],
+  [['spa'], 'นวดแผนไทย', 'สปา', 'นวด', 'spa'],
+  [['gym'], 'ฟิตเนส', 'ยิม', 'gym', 'fitness'],
+  [['restaurant'], 'ห้องอาหาร', 'ร้านอาหาร', 'restaurant'],
+  [['bar'], 'บาร์', 'bar'],
+  [['airport', 'shuttle'], 'รถรับส่ง', 'รับส่งท่าเรือ', 'รับส่ง', 'shuttle'],
+  [['kids'], 'เด็กเล็ก', 'เด็ก', 'kids'],
+  [['ac'], 'เครื่องปรับอากาศ', 'แอร์', 'air con'],
+  [['snorkel'], 'ดำน้ำตื้น', 'ดำน้ำ', 'snorkel', 'diving'],
+  [['bbq'], 'บาร์บีคิว', 'ปิ้งย่าง', 'bbq'],
+  [['kitchen'], 'ครัวส่วนตัว', 'ครัว', 'kitchen'],
+  [['coffee'], 'คาเฟ่', 'กาแฟ', 'cafe', 'coffee'],
+  [['karaoke'], 'คาราโอเกะ', 'karaoke'],
+  [['ev'], 'ชาร์จรถ', 'ที่ชาร์จ', 'ev charger'],
+  [['sunset'], 'พระอาทิตย์ตก', 'ชมพระอาทิตย์', 'sunset'],
+  [['tv'], 'ทีวี', 'smart tv'],
+  [['nosmoke'], 'ปลอดบุหรี่', 'ห้ามสูบบุหรี่', 'non-smoking'],
+  [['safe'], 'ตู้เซฟ', 'safe'],
+  [['laundry'], 'ซักรีด', 'ซักผ้า', 'laundry'],
+];
+// คำเชื่อม/คำขยายที่ไม่ใช่เงื่อนไข (ตัดทิ้งก่อนจับคู่ชื่อที่พัก)
+const SEARCH_STOP = ['เข้าพักได้', 'เข้าพัก', 'อนุญาต', 'ให้เช่า', 'ที่พัก', 'อยากได้', 'อยาก', 'แถวๆ', 'แถวนี้', 'แถว', 'แถน', 'ใกล้ๆ', 'ใกล้', 'ต้องการ', 'ขอ', 'ที่มี', 'มี', 'ได้', 'เช่า', 'และ', 'กับ', 'ฟรี', 'ที่'];
+const AMEN_SYN = AMEN_WORDS.flatMap((g, gi) => g.slice(1).map(w => [w, gi])).sort((a, b) => b[0].length - a[0].length);
+const _parsed = {};
+function parseSearch(q) {
+  const key = String(q || '');
+  if (_parsed[key]) return _parsed[key];
+  let t = key.toLowerCase().trim();
+  const groups = [];
+  // "แถม จยย" / "จยย ฟรี" = ที่พักที่แถมมอเตอร์ไซค์ให้ฟรี (ต่างจาก "จยย" เฉยๆ ที่หมายถึงมีมอเตอร์ไซค์ให้เช่าหรือแถมก็ได้)
+  t = t.replace(/แถน/g, 'แถม');
+  const FREE = /แถม|ฟรี|free|complimentary/g, BIKE = /จยย|มอเตอร์ไซ[คดต]?์?|มอไซ[คดต]?|จักรยาน|motorbike|motorcycle|scooter|bike/g;
+  if (new RegExp(FREE.source).test(t) && new RegExp(BIKE.source).test(t)) {
+    groups.push(AMEN_WORDS.findIndex(g => g[0][0] === 'freebike'));
+    t = t.replace(BIKE, ' ').replace(FREE, ' ');
+  }
+  for (const [w, gi] of AMEN_SYN) {
+    const re = /^[a-z][a-z\- ]*$/.test(w) ? new RegExp(`(^|[^a-z])${w}(?![a-z])`) : null; // คำอังกฤษต้องเป็นคำเต็ม (กัน cat ใน location)
+    if (re ? !re.test(t) : !t.includes(w)) continue;
+    if (!groups.includes(gi)) groups.push(gi);
+    t = re ? t.replace(new RegExp(re.source, 'g'), '$1 ') : t.split(w).join(' ');
+  }
+  let dest = null;
+  for (const d of [...DESTINATIONS].sort((a, b) => b.name.length - a.name.length)) {
+    const n = d.name.toLowerCase(), e = d.en.toLowerCase();
+    if (t.includes(n)) { dest = d; t = t.split(n).join(' '); break; }
+    if (t.includes(e)) { dest = d; t = t.split(e).join(' '); break; }
+  }
+  if (groups.length || dest) for (const w of SEARCH_STOP) t = t.split(w).join(' ');
+  const tokens = t.split(/\s+/).filter(Boolean);
+  return (_parsed[key] = { groups, dest, tokens, labels: groups.map(gi => AMENITIES[AMEN_WORDS[gi][0][0]][1]) });
+}
+
 const AMENITIES = {
   wifi: ['fa-wifi', 'Wi-Fi ฟรี'],
   pool: ['fa-person-swimming', 'สระว่ายน้ำ'],
@@ -55,6 +118,7 @@ const AMENITIES = {
   snorkel: ['fa-person-snorkeling', 'ดำน้ำตื้น / เช่าอุปกรณ์'],
   bbq: ['fa-fire', 'เตาบาร์บีคิว'],
   bike: ['fa-bicycle', 'จักรยาน / มอเตอร์ไซค์เช่า'],
+  freebike: ['fa-motorcycle', 'แถมมอเตอร์ไซค์ฟรี'],
   tv: ['fa-tv', 'สมาร์ททีวี'],
   kitchen: ['fa-kitchen-set', 'ครัวส่วนตัว'],
   shuttle: ['fa-van-shuttle', 'รถรับส่งรอบเกาะ'],
