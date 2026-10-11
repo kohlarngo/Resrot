@@ -202,6 +202,44 @@ const DB = {
     dbWrite(supa.from('sd_bookings').update({ data: CACHE.bookings[i] }).eq('id', id), 'การจอง');
     return CACHE.bookings[i];
   },
+  // ---- ทะเบียนผู้เข้าพัก (เช็คอินไม่ใช้กระดาษ) — เจ้าของรีสอร์ทนั้นเท่านั้นที่อ่านได้ (RLS) ----
+  async checkinGet(bookingId) {
+    const { data, error } = await supa.from('sd_checkins').select('data,created_at').eq('booking_id', bookingId).maybeSingle();
+    if (error) throw error;
+    return data ? { ...data.data, savedAt: data.created_at } : null;
+  },
+  // แอดมินเห็นเฉพาะชื่อผู้เข้าพัก (ไม่มีรูป/เลขเอกสาร/ลายเซ็น) — ฟังก์ชันฐานข้อมูลคืนเฉพาะฟิลด์เหล่านี้
+  async checkinNames(bookingId) {
+    const { data, error } = await supa.rpc('sd_checkin_names', { p_booking: bookingId });
+    if (error) throw error;
+    return data;
+  },
+  // นักพัฒนา: รายการทะเบียนทั้งหมด (ใหม่สุดก่อน)
+  async checkinList() {
+    const { data, error } = await supa.from('sd_checkins').select('booking_id,hotel_id,data,created_at').order('created_at', { ascending: false }).limit(500);
+    if (error) throw error;
+    return data.map(r => ({ bookingId: r.booking_id, hotelId: r.hotel_id, savedAt: r.created_at, ...r.data }));
+  },
+  async checkinUpload(hotelId, bookingId, blob, name, type = 'image/jpeg') {
+    const path = `${hotelId}/${bookingId}/${Date.now()}-${name}.${type === 'image/png' ? 'png' : 'jpg'}`;
+    const { error } = await supa.storage.from('sd-checkin').upload(path, blob, { contentType: type, upsert: false });
+    if (error) throw new Error('อัปโหลดไม่สำเร็จ: ' + error.message);
+    return path;
+  },
+  async checkinSave(hotelId, bookingId, data) {
+    const { error } = await supa.from('sd_checkins').upsert({ booking_id: bookingId, hotel_id: hotelId, data, updated_at: new Date().toISOString() }, { onConflict: 'booking_id' });
+    if (error) throw error;
+  },
+  async checkinUrl(path) {
+    const { data, error } = await supa.storage.from('sd-checkin').createSignedUrl(path, 300);
+    return error ? null : data.signedUrl;
+  },
+  // ลบทะเบียน + ไฟล์รูปทั้งหมดของการจองนี้ (ใช้เมื่อพ้นระยะเวลาเก็บข้อมูล หรือแขกขอให้ลบ)
+  async checkinDelete(bookingId, paths) {
+    if (paths.length) await supa.storage.from('sd-checkin').remove(paths);
+    const { error } = await supa.from('sd_checkins').delete().eq('booking_id', bookingId);
+    if (error) throw error;
+  },
   deleteBooking(id) {
     CACHE.bookings = CACHE.bookings.filter(b => b.id !== id);
     return dbWrite(supa.from('sd_bookings').delete().eq('id', id), 'ลบการจอง');
@@ -544,6 +582,7 @@ const PERMS = {
   'hotels.media': 'แก้รูป / สไลด์ / ข้อมูลที่พักของทุกรีสอร์ท (นักพัฒนา)',
   'hotels.edit':'จัดการที่พัก ห้อง รูป และราคา',
   'coupons.edit': 'จัดการโค้ดส่วนลด',
+  'checkin.view': 'เปิดดูทะเบียนผู้เข้าพัก + รูปบัตร/พาสปอร์ต (อ่านอย่างเดียว) (นักพัฒนา)',
   'ads.manage': 'จัดการโฆษณา (แบนเนอร์ / รีสอร์ทแนะนำ / การ์ดโฆษณา) (นักพัฒนา)',
   'payout.edit': 'ตั้งค่าบัญชีรับเงินของรีสอร์ท',
   'reviews.view': 'ดูรีวิวจากลูกค้า',

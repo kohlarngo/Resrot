@@ -63,6 +63,7 @@ const BO_NAV_BY_ROLE = {
       ['devrooms', 'fa-bed', 'ห้อง & รูปห้อง', 'hotels.media', () => boRoomsPage],
       ['content', 'fa-pen-to-square', 'แก้หน้าเว็บ (ข้อความ / สี / รูป)', 'hotels.media', () => boDevContent],
       ['siteimg', 'fa-image', 'รูปทั้งเว็บ (โลโก้ แบนเนอร์ ชายหาด)', 'hotels.media', () => boDevSiteImages],
+      ['checkins', 'fa-id-card', 'ทะเบียนผู้เข้าพัก (ดูอย่างเดียว)', 'checkin.view', () => boCheckins],
       ['ads', 'fa-bullhorn', 'โฆษณา', 'ads.manage', () => admAds],
     ] },
     { g: 'เทคนิค', items: [
@@ -469,6 +470,7 @@ async function bkAction(id, act, refresh = () => render()) {
     log = 'booking.reject'; msg = 'ปฏิเสธการจองแล้ว';
   } else if (act === 'checkin') {
     if (!can('frontdesk')) return deny();
+    if (typeof ckEnsure === 'function' && !(await ckEnsure(b))) return false; // ลงทะเบียนผู้เข้าพัก (ถ่ายรูปบัตร + เซ็นบนจอ) ก่อนเช็คอิน — ข้ามได้
     patch = { checkedInAt: now, checkedInBy: u.name, status: 'confirmed' };
     if (!b.payment.paid) {
       if (!(await confirmBox(`การจอง ${b.id} ยังค้างชำระ <b>${money(b.price.total)}</b> (${PAY_TH[b.payment.method]})<br>รับชำระเงินแล้วเช็คอินเลยหรือไม่?`, 'รับเงิน & เช็คอิน'))) return false;
@@ -521,6 +523,7 @@ function bookingDrawer(id, refresh = () => render()) {
     <div class="dr-sec"><h4><i class="fa-regular fa-user"></i> ผู้เข้าพัก</h4>
       ${row('ชื่อ', esc(guestName(b)))}${row('อีเมล', `<a href="mailto:${esc(b.guest.email)}">${esc(b.guest.email)}</a>`)}${row('โทร', `<a href="tel:${esc(b.guest.phone)}">${esc(b.guest.phone)}</a>`)}
       ${row('จำนวน', `ผู้ใหญ่ ${b.adults}${b.children ? ` · เด็ก ${b.children}` : ''}`)}${req.length ? row('คำขอพิเศษ', esc(req.join(', '))) : ''}</div>
+    ${(can('frontdesk') || isAdmin(DB.currentUser())) && b.status !== 'cancelled' ? '<div class="dr-sec" id="ck-sec"></div>' : ''}
     <div class="dr-sec"><h4><i class="fa-solid fa-hotel"></i> การเข้าพัก</h4>
       ${row('ที่พัก', esc(b.hotelName))}${row('ห้อง', `${b.qty} × ${esc(b.roomName)}`)}${row('เช็คอิน', fmtDate(b.checkIn))}${row('เช็คเอาท์', fmtDate(b.checkOut))}${row('จำนวนคืน', b.nights + ' คืน')}</div>
     <div class="dr-sec"><h4><i class="fa-solid fa-receipt"></i> ค่าใช้จ่าย</h4>
@@ -532,6 +535,7 @@ function bookingDrawer(id, refresh = () => render()) {
       ${can('bookings.edit') || can('frontdesk') ? '<form id="dr-note" class="row" style="margin-top:8px"><input placeholder="เพิ่มโน้ต เช่น แขกขอเตียงเสริม" style="flex:1"><button class="btn btn-sm btn-outline">บันทึก</button></form>' : ''}</div>`, 'drawer');
   $$('[data-dact]', m).forEach(btn => btn.onclick = async () => { if (await bkAction(id, btn.dataset.dact, refresh)) bookingDrawer(id, refresh); });
   loadSlips(m);
+  if (typeof ckDrawer === 'function') ckDrawer(m, b);
   const nf = $('#dr-note', m);
   if (nf) nf.onsubmit = e => {
     e.preventDefault();
@@ -1784,7 +1788,7 @@ function boSettings(main) {
 // ================= Audit log =================
 const AUDIT_TH = {
   'auth.login': 'เข้าสู่ระบบ', 'auth.logout': 'ออกจากระบบ', 'auth.fail': 'ใส่รหัสผ่านผิด',
-  'booking.pay': 'รับชำระเงิน', 'booking.confirm': 'ยืนยันการจอง', 'booking.checkin': 'เช็คอิน', 'booking.checkout': 'เช็คเอาท์', 'booking.cancel': 'ยกเลิกการจอง', 'booking.delete': 'ลบการจอง', 'booking.note': 'เพิ่มโน้ต', 'booking.export': 'ส่งออกการจอง',
+  'booking.pay': 'รับชำระเงิน', 'checkin.register': 'ลงทะเบียนผู้เข้าพัก', 'checkin.print': 'พิมพ์ทะเบียนผู้เข้าพัก', 'checkin.view': 'เปิดดูรูปเอกสารผู้เข้าพัก', 'checkin.delete': 'ลบข้อมูลเอกสารผู้เข้าพัก', 'booking.confirm': 'ยืนยันการจอง', 'booking.checkin': 'เช็คอิน', 'booking.checkout': 'เช็คเอาท์', 'booking.cancel': 'ยกเลิกการจอง', 'booking.delete': 'ลบการจอง', 'booking.note': 'เพิ่มโน้ต', 'booking.export': 'ส่งออกการจอง',
   'hotel.save': 'บันทึกที่พัก', 'hotel.delete': 'ลบที่พัก', 'hotel.toggle': 'เปิด/ปิดขาย', 'coupon.add': 'เพิ่มโค้ด', 'coupon.toggle': 'เปิด/ปิดโค้ด', 'coupon.delete': 'ลบโค้ด', 'review.delete': 'ลบรีวิว', 'sos.status': 'อัปเดตเหตุฉุกเฉิน', 'sos.contacts': 'แก้เบอร์ฉุกเฉิน',
   'staff.add': 'เพิ่มทีมงาน', 'staff.edit': 'แก้ไขทีมงาน', 'staff.suspend': 'ระงับบัญชี', 'staff.activate': 'เปิดใช้บัญชี', 'staff.delete': 'ลบทีมงาน', 'staff.resetpw': 'รีเซ็ตรหัสผ่าน',
   'booking.approve': 'อนุมัติการจอง', 'booking.reject': 'ปฏิเสธการจอง', 'payout.save': 'ตั้งค่าบัญชีรับเงิน',
