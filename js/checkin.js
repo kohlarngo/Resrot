@@ -18,6 +18,7 @@ function ckDocOk(g) {
 function ckForm(b, { allowSkip = false } = {}) {
   return new Promise(resolve => {
     const total = Math.max(1, (b.adults || 1) + (b.children || 0));
+    const rules = String(DB.hotel(b.hotelId)?.houseRules || '').split('\n').map(x => x.trim()).filter(Boolean); // กฎที่เจ้าของตั้ง ณ ตอนนี้ (เก็บสำเนาไว้ในทะเบียนที่เซ็น)
     const guests = [{ name: guestName(b), docType: 'idcard', docNo: '', nation: 'ไทย', photo: null, url: '' }];
     const ov = document.createElement('div');
     ov.className = 'ck-screen';
@@ -30,6 +31,9 @@ function ckForm(b, { allowSkip = false } = {}) {
       <section class="ck-card"><h3>ข้อมูลติดต่อ</h3><div class="form-grid">
         <div class="fg"><label>เบอร์โทร</label><input id="ck-phone" type="tel" inputmode="tel" value="${esc(b.guest.phone || '')}" maxlength="30"></div>
         <div class="fg"><label>ทะเบียนรถ / มอเตอร์ไซค์ (ถ้ามี)</label><input id="ck-car" maxlength="30" placeholder="เช่น กข 1234 ชลบุรี"></div></div></section>
+      ${rules.length ? `<section class="ck-card"><h3><i class="fa-solid fa-scale-balanced"></i> กฎของรีสอร์ท</h3>
+        <ol class="ck-rules">${rules.map(r => `<li>${esc(r)}</li>`).join('')}</ol>
+        <label class="small" style="display:flex;gap:8px;align-items:flex-start;margin-top:8px"><input type="checkbox" id="ck-rules" style="margin-top:3px"><span><b>ข้าพเจ้าได้อ่านและยอมรับกฎของรีสอร์ทข้างต้นทุกข้อ</b></span></label></section>` : ''}
       <section class="ck-card"><h3>ลายเซ็นผู้เข้าพัก</h3>
         <label class="small" style="display:flex;gap:8px;align-items:flex-start;margin-bottom:10px"><input type="checkbox" id="ck-consent" style="margin-top:3px"><span>${CK_CONSENT}</span></label>
         <canvas id="ck-sig" class="ck-sig" aria-label="พื้นที่เซ็นชื่อ"></canvas>
@@ -111,6 +115,7 @@ function ckForm(b, { allowSkip = false } = {}) {
         if (!g.nation.trim()) return err(`${who}: กรุณากรอกสัญชาติ`);
         if (!g.photo) return err(`${who}: กรุณาถ่ายรูปเอกสาร`);
       }
+      if (rules.length && !$('#ck-rules', ov).checked) return err('ผู้เข้าพักต้องติ๊กยอมรับกฎของรีสอร์ทก่อน');
       if (!$('#ck-consent', ov).checked) return err('ผู้เข้าพักต้องติ๊กยินยอมให้เก็บข้อมูลก่อน');
       if (!dirty) return err('กรุณาให้ผู้เข้าพักเซ็นชื่อ');
       const wantPrint = $('#ck-print', ov).checked; try { localStorage.setItem('sd_ck_print', wantPrint ? '1' : '0'); } catch {}
@@ -126,7 +131,7 @@ function ckForm(b, { allowSkip = false } = {}) {
         const sigBlob = await new Promise(r => cv.toBlob(r, 'image/png'));
         const signature = await DB.checkinUpload(b.hotelId, b.id, sigBlob, 'sign', 'image/png'); uploaded.push(signature);
         const now = new Date().toISOString(), u = DB.currentUser();
-        const regData = { guests: out, phone: $('#ck-phone', ov).value.trim(), vehicle: $('#ck-car', ov).value.trim(), signature, consentAt: now, registeredAt: now, registeredBy: u?.name || '' };
+        const regData = { guests: out, phone: $('#ck-phone', ov).value.trim(), vehicle: $('#ck-car', ov).value.trim(), signature, consentAt: now, registeredAt: now, registeredBy: u?.name || '', ...(rules.length ? { rules: rules.join('\n'), rulesAcceptedAt: now } : {}) };
         await DB.checkinSave(b.hotelId, b.id, regData);
         DB.log('checkin.register', `${b.id} · ${out.length} ท่าน`);
         toast('บันทึกทะเบียนผู้เข้าพักแล้ว'); finish('saved');
@@ -175,6 +180,7 @@ async function ckDrawer(m, b) {
       <p class="small muted" style="margin:0 0 8px"><i class="fa-regular fa-clock"></i> ระบบลบรูปและข้อมูลเอกสารอัตโนมัติใน ${ckExpiry(reg).left} วัน (${fmtDate(isoOf(ckExpiry(reg).date), false)})</p>
       ${reg.guests.map((g, i) => `<div class="dl"><span>${esc(g.name)}<div class="small muted">${esc(CK_DOC[g.docType] || '')} ${esc(g.docNo)} · ${esc(g.nation)}</div></span><b><button class="btn btn-sm btn-outline" data-ckv="${esc(g.photo)}"><i class="fa-regular fa-image"></i> ดูรูปเอกสาร</button></b></div>`).join('')}
       ${reg.vehicle ? `<div class="dl"><span>ทะเบียนรถ</span><b>${esc(reg.vehicle)}</b></div>` : ''}
+      ${reg.rules ? `<div class="dl"><span>กฎของรีสอร์ท</span><b><span class="pill ok">รับทราบแล้ว</span></b></div>` : ''}
       <div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn btn-sm btn-outline" data-ckv="${esc(reg.signature)}"><i class="fa-solid fa-signature"></i> ดูลายเซ็น</button>
         <button class="btn btn-sm btn-primary" id="ck-prt"><i class="fa-solid fa-print"></i> พิมพ์ / บันทึกเป็น PDF</button>
         <button class="btn btn-sm btn-ghost red" id="ck-del"><i class="fa-solid fa-trash"></i> ลบข้อมูลเอกสาร</button></div>`;
@@ -261,6 +267,7 @@ async function ckPrint(b, reg, w) {
         ${reg.guests.map((g, i) => `<tr><td>${i + 1}</td><td>${T(g.name)}</td><td>${T(CK_DOC[g.docType] || '')}</td><td>${T(g.docNo)}</td><td>${T(g.nation)}</td></tr>`).join('')}</tbody></table>
       <h2>สำเนาเอกสารประจำตัว</h2>
       <div>${reg.guests.map((g, i) => photos[i] ? `<div class="ph"><img src="${photos[i]}" alt=""><div class="muted">ผู้เข้าพักท่านที่ ${i + 1} — ${T(g.name)}</div></div>` : '').join('')}</div>
+      ${reg.rules ? `<h2>กฎของรีสอร์ท <span style="font-weight:400;font-size:12px">(ผู้เข้าพักรับทราบและยอมรับ เมื่อ ${T(fmtDateTime(reg.rulesAcceptedAt || reg.registeredAt))})</span></h2><ol style="margin:4px 0 0;padding-left:22px">${reg.rules.split('\n').map(r => `<li>${T(r)}</li>`).join('')}</ol>` : ''}
       <div class="box">${CK_CONSENT.replace('จะถูกลบอัตโนมัติเมื่อครบ 45 วัน', 'จะถูกลบออกจากระบบอัตโนมัติเมื่อครบ 45 วัน')}</div>
       <div class="sig"><div>${sig ? `<img src="${sig}" alt="ลายเซ็น">` : ''}<div>(${T(reg.guests[0]?.name || '')})</div><div class="muted">ลายเซ็นผู้เข้าพัก</div></div>
         <div style="text-align:right"><div class="muted">ลงทะเบียนเมื่อ</div><div>${T(fmtDateTime(reg.registeredAt || reg.savedAt))}</div><div class="muted">ผู้รับลงทะเบียน: ${T(reg.registeredBy || '')}</div></div></div>

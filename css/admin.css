@@ -512,3 +512,4 @@ body[data-portal] .bo-side { border-top: 4px solid var(--pc); }
 .ck-actions { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--bo-line, #e3e8ef); padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 10px; justify-content: center; z-index: 2; }
 .ck-actions .btn { min-height: 48px; }
 .ck-actions .btn-primary { flex: 1; max-width: 360px; }
+.ck-rules { margin: 0; padding-left: 22px; font-size: 15px; line-height: 1.7; }
