@@ -7,24 +7,30 @@ const BO_NAV_BY_ROLE = {
   // เมนูเจ้าของรีสอร์ท: เรียงตามลำดับที่ใช้จริง ใช้ภาษาง่ายๆ — รายการที่ 6 (ถ้ามี) = เงื่อนไขการแสดงในเมนู
   // โครงสร้างแบบ kohlardgo: แท็บหลักมีแค่ 4 อัน (การจอง · ห้องพัก · หน้ารีสอร์ท · ตารางห้องว่าง) ที่เหลือรวมไว้ในกลุ่มเดียว
   owner: [
-    { g: 'จัดการ', items: [
+    { g: 'งานประจำวัน', items: [
       ['bookings', 'fa-calendar-check', 'การจอง', 'bookings.view', () => boOwnerBookings],
+      ['frontdesk', 'fa-bell-concierge', 'แขกเข้า-ออกวันนี้', 'frontdesk', () => boFrontdesk],
+      ['approvals', 'fa-clipboard-check', 'ตรวจสลิป (มุมมองการ์ด)', 'frontdesk', () => boApprovals],
+      ['calendar', 'fa-table-cells', 'ตารางห้องว่าง / ปิดห้อง', 'inventory', () => admCalendar],
+      ['today', 'fa-sun', 'ภาพรวมวันนี้', 'ops.view', () => boToday],
+    ] },
+    { g: 'ตั้งค่ารีสอร์ท', items: [
       ['rooms', 'fa-bed', 'ห้องพัก', 'hotels.edit', () => boRoomsPage],
       ['shop', 'fa-store', 'หน้ารีสอร์ท', 'hotels.edit', () => boShopPage],
-      ['calendar', 'fa-table-cells', 'ตารางห้องว่าง / ปิดห้อง', 'inventory', () => admCalendar],
-    ] },
-    { g: 'ตั้งค่า & รายงาน', items: [
-      ['payout', 'fa-building-columns', 'บัญชีรับเงิน', 'payout.edit', () => boPayout],
       ['coupons', 'fa-ticket', 'โค้ดส่วนลด', 'coupons.edit', () => admCoupons],
-      ['today', 'fa-sun', 'ภาพรวมวันนี้', 'ops.view', () => boToday],
-      ['frontdesk', 'fa-bell-concierge', 'แขกเข้า-ออกวันนี้', 'frontdesk', () => boFrontdesk],
+      ['payout', 'fa-building-columns', 'บัญชีรับเงิน', 'payout.edit', () => boPayout],
+    ] },
+    { g: 'ยอดขาย & รายงาน', items: [
       ['overview', 'fa-chart-line', 'ยอดขายภาพรวม', 'exec.view', () => boOverview],
-      ['reviews', 'fa-star', 'รีวิวจากลูกค้า', 'reviews.view', () => boReviews],
-      ['customers', 'fa-users', 'รายชื่อลูกค้า', 'customers.view', () => boCustomers],
       ['reports', 'fa-file-invoice-dollar', 'รายงานการเงิน', 'reports.view', () => boReports],
       ['allbookings', 'fa-table-list', 'ตารางการจอง / ส่งออก CSV', 'bookings.view', () => boBookings],
-      ['approvals', 'fa-clipboard-check', 'ตรวจสลิป (มุมมองการ์ด)', 'frontdesk', () => boApprovals],
       ['properties', 'fa-ranking-star', 'เทียบผลงานแต่ละรีสอร์ท', 'exec.view', () => boProperties, () => DB.hotels(true).length > 1],
+    ] },
+    { g: 'ลูกค้า & รีวิว', items: [
+      ['customers', 'fa-users', 'รายชื่อลูกค้า', 'customers.view', () => boCustomers],
+      ['reviews', 'fa-star', 'รีวิวจากลูกค้า', 'reviews.view', () => boReviews],
+    ] },
+    { g: 'อื่นๆ', items: [
       ['hotels', 'fa-hotel', 'ฟอร์มที่พักแบบเต็ม', 'hotels.edit', () => admHotels, () => false],
     ] },
   ],
@@ -139,7 +145,6 @@ function pageAdmin(app, params, section) {
       <a href="#/admin" class="bo-brand"><span class="bo-logo"><img src="${esc(siteImgId('icon', 'assets/icon-192.png'))}" alt=""></span><div><b>${esc(u.role === 'owner' ? (u.biz?.resortName || u.name) : DB.settings().bizName)}</b><small>${PORTAL_INFO[u.role].title} · v${APP_VERSION}</small></div></a>
       <div class="bo-me" style="--rc:${r.color}"><span class="bo-av" style="background:${r.color}">${esc(u.name[0] || '?')}</span><div><b>${esc(u.name)}</b><small><i class="fa-solid ${r.icon}"></i> ${r.label}</small></div></div>
       <nav class="bo-nav">${nav.map(g => { const its = g.items.filter(i => can(i[3]) && (!i[5] || i[5]() || i[0] === item[0])); return its.length ? `<div class="bo-g">${g.g}</div>${its.map(([k, ic, l]) => `<a href="#/admin/${k}" class="${k === item[0] ? 'active' : ''}"><i class="fa-solid ${ic}"></i><span>${l}</span>${k === 'sos' && alerts.sos ? `<em>${alerts.sos}</em>` : k === 'frontdesk' && alerts.arrivals ? `<em>${alerts.arrivals}</em>` : k === 'approvals' && alerts.approvals ? `<em>${alerts.approvals}</em>` : k === 'partners' && alerts.apps ? `<em>${alerts.apps}</em>` : ''}</a>`).join('')}` : ''; }).join('')}</nav>
-      <div class="bo-side-foot"><a href="${siteUrl()}" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i><span>เปิดหน้าเว็บลูกค้า</span></a></div>
     </aside>
     <div class="bo-scrim" id="bo-scrim"></div>
     <div class="bo-body">
@@ -256,7 +261,7 @@ const portalLink = role => `<a href="${portalUrl(role)}">${PORTAL_INFO[role].tit
 function loginArt(role) {
   const P = PORTAL_INFO[role], R = ROLES[role];
   return `<div class="bo-login-art">
-      <a href="${siteUrl()}" class="bo-brand"><span class="bo-logo"><img src="${esc(siteImgId('icon', 'assets/icon-192.png'))}" alt=""></span><div><b>${esc(DB.settings().bizName)}</b><small>${P.en}</small></div></a>
+      <div class="bo-brand"><span class="bo-logo"><img src="${esc(siteImgId('icon', 'assets/icon-192.png'))}" alt=""></span><div><b>${esc(DB.settings().bizName)}</b><small>${P.en}</small></div></div>
       <img class="bo-login-logo" src="${esc(siteImgId('logo', 'assets/logo-800.jpg'))}" alt="kohlarngo — ชมรมรีสอร์ท & ที่พัก เกาะล้าน" width="320" height="213">
       <div><div class="portal-tag"><i class="fa-solid ${R.icon}"></i> ${P.title}</div><h1>${P.headline}</h1><p>${P.blurb}</p>
         <ul>${P.bullets.map(([ic, t]) => `<li><i class="fa-solid ${ic}"></i> ${t}</li>`).join('')}</ul></div>
@@ -267,7 +272,7 @@ function boLogin(app, current) {
   const role = PORTAL || 'admin', P = PORTAL_INFO[role], R = ROLES[role];
   // เข้าสู่ระบบอยู่แล้วแต่เป็นบทบาทอื่น → แนะนำหน้าที่ถูกต้อง
   const wrong = current && (isStaff(current)
-    ? `คุณเข้าสู่ระบบเป็น <b>${esc(current.email)}</b> (${ROLES[current.role].label}) — หน้านี้สำหรับ${R.label}เท่านั้น<br>ไปที่ ${portalLink(current.role)}`
+    ? `คุณเข้าสู่ระบบเป็น <b>${esc(current.email)}</b> (${ROLES[current.role].label}) — หน้านี้สำหรับ${R.label}เท่านั้น`
     : `คุณเข้าสู่ระบบเป็น <b>${esc(current.email)}</b> (ลูกค้า)${role === 'owner' ? ` — <a href="#/admin/signup">สมัครเป็นเจ้าของรีสอร์ทด้วยบัญชีนี้</a>` : ' ซึ่งไม่มีสิทธิ์เข้าหลังบ้าน'}`);
   app.innerHTML = `<div class="bo-login">${loginArt(role)}
     <div class="bo-login-form"><form id="bl-f" novalidate>
@@ -278,8 +283,6 @@ function boLogin(app, current) {
       <div class="red small" id="bl-err" style="min-height:20px;margin-top:8px"></div>
       <button class="btn btn-primary btn-block btn-lg">เข้าสู่ระบบ</button>
       ${role === 'owner' ? '<a href="#/admin/signup" class="btn btn-outline btn-block" style="margin-top:10px"><i class="fa-solid fa-store"></i> ยังไม่มีบัญชี? ลงทะเบียนรีสอร์ทฟรี</a>' : ''}
-      <div class="portal-switch small muted">หน้าอื่น: ${STAFF_ROLES.filter(r => r !== role).map(r => `<a href="${portalUrl(r)}"><i class="fa-solid ${ROLES[r].icon}"></i> ${PORTAL_INFO[r].title}</a>`).join(' · ')}</div>
-      <a href="${siteUrl()}" class="small muted" style="display:block;text-align:center;margin-top:10px"><i class="fa-solid fa-arrow-left"></i> กลับหน้าเว็บ</a>
     </form></div></div>`;
   const f = $('#bl-f'), err = $('#bl-err');
   $('#bl-eye').onclick = () => { const i = $('[name=pass]', f); i.type = i.type === 'password' ? 'text' : 'password'; };
@@ -303,13 +306,59 @@ function boLogin(app, current) {
   f.onsubmit = e => { e.preventDefault(); const v = Object.fromEntries(new FormData(f)); if (!v.email || !v.pass) return err.textContent = 'กรุณากรอกอีเมลและรหัสผ่าน'; attempt(v.email, v.pass); };
 }
 
+// ---- ตำแหน่ง GPS / โซน / บัตรประชาชน (ใช้ตอนสมัครเจ้าของรีสอร์ท) ----
+const geoKm = (a, b) => { const R = 6371, rad = x => x * Math.PI / 180, dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
+  return 2 * R * Math.asin(Math.sqrt(Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2)); };
+// หาโซน (หาด/ย่าน) ที่ใกล้พิกัดที่สุดให้อัตโนมัติ
+const nearestZone = (lat, lng) => DESTINATIONS.map(d => ({ d, km: geoKm({ lat, lng }, d) })).sort((a, b) => a.km - b.km)[0];
+const KOH_LARN = { latMin: 12.88, latMax: 12.96, lngMin: 100.74, lngMax: 100.82 };
+const onKohLarn = (lat, lng) => lat >= KOH_LARN.latMin && lat <= KOH_LARN.latMax && lng >= KOH_LARN.lngMin && lng <= KOH_LARN.lngMax;
+// อ่านพิกัดจากลิงก์ Google Maps หรือข้อความ "lat,lng"
+function parseLatLng(s) {
+  s = decodeURIComponent(String(s || '')).trim();
+  const pats = [/@(-?\d+\.\d+),\s*(-?\d+\.\d+)/, /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/, /[?&](?:q|ll|query)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/, /^(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)$/];
+  for (const re of pats) { const m = s.match(re); if (m) return { lat: +m[1], lng: +m[2] }; }
+  return null;
+}
+// เลขบัตรประชาชนไทย 13 หลัก (ตรวจเลขหลักสุดท้าย)
+function validThaiId(id) {
+  if (!/^\d{13}$/.test(id)) return false;
+  let s = 0; for (let i = 0; i < 12; i++) s += +id[i] * (13 - i);
+  return (11 - (s % 11)) % 10 === +id[12];
+}
+const maskId = id => id ? String(id).replace(/^(\d)(\d{4})(\d{5})(\d{2})(\d)$/, 'x-xxxx-xxxxx-$4-$5') : '';
+
+// ดูรูปบัตรประชาชนของผู้สมัคร (bucket ส่วนตัว — ลิงก์ชั่วคราว 10 นาที)
+async function showIdCard(path) {
+  const m = openModal(`<h2><i class="fa-solid fa-id-card"></i> รูปบัตรประชาชน</h2><div id="idc-body" class="center" style="min-height:120px;margin-top:10px"><i class="fa-solid fa-spinner fa-spin"></i></div><p class="small muted" style="margin-top:8px">ข้อมูลส่วนบุคคล — ใช้ตรวจสอบตัวตนเท่านั้น ห้ามเผยแพร่</p><div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn btn-ghost" data-close>ปิด</button></div>`);
+  const url = await DB.idCardUrl(path);
+  $('#idc-body', m).innerHTML = url ? `<img src="${esc(url)}" alt="บัตรประชาชน" style="max-width:100%;border-radius:8px">` : '<span class="red">เปิดรูปไม่ได้</span>';
+}
+
 // ลงทะเบียนรีสอร์ท (owner.html#/admin/signup) — สมัครฟรี แล้วรอผู้ดูแลแพลตฟอร์มอนุมัติ
 function boOwnerSignup(app, current) {
+  if (!boOwnerSignup.accepted) return boOwnerTermsGate(app, current);
+  return boOwnerSignupForm(app, current);
+}
+// ขั้นที่ 1: อ่านและยอมรับเงื่อนไขสมาชิกก่อน จึงจะเห็นฟอร์มสมัคร
+function boOwnerTermsGate(app, current) {
+  app.innerHTML = `<div class="bo-login">${loginArt('owner')}
+    <div class="bo-login-form"><div style="max-width:620px;width:100%">
+      <h2>เงื่อนไขการสมัครรีสอร์ทสมาชิก</h2><p class="muted small" style="margin:4px 0 12px">กรุณาอ่านเงื่อนไขก่อนลงทะเบียน (ขั้นที่ 1 จาก 2)</p>
+      <div style="max-height:52vh;overflow:auto;border:1px solid var(--bo-line);border-radius:10px;padding:4px 12px;font-size:14px">${termsHtml('partner')}</div>
+      <label class="small" style="display:flex;gap:8px;align-items:flex-start;margin-top:14px"><input type="checkbox" id="tg-ok" style="margin-top:3px"><span>${TERMS_PARTNER_LABEL}</span></label>
+      <div class="red small" id="tg-err" style="min-height:20px;margin-top:6px"></div>
+      <button class="btn btn-primary btn-block btn-lg" id="tg-go">ยอมรับและดำเนินการต่อ</button>
+      <a href="#/admin" class="small muted" style="display:block;text-align:center;margin-top:12px">มีบัญชีแล้ว? เข้าสู่ระบบ</a>
+    </div></div></div>`;
+  $('#tg-go').onclick = () => { if (!$('#tg-ok').checked) return $('#tg-err').textContent = 'กรุณาติ๊กยอมรับเงื่อนไขสมาชิกก่อนดำเนินการต่อ'; boOwnerSignup.accepted = new Date().toISOString(); boOwnerSignupForm(app, current); };
+}
+function boOwnerSignupForm(app, current) {
   const b = current?.biz || {};
   const fg = (k, l, v = '', attrs = '', full = false) => `<div class="fg ${full ? 'full' : ''}"><label>${l}</label><input name="${k}" value="${esc(v)}" ${attrs}></div>`;
   app.innerHTML = `<div class="bo-login">${loginArt('owner')}
     <div class="bo-login-form"><form id="su-f" novalidate style="max-width:520px">
-      <h2>ลงทะเบียนรีสอร์ทฟรี</h2><p class="muted small" style="margin:4px 0 16px">กรอกข้อมูลรีสอร์ท — ทีมงานแพลตฟอร์มจะตรวจสอบและอนุมัติให้เปิดขายห้องพัก</p>
+      <h2>ลงทะเบียนรีสอร์ทฟรี</h2><div class="small" style="color:#0a8f3c;margin-top:2px"><i class="fa-solid fa-circle-check"></i> ยอมรับเงื่อนไขสมาชิกแล้ว (ขั้นที่ 2 จาก 2)</div><p class="muted small" style="margin:4px 0 16px">กรอกข้อมูลรีสอร์ท — ทีมงานแพลตฟอร์มจะตรวจสอบและอนุมัติให้เปิดขายห้องพัก</p>
       ${current?.ownerStatus === 'rejected' ? `<div class="notice warn"><i class="fa-solid fa-circle-info"></i><div>ใบสมัครก่อนหน้าไม่ผ่าน${current.ownerNote ? `: ${esc(current.ownerNote)}` : ''} — แก้ไขแล้วส่งใหม่ได้</div></div>` : ''}
       <div class="form-grid">
         ${fg('resortName', 'ชื่อรีสอร์ท / ที่พัก <span class="req">*</span>', b.resortName, 'maxlength="100"', true)}
@@ -317,7 +366,14 @@ function boOwnerSignup(app, current) {
         ${fg('phone', 'เบอร์โทร <span class="req">*</span>', b.phone || current?.phone || '', 'type="tel" maxlength="20"')}
         ${fg('line', 'LINE ID', b.line, 'maxlength="60"')}
         ${fg('rooms', 'จำนวนห้องโดยประมาณ', b.rooms, 'maxlength="20"')}
-        ${fg('location', 'ที่ตั้ง (หาด / ย่าน)', b.location, 'maxlength="200"', true)}
+        <div class="fg full"><label>ตำแหน่งรีสอร์ท (GPS) <span class="req">*</span></label>
+          <div class="row wrap" style="gap:8px"><button type="button" class="btn btn-outline btn-sm" id="su-gps"><i class="fa-solid fa-location-crosshairs"></i> ใช้ตำแหน่งปัจจุบันของฉัน</button></div>
+          <input id="su-map" placeholder="หรือวางลิงก์ Google Maps / พิกัด เช่น 12.9225, 100.7902" style="margin-top:8px">
+          <input type="hidden" name="lat" value="${esc(b.lat ?? '')}"><input type="hidden" name="lng" value="${esc(b.lng ?? '')}"><input type="hidden" name="location" value="${esc(b.location || '')}">
+          <div class="small" id="su-zone" style="margin-top:6px"></div></div>
+        ${fg('idNumber', 'เลขบัตรประชาชนเจ้าของ (13 หลัก) <span class="req">*</span>', '', 'inputmode="numeric" maxlength="13" autocomplete="off" placeholder="x-xxxx-xxxxx-xx-x"')}
+        <div class="fg"><label>รูปบัตรประชาชน (ถ่ายหน้าบัตร) <span class="req">*</span></label><input type="file" name="idPhoto" accept="image/*"></div>
+        <div class="full small muted"><i class="fa-solid fa-lock"></i> ใช้ยืนยันตัวตนเจ้าของเท่านั้น เก็บเป็นความลับ เฉพาะทีมงานแพลตฟอร์มที่ตรวจสอบใบสมัครเห็นได้ ไม่แสดงต่อลูกค้า</div>
         <div class="fg full"><label>รายละเอียดเพิ่มเติม</label><textarea name="note" rows="2" maxlength="1000" placeholder="เช่น ลิงก์ Facebook / Google Maps ของรีสอร์ท">${esc(b.note || '')}</textarea></div>
         ${current ? `<div class="full small muted">ส่งใบสมัครด้วยบัญชี <b>${esc(current.email)}</b></div>` : `
         ${fg('email', 'อีเมล (ใช้เข้าสู่ระบบ) <span class="req">*</span>', '', 'type="email" autocomplete="username"')}
@@ -328,9 +384,32 @@ function boOwnerSignup(app, current) {
       <a href="#/admin" class="small muted" style="display:block;text-align:center;margin-top:12px">มีบัญชีแล้ว? เข้าสู่ระบบ</a>
     </form></div></div>`;
   const f = $('#su-f'), err = $('#su-err');
+  // GPS → ระบบหาโซน (หาด / ย่าน) ให้เอง ไม่ต้องกรอก
+  const showZone = () => {
+    const lat = parseFloat(f.lat.value), lng = parseFloat(f.lng.value), z = $('#su-zone');
+    if (isNaN(lat) || isNaN(lng)) { z.innerHTML = '<span class="muted">ยังไม่ได้เลือกตำแหน่ง</span>'; return; }
+    if (!onKohLarn(lat, lng)) { f.location.value = ''; z.innerHTML = `<span class="red"><i class="fa-solid fa-triangle-exclamation"></i> พิกัด ${lat.toFixed(5)}, ${lng.toFixed(5)} อยู่นอกเกาะล้าน — ตรวจสอบอีกครั้ง</span>`; return; }
+    const { d, km } = nearestZone(lat, lng); f.location.value = d.name;
+    z.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#0a8f3c"></i> ตรวจพบโซน: <b>${esc(d.name)}</b> <span class="muted">(พิกัด ${lat.toFixed(5)}, ${lng.toFixed(5)} · ห่างจุดกลางโซน ${km.toFixed(1)} กม.)</span> · <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener">ดูบนแผนที่</a>`;
+  };
+  const setLL = (lat, lng) => { f.lat.value = (+lat).toFixed(6); f.lng.value = (+lng).toFixed(6); showZone(); };
+  $('#su-gps').onclick = () => {
+    if (!navigator.geolocation) return err.textContent = 'เบราว์เซอร์นี้ไม่รองรับการหาตำแหน่ง — วางลิงก์ Google Maps แทน';
+    err.textContent = ''; toast('กำลังหาตำแหน่ง...', 'info');
+    navigator.geolocation.getCurrentPosition(pos => setLL(pos.coords.latitude, pos.coords.longitude), () => err.textContent = 'หาตำแหน่งไม่ได้ — อนุญาตการเข้าถึงตำแหน่ง หรือวางลิงก์ Google Maps แทน', { enableHighAccuracy: true, timeout: 15000 });
+  };
+  $('#su-map').oninput = e => { const r = parseLatLng(e.target.value); if (r) setLL(r.lat, r.lng); else if (e.target.value.trim()) $('#su-zone').innerHTML = '<span class="muted">อ่านพิกัดไม่ได้ — ใช้ลิงก์ที่มีพิกัด (ไม่ใช่ลิงก์ย่อ maps.app.goo.gl) หรือกดปุ่ม "ใช้ตำแหน่งปัจจุบัน"</span>'; };
+  showZone();
   f.onsubmit = async e => {
     e.preventDefault();
     const v = Object.fromEntries(new FormData(f));
+    const lat = parseFloat(v.lat), lng = parseFloat(v.lng), idFile = f.idPhoto.files[0];
+    if (!boOwnerSignup.accepted) return boOwnerSignup(app, current);
+    if (isNaN(lat) || isNaN(lng)) return err.textContent = 'กรุณาระบุตำแหน่ง GPS ของรีสอร์ท';
+    if (!onKohLarn(lat, lng)) return err.textContent = 'ตำแหน่งอยู่นอกเกาะล้าน — ตรวจสอบพิกัดอีกครั้ง';
+    v.idNumber = String(v.idNumber || '').replace(/\D/g, '');
+    if (!validThaiId(v.idNumber)) return err.textContent = 'เลขบัตรประชาชนไม่ถูกต้อง (13 หลัก)';
+    if (!idFile) return err.textContent = 'กรุณาแนบรูปบัตรประชาชน';
     if (!v.resortName.trim() || !v.name.trim()) return err.textContent = 'กรุณากรอกชื่อรีสอร์ทและชื่อเจ้าของ';
     if (v.phone.replace(/\D/g, '').length < 9) return err.textContent = 'กรุณากรอกเบอร์โทรที่ติดต่อได้';
     const btn = $('button.btn-primary', f); btn.disabled = true; err.textContent = '';
@@ -341,7 +420,7 @@ function boOwnerSignup(app, current) {
         const r = await DB.register(v.name, v.email, v.pass, v.phone);
         if (r.error) throw new Error(r.error === 'อีเมลนี้ถูกใช้งานแล้ว' ? 'อีเมลนี้มีบัญชีอยู่แล้ว — เข้าสู่ระบบก่อน แล้วกด "สมัครเป็นเจ้าของรีสอร์ทด้วยบัญชีนี้"' : r.error);
       }
-      await DB.applyOwner({ resortName: v.resortName, name: v.name, phone: v.phone, line: v.line, rooms: v.rooms, location: v.location, note: v.note });
+      await DB.applyOwner({ resortName: v.resortName, name: v.name, phone: v.phone, line: v.line, rooms: v.rooms, location: v.location, lat, lng, idNumber: v.idNumber, note: v.note, terms: true }, idFile);
       toast('ส่งใบสมัครแล้ว — รอทีมงานอนุมัติ'); go('/admin', true);
     } catch (x) { err.textContent = x.message; btn.disabled = false; }
   };
@@ -445,7 +524,7 @@ function bookingDrawer(id, refresh = () => render()) {
       ${row('ที่พัก', esc(b.hotelName))}${row('ห้อง', `${b.qty} × ${esc(b.roomName)}`)}${row('เช็คอิน', fmtDate(b.checkIn))}${row('เช็คเอาท์', fmtDate(b.checkOut))}${row('จำนวนคืน', b.nights + ' คืน')}</div>
     <div class="dr-sec"><h4><i class="fa-solid fa-receipt"></i> ค่าใช้จ่าย</h4>
       ${row('ราคาห้องปกติ', money(p.orig))}${p.orig > p.room ? row('ส่วนลดโปรโมชั่น', '<span class="green">−' + money(p.orig - p.room) + '</span>') : ''}${p.member ? row('ส่วนลดสมาชิก', '<span class="green">−' + money(p.member) + '</span>') : ''}${p.coupon ? row(`คูปอง ${esc(p.couponCode || '')}`, '<span class="green">−' + money(p.coupon) + '</span>') : ''}
-      ${row('ค่าบริการ + VAT', money(p.tax))}<div class="dl total"><span>ยอดรวม</span><b>${money(p.total)}</b></div>${row('วิธีชำระ', PAY_TH[b.payment.method] + (b.payment.last4 ? ` •••• ${b.payment.last4}` : ''))}</div>
+      ${p.tax ? row('ค่าบริการ + VAT', money(p.tax)) : ''}<div class="dl total"><span>ยอดรวม</span><b>${money(p.total)}</b></div>${row('วิธีชำระ', PAY_TH[b.payment.method] + (b.payment.last4 ? ` •••• ${b.payment.last4}` : ''))}</div>
     <div class="dr-sec"><h4><i class="fa-solid fa-clock-rotate-left"></i> ประวัติ</h4><ol class="tl">${tl.map(([at, ic, l, by]) => `<li><i class="fa-solid ${ic}"></i><div><b>${l}</b>${by ? ` <span class="muted">· ${esc(by)}</span>` : ''}<div class="small muted">${fmtDateTime(at)}</div></div></li>`).join('')}</ol></div>
     <div class="dr-sec"><h4><i class="fa-regular fa-note-sticky"></i> โน้ตภายใน <span class="muted small">(ลูกค้าไม่เห็น)</span></h4>
       ${notes.length ? notes.map(n => `<div class="note"><div>${esc(n.text)}</div><small>${esc(n.by)} · ${fmtDateTime(n.at)}</small></div>`).join('') : '<p class="small muted">ยังไม่มีโน้ต</p>'}
@@ -578,6 +657,9 @@ function boPartners(main, params) {
     return `<div class="partner-card"><div class="row between wrap" style="gap:10px"><div><b style="font-size:16px">${esc(b.resortName || '(ไม่ระบุชื่อรีสอร์ท)')}</b>
         <div class="small muted">${esc(u.name)} · ${esc(u.email)}${b.phone ? ` · <a href="tel:${esc(b.phone)}">${esc(b.phone)}</a>` : ''}${b.line ? ` · LINE ${esc(b.line)}` : ''}</div></div><div class="row" style="gap:6px">${acts}</div></div>
       <div class="partner-meta small">${b.location ? `<span><i class="fa-solid fa-location-dot"></i> ${esc(b.location)}</span>` : ''}${b.rooms ? `<span><i class="fa-solid fa-bed"></i> ~${esc(b.rooms)} ห้อง</span>` : ''}<span><i class="fa-regular fa-clock"></i> สมัคร ${u.appliedAt ? relTime(u.appliedAt) : relTime(u.createdAt)}</span></div>
+      ${b.lat != null ? `<div class="small" style="margin-top:6px"><i class="fa-solid fa-location-crosshairs"></i> GPS ${(+b.lat).toFixed(5)}, ${(+b.lng).toFixed(5)} · <a href="https://www.google.com/maps?q=${b.lat},${b.lng}" target="_blank" rel="noopener">ดูแผนที่</a></div>` : ''}
+      ${b.termsAt ? `<div class="small" style="margin-top:4px"><i class="fa-solid fa-file-signature"></i> ยอมรับเงื่อนไขสมาชิกเมื่อ ${fmtDateTime(b.termsAt)}</div>` : ''}
+      ${b.idNumber ? `<div class="small" style="margin-top:4px"><i class="fa-solid fa-id-card"></i> บัตรประชาชน ${esc(maskId(b.idNumber))} ${b.idPhoto ? `<button class="btn btn-sm btn-outline" data-idcard="${esc(b.idPhoto)}" style="margin-left:6px"><i class="fa-solid fa-image"></i> ดูรูปบัตร</button>` : '<span class="red">ไม่มีรูปบัตร</span>'}</div>` : ''}
       ${b.note ? `<div class="small" style="margin-top:6px;white-space:pre-line">${esc(b.note)}</div>` : ''}
       ${u.ownerNote ? `<div class="small red" style="margin-top:6px">หมายเหตุ: ${esc(u.ownerNote)}</div>` : ''}
       ${u.ownerStatus === 'approved' ? `<div class="mini-stats" style="margin-top:10px"><div><span>ที่พัก</span><b>${s.hs.length} แห่ง</b></div><div><span>การจอง</span><b>${s.n}</b></div><div><span>ยอดจองรวม</span><b>${money(s.gmv)}</b></div><div><span>รออนุมัติ</span><b class="${s.pending ? 'red' : ''}">${s.pending}</b></div></div>
@@ -586,6 +668,7 @@ function boPartners(main, params) {
   main.innerHTML = pageHead('เจ้าของรีสอร์ท', `${owners.length} ราย · อนุมัติแล้ว ${groups.approved[2].length} · รออนุมัติ ${groups.pending[2].length}`, `<a class="btn btn-outline btn-sm" href="${portalUrl('owner', '#/admin/signup')}" target="_blank" rel="noopener"><i class="fa-solid fa-link"></i> ลิงก์สมัคร</a>`) + `
     <div class="tabs">${Object.entries(groups).map(([k, [ic, l, arr]]) => `<a href="#/admin/partners?tab=${k}" class="${k === tab ? 'on' : ''}"><i class="fa-solid ${ic}"></i> ${l} <em>${arr.length}</em></a>`).join('')}</div>
     ${list.length ? `<div class="partner-list">${list.map(card).join('')}</div>` : `<section class="card"><div class="bo-empty sm"><i class="fa-solid fa-handshake"></i><p class="muted">ไม่มีรายการ${groups[tab][1]}</p></div></section>`}`;
+  $$('[data-idcard]', main).forEach(btn => btn.onclick = () => showIdCard(btn.dataset.idcard));
   $$('[data-pact]', main).forEach(btn => btn.onclick = async () => {
     const u = owners.find(x => x.id === btn.dataset.id), name = u.biz?.resortName || u.name, act = btn.dataset.pact;
     try {
@@ -827,7 +910,7 @@ function boStaff(main) {
   main.innerHTML = pageHead('ทีมผู้ดูแล & นักพัฒนา', `${staff.length} บัญชี · เจ้าของรีสอร์ทจัดการได้ที่หน้า "เจ้าของรีสอร์ท"`, '<button class="btn btn-primary" id="st-add"><i class="fa-solid fa-user-plus"></i> เพิ่มทีมงาน</button>') + `
     <section class="card flush"><div class="table-scroll"><table class="tbl"><thead><tr><th>ทีมงาน</th><th>บทบาท</th><th>สถานะ</th><th>เข้าใช้ล่าสุด</th><th></th></tr></thead><tbody>
       ${staff.map(u => `<tr><td><div class="row" style="gap:10px"><span class="bo-av sm" style="background:${ROLES[u.role].color}">${esc(u.name[0] || '?')}</span><div><b>${esc(u.name)}</b>${u.id === me.id ? ' <span class="pill">คุณ</span>' : ''}<div class="small muted">${esc(u.email)}${u.phone ? ' · ' + esc(u.phone) : ''}</div></div></div></td>
-        <td>${roleBadge(u.role)}</td><td>${u.active === false ? '<span class="pill bad">ระงับ</span>' : '<span class="pill ok">ใช้งาน</span>'}</td>
+        <td>${roleBadge(u.role)}${u.role === 'admin' && Array.isArray(u.perms) ? `<div class="small muted" title="${esc(u.perms.map(k => PERMS[k] || k).join(', '))}">สิทธิ์เฉพาะ ${u.perms.length}/${ROLE_PERMS.admin.length}</div>` : ''}</td><td>${u.active === false ? '<span class="pill bad">ระงับ</span>' : '<span class="pill ok">ใช้งาน</span>'}</td>
         <td class="small muted">${u.lastLogin ? relTime(u.lastLogin) : 'ยังไม่เคยเข้าใช้'}</td>
         <td style="text-align:right;white-space:nowrap">${u.id === me.id ? '<a class="btn btn-sm btn-ghost" href="#/admin/profile">แก้ไขโปรไฟล์</a>' : `<button class="btn btn-sm btn-outline" data-se="${u.id}"><i class="fa-solid fa-pen"></i> แก้ไข</button> <button class="btn btn-sm btn-ghost" data-spw="${u.id}" title="รีเซ็ตรหัสผ่าน"><i class="fa-solid fa-key"></i></button> <button class="btn btn-sm btn-ghost" data-ssus="${u.id}" title="${u.active === false ? 'เปิดใช้งาน' : 'ระงับ'}"><i class="fa-solid ${u.active === false ? 'fa-user-check' : 'fa-user-slash'}"></i></button> <button class="btn btn-sm btn-ghost red" data-sdel="${u.id}" title="ลบ"><i class="fa-solid fa-trash"></i></button>`}</td></tr>`).join('')}
     </tbody></table></div></section>
@@ -878,14 +961,22 @@ function staffForm(u) {
       <div class="fg"><label>เบอร์โทร</label><input name="phone" value="${esc(u?.phone || '')}"></div>
       ${isNew ? `<div class="fg full"><label>บทบาท</label><div class="role-pick">${['admin', 'dev'].map(r => `<label style="--rc:${ROLES[r].color};--rb:${ROLES[r].bg}"><input type="radio" name="role" value="${r}" ${r === 'admin' ? 'checked' : ''}><i class="fa-solid ${ROLES[r].icon}"></i><b>${ROLES[r].label}</b><small>${r === 'admin' ? 'อนุมัติรีสอร์ท · ภาพรวม · ช่วยเหลือ' : 'ตั้งค่าเว็บ · สถานะระบบ · logs'}</small></label>`).join('')}</div></div>
       <div class="fg full"><label>รหัสผ่านเริ่มต้น</label><div class="pw-wrap"><input name="pass" value="${pw}" class="mono"><button type="button" id="sf-gen" title="สุ่มใหม่"><i class="fa-solid fa-rotate"></i></button></div><div class="small muted" style="margin-top:4px">เพิ่มเฉพาะคนที่ไว้ใจ — ผู้ดูแลแพลตฟอร์มเห็นข้อมูลการจองและลูกค้าทั้งระบบ</div></div>` : ''}
+      ${isNew || u.role === 'admin' ? `<div class="fg full" id="sf-perms"><label>สิทธิ์การใช้งาน (เฉพาะผู้ดูแลแพลตฟอร์ม)</label>
+        <div class="row wrap" style="gap:8px;margin-bottom:6px"><button type="button" class="btn btn-sm btn-outline" id="sp-all">เลือกทั้งหมด</button><button type="button" class="btn btn-sm btn-ghost" id="sp-none">ล้างทั้งหมด</button></div>
+        <div class="perm-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px 14px">${ROLE_PERMS.admin.map(k => `<label class="small" style="display:flex;gap:6px;align-items:flex-start"><input type="checkbox" name="perm" value="${k}" ${userPerms(u || { role: 'admin' }).includes(k) ? 'checked' : ''}><span>${esc(PERMS[k] || k)}<span class="muted mono" style="display:block;font-size:11px">${k}</span></span></label>`).join('')}</div>
+        <div class="small muted" style="margin-top:4px">ติ๊กเฉพาะสิ่งที่คนนี้ทำได้ — ให้สิทธิ์เกินกว่าบทบาทผู้ดูแลแพลตฟอร์มไม่ได้</div></div>` : ''}
       <div class="full row" style="justify-content:flex-end"><button type="button" class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary">บันทึก</button></div></form>`);
+  const permsOf = () => { const p = $$('input[name=perm]:checked', m).map(i => i.value); return p.length === ROLE_PERMS.admin.length ? null : p; }; // เลือกครบ = ตามบทบาท
+  $('#sp-all', m)?.addEventListener('click', () => $$('input[name=perm]', m).forEach(i => i.checked = true));
+  $('#sp-none', m)?.addEventListener('click', () => $$('input[name=perm]', m).forEach(i => i.checked = false));
+  $$('input[name=role]', m).forEach(r => r.onchange = () => { const b = $('#sf-perms', m); if (b) b.style.display = $('input[name=role]:checked', m).value === 'admin' ? '' : 'none'; });
   $('#sf-gen', m)?.addEventListener('click', () => $('[name=pass]', m).value = genPassword());
   $('#sf', m).onsubmit = async e => {
     e.preventDefault();
     const v = Object.fromEntries(new FormData(e.target));
     if (!v.name.trim()) return toast('กรุณากรอกชื่อ', 'err');
     if (!isNew) {
-      DB.updateUser(u.id, { name: v.name.trim(), phone: v.phone.trim() });
+      DB.updateUser(u.id, { name: v.name.trim(), phone: v.phone.trim(), ...(u.role === 'admin' ? { perms: permsOf() } : {}) });
       DB.log('staff.edit', u.email); closeModal(); toast('บันทึกแล้ว'); return render();
     }
     const email = v.email.trim().toLowerCase();
@@ -896,6 +987,7 @@ function staffForm(u) {
     const r = await DB.staffAdmin('create', { email, password: v.pass, name: v.name.trim(), phone: v.phone.trim(), role });
     btn.disabled = false;
     if (r.error) return toast(r.error, 'err');
+    if (role === 'admin') { const pr = permsOf(); if (pr) DB.updateUser(r.id, { perms: pr }); }
     DB.log('staff.add', `${email} · ${ROLES[role].label}`);
     showCredential(email, v.pass, 'เพิ่มทีมงานเรียบร้อย', role);
   };
@@ -921,7 +1013,7 @@ function boToday(main) {
       can('inventory') && myHotels.length && tile('fa-ban', '', 'ปิดห้อง (ขายทางอื่นแล้ว)', 'กันลูกค้าจองซ้ำ', 'data-qa-do="block"'),
       can('inventory') && tile('fa-table-cells', '', 'ดูตารางห้องว่าง', 'ใครจอง ห้องไหนว่าง', 'href="#/admin/calendar"'),
       can('hotels.edit') && myHotels.length && tile('fa-share-nodes', '', 'แชร์โปรโมต', 'Facebook · TikTok · LINE', 'data-qa-do="share"'),
-      can('hotels.edit') && tile('fa-pen-to-square', '', 'แก้ห้อง รูป & ราคา', 'เพิ่มห้อง ปรับราคา', 'href="#/admin/hotels"'),
+      can('hotels.edit') && tile('fa-pen-to-square', '', 'แก้ห้อง รูป & ราคา', 'ปรับราคา ห้อง รูป', 'href="#/admin/hotels"'),
     ].filter(Boolean);
     const po = u.payout || {};
     const steps = [
@@ -1106,9 +1198,10 @@ function admCalendar(main) {
   let hid = hotels[0]?.id, start = todayISO();
   if (!hotels.length) { main.innerHTML = pageHead('ตารางห้องว่าง', '') + '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><h3>ยังไม่มีที่พัก</h3></div></section>'; return; }
   let span = 14;
+  const MAX_DAYS = 180, clampStart = () => { const lim = addDays(todayISO(), Math.max(0, MAX_DAYS - span)); if (start > lim) start = lim; };
   const dayDiff = (a, b) => Math.round((new Date(a + 'T00:00:00') - new Date(b + 'T00:00:00')) / 864e5);
   main.innerHTML = pageHead('ตารางห้องว่าง & ผู้จอง', 'ดูว่าห้องไหนว่าง ใครจอง วันไหนถึงวันไหน — แถบสีคือผู้เข้าพัก คลิกเพื่อดูรายละเอียด · คลิกช่องว่างเพื่อปิดห้อง', `<button class="btn btn-add-room" id="c-block"><i class="fa-solid fa-ban"></i> ปิดห้อง</button><select id="c-h" class="sel">${hotels.map(h => `<option value="${h.id}">${esc(h.name)}</option>`).join('')}</select>
-    <select id="c-span" class="sel"><option value="7">7 วัน</option><option value="14" selected>14 วัน</option><option value="30">30 วัน</option></select>
+    <select id="c-span" class="sel"><option value="7">7 วัน</option><option value="14" selected>14 วัน</option><option value="30">30 วัน</option><option value="60">60 วัน</option><option value="90">90 วัน</option><option value="180">180 วัน</option></select>
     <button class="btn btn-ghost btn-sm" id="c-prev"><i class="fa-solid fa-chevron-left"></i></button><button class="btn btn-outline btn-sm" id="c-today">วันนี้</button><button class="btn btn-ghost btn-sm" id="c-next"><i class="fa-solid fa-chevron-right"></i></button>`) + `
     <div id="c-sum" class="tl-sum"></div>
     <section class="card flush tl-card" id="c-grid"></section>
@@ -1141,6 +1234,12 @@ function admCalendar(main) {
       return summary + rows;
     }).join('');
     $('#c-grid').innerHTML = `<div class="tl-scroll"><div class="tl" style="--n:${span}">${head}${body}</div></div>`;
+    // ลากเมาส์เพื่อเลื่อนตารางซ้าย-ขวา (ลากเกิน 5px ไม่นับเป็นคลิก)
+    const sc = $('.tl-scroll', $('#c-grid')); let drag = null;
+    sc.onpointerdown = e => { if (e.pointerType === 'mouse' && e.button === 0) drag = { x: e.clientX, l: sc.scrollLeft, moved: false }; };
+    sc.onpointermove = e => { if (!drag) return; const dx = e.clientX - drag.x; if (Math.abs(dx) > 5) { drag.moved = true; sc.classList.add('dragging'); } if (drag.moved) sc.scrollLeft = drag.l - dx; };
+    const endDrag = () => { if (drag?.moved) { const stop = ev => { ev.stopPropagation(); ev.preventDefault(); }; sc.addEventListener('click', stop, { capture: true, once: true }); } drag = null; sc.classList.remove('dragging'); };
+    sc.onpointerup = endDrag; sc.onpointerleave = endDrag;
     $$('.tl-c[data-day]', $('#c-grid')).forEach(el => el.onclick = () => blockRoomsModal(h, { roomId: el.dataset.room, date: el.dataset.day }, draw));
     $$('[data-bk]', $('#c-grid')).forEach(el => el.onclick = () => {
       const b = DB.booking(el.dataset.bk); if (!b) return;
@@ -1166,9 +1265,9 @@ function admCalendar(main) {
   };
   $('#c-h').onchange = e => { hid = e.target.value; draw(); };
   $('#c-block').onclick = () => blockRoomsModal(DB.hotel(hid), {}, draw);
-  $('#c-span').onchange = e => { span = +e.target.value; draw(); };
+  $('#c-span').onchange = e => { span = +e.target.value; clampStart(); draw(); };
   $('#c-prev').onclick = () => { start = addDays(start, -Math.min(span, 7)); draw(); };
-  $('#c-next').onclick = () => { start = addDays(start, Math.min(span, 7)); draw(); };
+  $('#c-next').onclick = () => { start = addDays(start, Math.min(span, 7)); clampStart(); draw(); };
   $('#c-today').onclick = () => { start = todayISO(); draw(); };
   draw();
 }
@@ -1180,8 +1279,8 @@ function ownerResorts(main) {
   const card = h => `<section class="card resort-card">
     <div class="resort-top">${imgTag(h.images[0], 600, '', h.id)}
       <div class="grow"><div class="row between wrap" style="gap:10px"><h2 style="margin:0">${esc(h.name)}</h2>
-          <label class="switch big"><input type="checkbox" data-act="${h.id}" ${h.active !== false ? 'checked' : ''}><span></span>${h.active !== false ? 'เปิดขาย' : 'ปิดการขาย'}</label></div>
-        <div class="small muted">${esc(h.type)} · ${esc(h.area)}, ${esc(h.city)}</div>
+          <label class="switch big"><input type="checkbox" data-act="${h.id}" ${h.active !== false ? 'checked' : ''} ${h.banned ? 'disabled' : ''}><span></span>${h.banned ? 'ถูกแบน' : h.active !== false ? 'เปิดขาย' : 'ปิดการขาย'}</label></div>
+        <div class="small muted">${esc(h.type)} · ${esc(h.area)}, ${esc(h.city)}</div>${h.banned ? `<div class="small red" style="margin-top:6px"><i class="fa-solid fa-ban"></i> ถูกแบนโดยผู้ดูแลระบบ (${h.banned.until ? 'ถึง ' + fmtDateTime(h.banned.until) : 'ถาวร'})${h.banned.reason ? ` — ${esc(h.banned.reason)}` : ''} · ติดต่อทีมงานเพื่อขอปลดแบน</div>` : ''}
         <div class="row wrap small" style="gap:16px;margin-top:10px">${h.reviews ? `<span><i class="fa-solid fa-star" style="color:#f5a623"></i> ${h.rating} · ${h.reviews.toLocaleString()} รีวิว</span>` : '<span class="muted"><i class="fa-regular fa-star"></i> ยังไม่มีรีวิว</span>'}
           <span><i class="fa-regular fa-images"></i> ${h.images.length} รูป</span><span><i class="fa-solid fa-ferry"></i> ${h.distance} กม. จากท่าเรือหน้าบ้าน</span><span><i class="fa-solid fa-door-open"></i> ${h.rooms.reduce((s, r) => s + +r.total, 0)} ห้อง</span></div>
         <div class="row wrap" style="gap:8px;margin-top:14px"><button class="btn btn-primary btn-sm" data-edit="${h.id}"><i class="fa-solid fa-pen"></i> แก้ไขข้อมูล รูป ห้อง & ราคา</button>
@@ -1203,23 +1302,74 @@ function admHotels(main) {
   if (!isAdmin(DB.currentUser())) return ownerResorts(main);
   const list = DB.hotels(true);
   const admin = isAdmin(DB.currentUser()), ownerName = id => { const o = DB.users().find(u => u.id === id); return o ? (o.biz?.resortName || o.name) : 'แพลตฟอร์ม'; };
-  main.innerHTML = pageHead(admin ? 'ที่พักทั้งหมด' : 'ที่พัก ห้อง รูป & ราคา', `${list.length} แห่ง · ${list.reduce((s, h) => s + h.rooms.reduce((a, r) => a + +r.total, 0), 0)} ห้อง${admin ? ' · ทุกเจ้าของรีสอร์ท' : ''}`, '<button class="btn btn-add-room" id="h-addroom"><i class="fa-solid fa-bed"></i> เพิ่มห้องพัก</button><button class="btn btn-primary" id="h-add"><i class="fa-solid fa-plus"></i> เพิ่มที่พัก</button>') + `
+  main.innerHTML = pageHead(admin ? 'ที่พักทั้งหมด' : 'ที่พัก ห้อง รูป & ราคา', `${list.length} แห่ง · ${list.reduce((s, h) => s + h.rooms.reduce((a, r) => a + +r.total, 0), 0)} ห้อง${admin ? ' · ทุกเจ้าของรีสอร์ท' : ''}`) + `
     <section class="card flush"><div class="table-scroll"><table class="tbl"><thead><tr><th></th><th>ชื่อที่พัก</th>${admin ? '<th>เจ้าของ</th>' : ''}<th>หาด/ย่าน</th><th>ดาว</th><th>คะแนน</th><th>ห้อง</th><th>ราคาเริ่มต้น</th><th>สถานะ</th><th></th></tr></thead><tbody>
     ${list.map(h => `<tr><td>${imgTag(h.images[0], 120, '', h.id)}</td><td><b>${esc(h.name)}</b><div class="small muted">${esc(h.type)} · ${esc(h.area)}</div></td>${admin ? `<td class="small">${esc(ownerName(h.ownerId))}</td>` : ''}<td>${esc(h.city)}</td><td>${h.stars}★</td><td>${h.rating}</td>
       <td>${h.rooms.length} ประเภท / ${h.rooms.reduce((s, r) => s + +r.total, 0)} ห้อง</td><td>${money(Math.min(...h.rooms.map(r => r.price)))}</td>
-      <td><label class="switch"><input type="checkbox" data-act="${h.id}" ${h.active !== false ? 'checked' : ''}><span></span>${h.active !== false ? 'เปิดขาย' : 'ปิด'}</label></td>
-      <td style="white-space:nowrap;text-align:right"><button class="btn btn-sm btn-outline" data-edit="${h.id}"><i class="fa-solid fa-pen"></i> แก้ไข</button> <button class="btn btn-sm btn-ghost" data-share="${h.id}" title="แชร์โปรโมต"><i class="fa-solid fa-share-nodes"></i></button> <a class="btn btn-sm btn-ghost" href="${siteUrl('#/hotel/' + (h.slug || h.id))}" target="_blank" rel="noopener" title="ดูหน้าเว็บ"><i class="fa-solid fa-eye"></i></a> <button class="btn btn-sm btn-ghost red" data-hdel="${h.id}" title="ลบ"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('')}
+      <td>${h.banned ? `<span class="pill bad"><i class="fa-solid fa-ban"></i> ถูกแบน</span><div class="small muted" style="margin-top:4px">โดย ${esc(h.banned.byName || '-')}<br>${h.banned.at ? fmtDateTime(h.banned.at) : ''}<br><b>ระยะเวลา: ${banUntilText(h.banned)}</b>${h.banned.reason ? `<br>เหตุผล: ${esc(h.banned.reason)}` : ''}</div>` : `<label class="switch" title="เจ้าของรีสอร์ทเป็นผู้เปิด-ปิดเอง" style="opacity:.85"><input type="checkbox" ${h.active !== false ? 'checked' : ''} disabled><span></span>${h.active !== false ? 'เปิดขาย' : 'ปิด'}</label><div class="small muted" style="margin-top:2px">เจ้าของเป็นผู้ตั้ง</div>`}</td>
+      <td style="white-space:nowrap;text-align:right"><button class="btn btn-sm btn-primary" data-detail="${h.id}"><i class="fa-solid fa-circle-info"></i> รายละเอียด</button> ${h.banned ? `<button class="btn btn-sm btn-outline" data-unban="${h.id}"><i class="fa-solid fa-unlock"></i> ปลดแบน</button>` : `<button class="btn btn-sm btn-ghost red" data-ban="${h.id}"><i class="fa-solid fa-ban"></i> แบน</button>`} <button class="btn btn-sm btn-outline" data-edit="${h.id}"><i class="fa-solid fa-pen"></i> แก้ไข</button> <button class="btn btn-sm btn-ghost" data-share="${h.id}" title="แชร์โปรโมต"><i class="fa-solid fa-share-nodes"></i></button> <a class="btn btn-sm btn-ghost" href="${siteUrl('#/hotel/' + (h.slug || h.id))}" target="_blank" rel="noopener" title="ดูหน้าเว็บ"><i class="fa-solid fa-eye"></i></a> <button class="btn btn-sm btn-ghost red" data-hdel="${h.id}" title="ลบ"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('')}
     </tbody></table></div></section>`;
-  $('#h-add').onclick = () => hotelForm(null, () => admHotels(main));
-  $('#h-addroom').onclick = () => addRoomFlow(() => admHotels(main));
   $$('[data-edit]', main).forEach(b => b.onclick = () => hotelForm(DB.hotel(b.dataset.edit), () => admHotels(main)));
   $$('[data-share]', main).forEach(b => b.onclick = () => sharePromo(DB.hotel(b.dataset.share)));
-  $$('[data-act]', main).forEach(c => c.onchange = () => { const h = DB.hotel(c.dataset.act); h.active = c.checked; DB.saveHotel(h); DB.log('hotel.toggle', `${h.name} → ${c.checked ? 'เปิดขาย' : 'ปิด'}`); toast(c.checked ? 'เปิดขายแล้ว' : 'ปิดการขายแล้ว'); admHotels(main); });
+  $$('[data-detail]', main).forEach(b => b.onclick = () => hotelDetailModal(DB.hotel(b.dataset.detail), () => admHotels(main)));
+  $$('[data-ban]', main).forEach(b => b.onclick = () => banHotel(DB.hotel(b.dataset.ban), () => admHotels(main)));
+  $$('[data-unban]', main).forEach(b => b.onclick = () => unbanHotel(DB.hotel(b.dataset.unban), () => admHotels(main)));
   $$('[data-hdel]', main).forEach(b => b.onclick = async () => {
     const h = DB.hotel(b.dataset.hdel);
     if (DB.bookings().some(x => x.hotelId === h.id && x.status !== 'cancelled' && x.checkOut >= todayISO())) return toast('ไม่สามารถลบได้ เนื่องจากมีการจองที่ยังไม่สิ้นสุด — ปิดการขายแทน', 'err');
     if (await confirmBox(`ลบ "${esc(h.name)}" ถาวร?`, 'ลบ')) { DB.deleteHotel(h.id); DB.log('hotel.delete', h.name); toast('ลบที่พักแล้ว'); admHotels(main); }
   });
+}
+
+const banUntilText = b => b?.until ? `ถึง ${fmtDateTime(b.until)}` : 'ถาวร';
+// ผู้ดูแลแพลตฟอร์ม: แบน / ปลดแบนรีสอร์ท — บันทึกว่าใครแบน เมื่อไหร่ เหตุผลอะไร (เจ้าของแก้เองไม่ได้ ถูกบังคับที่ฐานข้อมูล)
+async function banHotel(h, done) {
+  if (!isAdmin(DB.currentUser())) return deny();
+  const opts = [[1, '1 วัน'], [3, '3 วัน'], [7, '7 วัน'], [15, '15 วัน'], [30, '30 วัน'], [90, '90 วัน'], [180, '180 วัน'], [0, 'ถาวร (จนกว่าแอดมินปลดแบน)']];
+  const m = openModal(`<h2><i class="fa-solid fa-ban"></i> แบนรีสอร์ท "${esc(h.name)}"</h2>
+    <div class="fg" style="margin-top:12px"><label>ระยะเวลาที่แบน</label><select id="bn-days">${opts.map(([d, l]) => `<option value="${d}" ${d === 7 ? 'selected' : ''}>${l}</option>`).join('')}</select><div class="small muted" id="bn-end" style="margin-top:4px"></div></div>
+    <div class="fg"><label>เหตุผล (เจ้าของรีสอร์ทจะเห็นข้อความนี้)</label><textarea id="bn-reason" rows="3"></textarea></div>
+    <div class="row" style="justify-content:flex-end;gap:8px;margin-top:14px"><button class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-danger" id="bn-ok"><i class="fa-solid fa-ban"></i> แบนรีสอร์ท</button></div>`);
+  const endAt = () => { const d = +$('#bn-days', m).value; return d ? new Date(Date.now() + d * 864e5).toISOString() : null; };
+  const drawEnd = () => { const e = endAt(); $('#bn-end', m).textContent = e ? `แบนถึง ${fmtDateTime(e)} แล้วระบบปลดให้อัตโนมัติ` : 'แบนถาวร — ต้องให้แอดมินกดปลดแบนเอง'; };
+  $('#bn-days', m).onchange = drawEnd; drawEnd();
+  $('#bn-ok', m).onclick = async () => {
+    const reason = $('#bn-reason', m).value.trim();
+    if (!reason) return toast('กรุณากรอกเหตุผล', 'err');
+    const u = DB.currentUser(), until = endAt();
+    h.banned = { at: new Date().toISOString(), byId: u.id, byName: u.name || u.email, reason, until, prevActive: h.active !== false };
+    h.active = false;
+    closeModal();
+    await DB.saveHotel(h); DB.log('hotel.ban', `${h.name} · ${banUntilText(h.banned)} · เหตุผล: ${reason}`); toast('แบนรีสอร์ทแล้ว — ถูกซ่อนจากหน้าเว็บลูกค้า'); done?.();
+  };
+}
+async function unbanHotel(h, done) {
+  if (!isAdmin(DB.currentUser())) return deny();
+  if (!(await confirmBox(`ปลดแบน <b>${esc(h.name)}</b>? รีสอร์ทจะกลับไปเป็นสถานะเดิมที่เจ้าของตั้งไว้`, 'ปลดแบน'))) return;
+  h.active = h.banned?.prevActive !== false; delete h.banned;
+  await DB.saveHotel(h); DB.log('hotel.unban', h.name); toast('ปลดแบนแล้ว'); done?.();
+}
+
+// รายละเอียดรีสอร์ทแบบเต็ม + ข้อมูลใบสมัครของเจ้าของ (สำหรับผู้ดูแลแพลตฟอร์ม)
+function hotelDetailModal(h) {
+  const o = DB.users().find(u => u.id === h.ownerId), b = o?.biz || {}, p = o?.payout || {};
+  const row = (l, v) => v ? `<div><small>${l}</small><b>${v}</b></div>` : '';
+  const stMap = { pending: 'รออนุมัติ', approved: 'อนุมัติแล้ว', rejected: 'ไม่ผ่าน' };
+  const bks = DB.bookings().filter(x => x.hotelId === h.id && x.status !== 'cancelled');
+  const soc = Object.entries(SOCIALS).filter(([k]) => h.social?.[k]).map(([k, c]) => `<span><i class="${c.icon}" style="color:${c.color}"></i> ${esc(h.social[k])}</span>`).join(' ');
+  const dm = openModal(`<h2><i class="fa-solid fa-hotel"></i> ${esc(h.name)} ${h.banned ? '<span class="pill bad"><i class="fa-solid fa-ban"></i> ถูกแบน</span>' : h.active === false ? '<span class="pill">เจ้าของปิดขาย</span>' : '<span class="pill ok">เปิดขาย</span>'}</h2>
+    ${h.banned ? `<div class="small red" style="margin:8px 0"><b>แบนโดย:</b> ${esc(h.banned.byName || '-')} · ${h.banned.at ? fmtDateTime(h.banned.at) : ''} · <b>${banUntilText(h.banned)}</b>${h.banned.reason ? `<br><b>เหตุผล:</b> ${esc(h.banned.reason)}` : ''}</div>` : ''}
+    <div class="sh-thumbs" style="margin:10px 0">${h.images.slice(0, 6).map(i => imgTag(i, 160)).join('')}</div>
+    <h4 style="margin:12px 0 6px">ข้อมูลรีสอร์ท</h4>
+    <div class="tl-detail">${row('ประเภท', esc(h.type))}${row('ที่ตั้ง', esc([h.area, h.city].filter(Boolean).join(', ')))}${row('ดาว / คะแนน', `${h.stars}★ · ${h.rating || '-'} (${h.reviews || 0} รีวิว)`)}${row('เช็คอิน–เช็คเอาท์', `${esc(h.checkIn)} – ${esc(h.checkOut)}`)}${row('ระยะจากท่าเรือ', h.distance != null ? h.distance + ' กม.' : '')}${row('ลิงก์รีสอร์ท', `<a href="${siteUrl('#/hotel/' + (h.slug || h.id))}" target="_blank" rel="noopener">เปิดหน้าเว็บ</a>`)}${row('โซเชียล', soc)}${row('การจองทั้งหมด', bks.length + ' รายการ · ' + money(bks.reduce((s, x) => s + x.price.total, 0)))}</div>
+    ${h.description ? `<p class="small" style="margin:8px 0;white-space:pre-line">${esc(h.description)}</p>` : ''}
+    <h4 style="margin:12px 0 6px">ห้องพัก (${h.rooms.length} ประเภท)</h4>
+    <div class="table-scroll"><table class="tbl"><thead><tr><th>ห้อง</th><th>ขนาด/เตียง</th><th>จำนวน</th><th>ราคา/คืน</th></tr></thead><tbody>${h.rooms.map(r => `<tr><td><b>${esc(r.name)}</b></td><td class="small">${esc(r.size || '')} ${esc(r.bed || '')}</td><td>${r.total} ห้อง</td><td>${money(r.price)}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">ยังไม่มีห้อง</td></tr>'}</tbody></table></div>
+    <h4 style="margin:14px 0 6px"><i class="fa-solid fa-id-card"></i> ข้อมูลการสมัครของเจ้าของ</h4>
+    ${o ? `<div class="tl-detail">${row('ชื่อรีสอร์ทที่สมัคร', esc(b.resortName || '-'))}${row('ผู้สมัคร', esc(o.name))}${row('อีเมล', esc(o.email))}${row('โทร', esc(b.phone || o.phone || '-'))}${row('LINE', esc(b.line))}${row('ที่ตั้ง', esc(b.location))}${row('จำนวนห้องโดยประมาณ', esc(b.rooms))}${row('สถานะใบสมัคร', stMap[o.ownerStatus] || esc(o.ownerStatus || '-'))}${row('สมัครเมื่อ', o.appliedAt ? fmtDateTime(o.appliedAt) : '')}${row('GPS ที่สมัคร', b.lat != null ? `<a href="https://www.google.com/maps?q=${b.lat},${b.lng}" target="_blank" rel="noopener">${(+b.lat).toFixed(5)}, ${(+b.lng).toFixed(5)}</a>` : '')}${row('บัตรประชาชน', b.idNumber ? `${esc(maskId(b.idNumber))} ${b.idPhoto ? `<button class="btn btn-sm btn-outline" data-idcard="${esc(b.idPhoto)}">ดูรูป</button>` : ''}` : '')}${row('บัญชีรับเงิน', isPromptpayId(p.promptpayId) || (p.bankInfo || '').trim() ? 'ตั้งค่าแล้ว' : '<span class="red">ยังไม่ได้ตั้งค่า</span>')}</div>
+      ${b.note ? `<div class="small" style="margin-top:6px;white-space:pre-line"><b>ข้อความจากผู้สมัคร:</b> ${esc(b.note)}</div>` : ''}${o.ownerNote ? `<div class="small red" style="margin-top:6px">หมายเหตุ: ${esc(o.ownerNote)}</div>` : ''}` : '<p class="small muted">รีสอร์ทของแพลตฟอร์มเอง (ไม่มีเจ้าของรีสอร์ท)</p>'}
+    <div class="row" style="justify-content:flex-end;gap:8px;margin-top:16px"><button class="btn btn-ghost" data-close>ปิด</button></div>`, 'wide');
+  $$('[data-idcard]', dm).forEach(btn => btn.onclick = () => showIdCard(btn.dataset.idcard));
 }
 
 // แชร์โปรโมต: สร้างข้อความ + ลิงก์ประจำรีสอร์ท ส่งเข้า Facebook / TikTok / Instagram / LINE
@@ -1265,7 +1415,8 @@ function addRoomFlow(done) {
 
 function hotelForm(h, done, opts = {}) {
   const isNew = !h;
-  h = h ? JSON.parse(JSON.stringify(h)) : { id: 'h' + Date.now(), ownerId: isAdmin(DB.currentUser()) ? null : DB.currentUser().id, name: '', type: 'รีสอร์ท', stars: 0, city: DESTINATIONS[0].name, area: '', lat: DESTINATIONS[0].lat, lng: DESTINATIONS[0].lng, rating: 0, reviews: 0, images: [IMG.pool1, IMG.room1, IMG.ext1], amenities: ['wifi', 'ac'], rooms: [], distance: 1, description: '', checkIn: '14:00', checkOut: '12:00', highlights: ['ทำเลดี', 'คุ้มค่าเงิน', 'Wi-Fi ฟรี'], active: true };
+  const ob = isAdmin(DB.currentUser()) ? {} : DB.currentUser()?.biz || {}, oz = ob.lat != null ? nearestZone(+ob.lat, +ob.lng).d : DESTINATIONS[0]; // ค่าเริ่มต้นจากพิกัดที่สมัครไว้
+  h = h ? JSON.parse(JSON.stringify(h)) : { id: 'h' + Date.now(), ownerId: isAdmin(DB.currentUser()) ? null : DB.currentUser().id, name: '', type: 'รีสอร์ท', stars: 0, city: oz.name, area: '', lat: ob.lat != null ? +ob.lat : oz.lat, lng: ob.lng != null ? +ob.lng : oz.lng, rating: 0, reviews: 0, images: [IMG.pool1, IMG.room1, IMG.ext1], amenities: ['wifi', 'ac'], rooms: [], distance: 1, description: '', checkIn: '14:00', checkOut: '12:00', highlights: ['ทำเลดี', 'คุ้มค่าเงิน', 'Wi-Fi ฟรี'], active: true };
   const roomRow = (r, i) => `<div class="room-edit" data-ri="${i}"><div class="row between"><b>ห้อง #${i + 1}</b><button type="button" class="btn btn-sm btn-danger" data-rdel="${i}"><i class="fa-solid fa-trash"></i></button></div>
     <div class="form-grid" style="grid-template-columns:repeat(4,1fr);margin-top:8px">
       <div class="fg" style="grid-column:span 2"><label>ชื่อห้อง</label><input data-rf="name" value="${esc(r.name)}"></div>
@@ -1328,6 +1479,7 @@ function hotelForm(h, done, opts = {}) {
     pos.lat = +lat.toFixed(6); pos.lng = +lng.toFixed(6);
     pin?.setLatLng([pos.lat, pos.lng]); if (pan) map?.setView([pos.lat, pos.lng], 16);
     $('[name=distance]', m).value = kmFrom(PIER, pos).toFixed(1); showCoord();
+    const z = onKohLarn(pos.lat, pos.lng) && nearestZone(pos.lat, pos.lng); if (z) $('[name=city]', m).value = z.d.name; // โซน (หาด/ย่าน) ตามตำแหน่งหมุดอัตโนมัติ
   };
   showCoord();
   if (window.L) {
@@ -1402,21 +1554,42 @@ function admCoupons(main) {
   const list = DB.coupons(), bks = DB.bookings().filter(b => b.status !== 'cancelled');
   const admin = isAdmin(DB.currentUser()), ownerName = id => { if (!id) return 'ทุกรีสอร์ท (แพลตฟอร์ม)'; const o = DB.users().find(u => u.id === id); return o ? (o.biz?.resortName || o.name) : '-'; };
   main.innerHTML = pageHead('โค้ดส่วนลด', `${list.filter(c => c.active).length} โค้ดที่ใช้งานอยู่ · ${admin ? 'โค้ดที่แพลตฟอร์มสร้างใช้ได้ทุกรีสอร์ท' : 'ใช้ได้เฉพาะที่พักของคุณ ส่วนลดหักจากยอดที่คุณได้รับ'}`, '<button class="btn btn-primary" id="c-add"><i class="fa-solid fa-plus"></i> เพิ่มโค้ด</button>') + `
-    <section class="card flush"><div class="table-scroll"><table class="tbl"><thead><tr><th>โค้ด</th>${admin ? '<th>ใช้กับ</th>' : ''}<th>ส่วนลด</th><th>ยอดขั้นต่ำ</th><th>คำอธิบาย</th><th>ใช้ไปแล้ว</th><th>ส่วนลดรวม</th><th>สถานะ</th><th></th></tr></thead><tbody>
-    ${list.map((c, i) => { const used = bks.filter(b => b.price.couponCode === c.code); return `<tr><td><span class="code">${esc(c.code)}</span></td>${admin ? `<td class="small">${esc(ownerName(c.ownerId))}</td>` : ''}<td>${c.type === 'percent' ? c.value + '%' : money(c.value)}</td><td>${money(c.min)}</td><td class="small">${esc(c.desc)}</td>
-      <td>${used.length} ครั้ง</td><td>${money(used.reduce((s, b) => s + (b.price.coupon || 0), 0))}</td>
+    <section class="card flush"><div class="table-scroll"><table class="tbl"><thead><tr><th>รูป</th><th>โค้ด</th>${admin ? '<th>ใช้กับ</th>' : ''}<th>ส่วนลด</th><th>ยอดขั้นต่ำ</th><th>คำอธิบาย</th><th>ใช้ไปแล้ว</th><th>ส่วนลดรวม</th><th>สถานะ</th><th></th></tr></thead><tbody>
+    ${list.map((c, i) => { const used = bks.filter(b => b.price.couponCode === c.code); return `<tr><td style="white-space:nowrap">${c.image ? `<img src="${esc(c.image)}" alt="" style="width:64px;height:44px;object-fit:cover;border-radius:6px;vertical-align:middle">` : '<span class="muted small">—</span>'}<div style="margin-top:4px"><button class="btn btn-sm btn-ghost" data-cimg="${i}" title="${c.image ? 'เปลี่ยนรูป' : 'เพิ่มรูป'}"><i class="fa-regular fa-image"></i></button>${c.image ? `<button class="btn btn-sm btn-ghost red" data-cimgdel="${i}" title="ลบรูป"><i class="fa-solid fa-xmark"></i></button>` : ''}</div></td><td><span class="code">${esc(c.code)}</span></td>${admin ? `<td class="small">${esc(ownerName(c.ownerId))}</td>` : ''}<td>${c.type === 'percent' ? c.value + '%' : money(c.value)}</td><td>${+c.min > 0 ? money(c.min) : '<span class="muted">ไม่มี</span>'}</td><td class="small">${esc(c.desc)}</td>
+      <td>${used.length}${c.maxUses ? ` / ${c.maxUses}` : ''} ครั้ง${c.maxUses && used.length >= c.maxUses ? ' <span class="pill bad">ครบแล้ว</span>' : ''}<div class="small muted">${c.maxUses ? 'จำกัด ' + c.maxUses + ' ครั้ง' : 'ไม่จำกัด'} <a href="javascript:" data-climit="${i}">แก้</a></div></td><td>${money(used.reduce((s, b) => s + (b.price.coupon || 0), 0))}</td>
       <td><label class="switch"><input type="checkbox" data-cact="${i}" ${c.active ? 'checked' : ''}><span></span>${c.active ? 'ใช้งาน' : 'ปิด'}</label></td>
-      <td style="text-align:right"><button class="btn btn-sm btn-ghost red" data-cdel="${i}" title="ลบ"><i class="fa-solid fa-trash"></i></button></td></tr>`; }).join('') || '<tr><td colspan="8" class="muted">ยังไม่มีโค้ด</td></tr>'}</tbody></table></div></section>`;
+      <td style="text-align:right"><button class="btn btn-sm btn-ghost red" data-cdel="${i}" title="ลบ"><i class="fa-solid fa-trash"></i></button></td></tr>`; }).join('') || '<tr><td colspan="9" class="muted">ยังไม่มีโค้ด</td></tr>'}</tbody></table></div></section>`;
   $$('[data-cact]', main).forEach(c => c.onchange = () => { const x = list[+c.dataset.cact]; x.active = c.checked; DB.saveCoupons(list); DB.log('coupon.toggle', `${x.code} → ${c.checked ? 'เปิด' : 'ปิด'}`); admCoupons(main); });
+  $$('[data-climit]', main).forEach(a => a.onclick = () => {
+    const x = list[+a.dataset.climit];
+    const m = openModal(`<h2>จำนวนครั้งที่ใช้โค้ด <span class="code">${esc(x.code)}</span></h2><div class="fg" style="margin-top:12px"><label>ใช้ได้ทั้งหมดกี่ครั้ง (เว้นว่าง = ไม่จำกัด)</label><input id="cl-n" type="number" min="1" step="1" value="${x.maxUses || ''}"></div><div class="row" style="justify-content:flex-end;gap:8px;margin-top:14px"><button class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary" id="cl-ok">บันทึก</button></div>`);
+    $('#cl-ok', m).onclick = () => { const n = Math.floor(+$('#cl-n', m).value); x.maxUses = n > 0 ? n : null; DB.saveCoupons(list); DB.log('coupon.limit', `${x.code} → ${x.maxUses || 'ไม่จำกัด'}`); closeModal(); toast('บันทึกแล้ว'); admCoupons(main); };
+  });
+  $$('[data-cimg]', main).forEach(b => b.onclick = async () => {
+    const x = list[+b.dataset.cimg];
+    try { toast('เลือกรูปจากเครื่อง...', 'info'); const url = await pickAndUploadImage(900); if (!url) return; x.image = url; DB.saveCoupons(list); DB.log('coupon.image', x.code); toast('บันทึกรูปโค้ดแล้ว'); admCoupons(main); }
+    catch (e) { toast('อัปโหลดรูปไม่สำเร็จ: ' + e.message, 'err'); }
+  });
+  $$('[data-cimgdel]', main).forEach(b => b.onclick = () => { const x = list[+b.dataset.cimgdel]; x.image = ''; DB.saveCoupons(list); DB.log('coupon.image', `${x.code} (ลบรูป)`); admCoupons(main); });
   $$('[data-cdel]', main).forEach(b => b.onclick = async () => { const x = list[+b.dataset.cdel]; if (!(await confirmBox(`ลบโค้ด <b>${esc(x.code)}</b>?`, 'ลบ'))) return; list.splice(+b.dataset.cdel, 1); DB.saveCoupons(list); DB.log('coupon.delete', x.code); toast('ลบโค้ดแล้ว'); admCoupons(main); });
   $('#c-add').onclick = () => {
     const m = openModal(`<h2>เพิ่มโค้ดส่วนลด</h2><form id="cf" class="form-grid" style="margin-top:14px" novalidate>
       <div class="fg full"><label>โค้ด</label><input name="code" style="text-transform:uppercase"></div>
       <div class="fg"><label>ประเภท</label><select name="type"><option value="percent">เปอร์เซ็นต์ (%)</option><option value="fixed">จำนวนเงิน (฿)</option></select></div>
       <div class="fg"><label>มูลค่า</label><input name="value" type="number"></div>
-      <div class="fg full"><label>ยอดจองขั้นต่ำ (฿)</label><input name="min" type="number" value="0"></div>
+      <div class="fg full"><label>เงื่อนไข: ยอดจองขั้นต่ำ (฿) — 0 = ไม่มีขั้นต่ำ</label><input name="min" type="number" min="0" value="0"></div>
+      <div class="full small" id="cf-cond" style="background:#f4f7fb;border-radius:8px;padding:8px 10px"></div>
       <div class="fg full"><label>คำอธิบาย</label><input name="desc"></div>
+      <div class="fg full"><label>จำกัดจำนวนครั้งที่ใช้ได้ทั้งหมด (เว้นว่าง = ไม่จำกัด)</label><input name="maxUses" type="number" min="1" step="1" placeholder="เช่น 50"></div>
+      <div class="fg full"><label>รูปโค้ดส่วนลด (ไม่บังคับ)</label><div class="row" style="gap:10px;align-items:center"><div id="cf-prev" style="width:96px;height:64px;border-radius:8px;background:#f1f3f6;display:grid;place-items:center;overflow:hidden" class="muted small">ไม่มีรูป</div><button type="button" class="btn btn-outline btn-sm" id="cf-img"><i class="fa-regular fa-image"></i> เลือกรูป</button><button type="button" class="btn btn-ghost btn-sm red" id="cf-imgx" style="display:none">ลบรูป</button></div><input type="hidden" name="image"></div>
       <div class="full"><button class="btn btn-primary btn-block">บันทึก</button></div></form>`);
+    const cf = $('#cf', m), condTxt = () => { const val = +cf.elements.value.value || 0, c = { type: cf.elements.type.value, value: val, min: +cf.elements.min.value || 0, maxUses: Math.floor(+cf.elements.maxUses.value) || null };
+      return `${val ? 'ลด ' + couponOffText(c) : 'ลด …'} ${couponCondText(c)}`; };
+    const drawCond = () => $('#cf-cond', m).innerHTML = `<b>ลูกค้าจะเห็นเงื่อนไข:</b> ${condTxt()}`;
+    ['type', 'value', 'min', 'maxUses'].forEach(n => cf.elements[n].addEventListener('input', drawCond)); drawCond();
+    const setImg = u => { cf.elements.image.value = u || ''; $('#cf-prev', m).innerHTML = u ? `<img src="${esc(u)}" alt="" style="width:100%;height:100%;object-fit:cover">` : 'ไม่มีรูป'; $('#cf-imgx', m).style.display = u ? '' : 'none'; };
+    $('#cf-img', m).onclick = async () => { try { toast('เลือกรูปจากเครื่อง...', 'info'); const u = await pickAndUploadImage(900); if (u) setImg(u); } catch (e) { toast('อัปโหลดรูปไม่สำเร็จ: ' + e.message, 'err'); } };
+    $('#cf-imgx', m).onclick = () => setImg('');
     $('#cf', m).onsubmit = e => {
       e.preventDefault();
       const v = Object.fromEntries(new FormData(e.target));
@@ -1424,7 +1597,7 @@ function admCoupons(main) {
       if (!/^[A-Z0-9]{3,20}$/.test(code)) return toast('โค้ดต้องเป็นตัวอักษรอังกฤษ/ตัวเลข 3-20 ตัว', 'err');
       if (!(+v.value > 0) || (v.type === 'percent' && +v.value > 100)) return toast('มูลค่าส่วนลดไม่ถูกต้อง', 'err');
       if (list.some(c => c.code === code)) return toast('มีโค้ดนี้อยู่แล้ว', 'err');
-      list.push({ code, type: v.type, value: +v.value, min: +v.min || 0, desc: v.desc, active: true, ownerId: admin ? null : DB.currentUser().id });
+      list.push({ code, type: v.type, value: +v.value, min: +v.min || 0, desc: v.desc.trim() || condTxt(), image: v.image || '', maxUses: Math.floor(+v.maxUses) > 0 ? Math.floor(+v.maxUses) : null, active: true, ownerId: admin ? null : DB.currentUser().id });
       DB.saveCoupons(list); DB.log('coupon.add', code); closeModal(); toast('เพิ่มโค้ดแล้ว'); admCoupons(main);
     };
   };

@@ -156,7 +156,7 @@ section.block { padding: 36px 0 8px; }
 .sec-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .sec-title-row .sec-title { margin: 0; }
 .promo-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.promo { border-radius: 14px; overflow: hidden; position: relative; height: 170px; color: #fff; padding: 20px; display: flex; flex-direction: column; justify-content: flex-end; cursor: pointer; background-size: cover; background-position: center; }
+.promo { isolation: isolate; border-radius: 14px; overflow: hidden; position: relative; height: 170px; color: #fff; padding: 20px; display: flex; flex-direction: column; justify-content: flex-end; cursor: pointer; background-size: cover; background-position: center; }
 .promo::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0,0,0,.65), rgba(0,0,0,.05)); }
 .promo > * { position: relative; }
 .promo .tag { background: var(--accent); align-self: flex-start; padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: 700; margin-bottom: 8px; }
@@ -607,3 +607,29 @@ body.edit-mode [data-img-slot] { position: relative; }
 
 /* แถบเครื่องมือแก้ไขต้องไม่ทับหน้าต่าง (modal z-index 100) — ซ่อนขณะมีหน้าต่างเปิดอยู่ */
 body:has(#modal) #ed-bar, body:has(#modal) #ed-fab { display: none; }
+
+/* ---- พิมพ์ / บันทึก PDF หน้าการจอง: ให้พอดี A4 หน้าเดียว ---- */
+@page { size: A4; margin: 8mm; }
+@media print {
+  html, body { font-size: 11px; line-height: 1.35; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #app .container { max-width: none; padding: 0 !important; }
+  .panel { padding: 8px 12px; margin-bottom: 8px; break-inside: avoid; }
+  .panel h2 { font-size: 14px; }
+  .slip-box, .pp-box ol, .pp-box .btn, #toast { display: none !important; }
+  .confirm-hero { padding: 6px 12px; }
+  .confirm-hero i.big { display: none; }
+  .confirm-hero h1 { font-size: 15px; margin: 0 0 2px; }
+  .bk-id { font-size: 18px; }
+  .pp-box .row { gap: 12px !important; }
+  .pp-qr img { width: 110px; height: 110px; }
+  .pp-box .price { font-size: 18px !important; }
+  #voucher img { width: 130px !important; height: 90px !important; }
+  #voucher h3 { font-size: 14px; }
+  .sum-dates { margin: 6px 0 !important; padding: 6px; font-size: 11px; }
+  .policy-table { font-size: 11px; }
+  .policy-table td { padding: 4px 0; }
+  .policy-table td:first-child { width: 110px; }
+  #voucher > div[style*="max-width:380px"] { margin-top: 6px !important; }
+  .sum-row { padding: 2px 0; }
+  #voucher .row[style*="margin-top:16px"] { margin-top: 6px !important; }
+}

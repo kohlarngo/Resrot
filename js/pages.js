@@ -1,3 +1,12 @@
+// การ์ดโปรโมชั่นหน้าแรกดึงข้อมูลจากโค้ดส่วนลดจริง (ยอดขั้นต่ำ / จำนวนครั้ง) — ถ้าอ่านโค้ดไม่ได้ใช้ข้อความตั้งต้น
+function promoOff(code, fallback, prefix = 'ลด ') { const c = pubCoupon(code); return c ? `${prefix}${couponOffText(c)}` : fallback; }
+function promoLine(code, fallbackCond, tail = '') {
+  const c = pubCoupon(code);
+  if (!c) return CACHE.pubCoupons ? `<span class="muted">โค้ด <code>${code}</code> ปิดใช้งานแล้ว</span>` : `ใช้โค้ด <code>${code}</code> ${fallbackCond}${tail}`;
+  const full = c.maxUses && c.left != null && c.left <= 0;
+  return `ใช้โค้ด <code>${esc(c.code)}</code> ${full ? '— ครบจำนวนแล้ว' : couponCondText(c)}${full ? '' : tail}`;
+}
+
 // ================= Shared cards =================
 function favBtn(id) { const on = DB.favs().includes(id); return `<button class="fav-btn ${on ? 'on' : ''}" data-fav="${id}" title="บันทึกในรายการโปรด"><i class="fa-${on ? 'solid' : 'regular'} fa-heart"></i></button>`; }
 function bindFavs(root) {
@@ -55,8 +64,8 @@ function pageHome(app) {
       <h2 class="sec-title" data-edit="home.promo.title">โปรโมชั่นที่คุณไม่ควรพลาด</h2>
       <div class="promo-row">
         <div class="promo" data-img-slot="promo1" data-q="หาดแสม">${bgSlides('promo1', IMG.beach1, 700)}<span class="tag" data-edit="home.promo1.tag">ลดสูงสุด 35%</span><h3 data-edit="home.promo1.title">ทะเลใสเกาะล้านเรียกหา</h3><p data-edit="home.promo1.text">รีสอร์ทริมหาดแสม ราคาพิเศษ</p></div>
-        <div class="promo" data-img-slot="promo2" data-copy="WELCOME10">${bgSlides('promo2', IMG.pool2, 700)}<span class="tag" data-edit="home.promo2.tag">สมาชิกใหม่</span><h3 data-edit="home.promo2.title">ลดเพิ่ม 10%</h3><p>ใช้โค้ด <code>WELCOME10</code> (คลิกเพื่อคัดลอก)</p></div>
-        <div class="promo" data-img-slot="promo3" data-copy="SUMMER500">${bgSlides('promo3', IMG.villa1, 700)}<span class="tag" data-edit="home.promo3.tag">ดีลพูลวิลล่า</span><h3 data-edit="home.promo3.title">ลดทันที ฿500</h3><p>ใช้โค้ด <code>SUMMER500</code> เมื่อจองครบ ฿3,000</p></div>
+        <div class="promo" data-img-slot="promo2" data-copy="WELCOME10">${bgSlides('promo2', IMG.pool2, 700)}<span class="tag" data-edit="home.promo2.tag">สมาชิกใหม่</span><h3 data-edit="home.promo2.title">${promoOff('WELCOME10', 'ลดเพิ่ม 10%')}</h3><p>${promoLine('WELCOME10', '', ' (คลิกเพื่อคัดลอก)')}</p></div>
+        <div class="promo" data-img-slot="promo3" data-copy="SUMMER500">${bgSlides('promo3', IMG.villa1, 700)}<span class="tag" data-edit="home.promo3.tag">ดีลพูลวิลล่า</span><h3 data-edit="home.promo3.title">${promoOff('SUMMER500', 'ลดทันที ฿500', 'ลดทันที ')}</h3><p>${promoLine('SUMMER500', 'เมื่อจองครบ ฿3,000')}</p></div>
       </div>
     </section>
     ${recent.length ? `<section class="block"><h2 class="sec-title">ที่พักที่คุณดูล่าสุด</h2><div class="card-grid">${recent.slice(0, 4).map(hotelCard).join('')}</div></section>` : ''}
@@ -74,7 +83,7 @@ function pageHome(app) {
       <div class="card-grid" id="city-grid"></div>
     </section>
     <section class="block">
-      <h2 class="sec-title" data-edit="home.why.title">ทำไมต้องจองกับ StayDee</h2>
+      <h2 class="sec-title" data-edit="home.why.title">ทำไมต้องจองกับ ชมรมรีสอร์ท & ที่พัก เกาะล้าน</h2>
       <div class="why-grid">
         <div class="why"><i class="fa-solid fa-tags"></i><h4 data-edit="home.why1.title">รับประกันราคาดีที่สุด</h4><p data-edit="home.why1.text">เจอราคาถูกกว่า เราคืนส่วนต่างให้</p></div>
         <div class="why"><i class="fa-solid fa-calendar-xmark"></i><h4 data-edit="home.why2.title">ยกเลิกฟรี</h4><p data-edit="home.why2.text">ที่พักหลายแห่งยกเลิกได้ฟรีก่อนเข้าพัก</p></div>
@@ -114,15 +123,15 @@ function pageSearch(app, params) {
   page = 1;
   app.innerHTML = `${searchBoxHtml('mini')}
     <div class="container">
-      <div class="breadcrumb"><a href="#/">หน้าแรก</a> › ${S.q ? esc(S.q) : 'ที่พักทั้งหมด'}</div>
+      <div class="breadcrumb"><a href="#/"><span data-edit="search.crumb.home">หน้าแรก</span></a> › ${S.q ? esc(S.q) : '<span data-edit="search.crumb.all">ที่พักทั้งหมด</span>'}</div>
       <div class="results-layout" style="padding-top:0">
         <aside class="filters" id="filters"></aside>
         <div>
           <div class="res-head"><h2 id="res-title"></h2>
-            <div class="row"><button class="btn btn-outline btn-sm" id="f-toggle" style="display:none"><i class="fa-solid fa-sliders"></i> ตัวกรอง</button>
+            <div class="row"><button class="btn btn-outline btn-sm" id="f-toggle" style="display:none"><i class="fa-solid fa-sliders"></i> <span data-edit="search.filter.toggle">ตัวกรอง</span></button>
             <button class="btn btn-outline btn-sm" id="view-t"></button></div></div>
           <div class="sort-bar" id="sort-bar">
-            ${[['best', 'แนะนำ'], ['price', 'ราคาต่ำสุด'], ['rating', 'คะแนนรีวิว'], ['distance', 'ใกล้ท่าเรือ'], ['stars', 'ระดับดาว'], ['deals', 'ดีลร้อนแรง']].map(([k, l]) => `<button data-sort="${k}" class="${sortBy === k ? 'active' : ''}">${l}</button>`).join('')}
+            ${[['best', 'แนะนำ'], ['price', 'ราคาต่ำสุด'], ['rating', 'คะแนนรีวิว'], ['distance', 'ใกล้ท่าเรือ'], ['stars', 'ระดับดาว'], ['deals', 'ดีลร้อนแรง']].map(([k, l]) => `<button data-sort="${k}" class="${sortBy === k ? 'active' : ''}"><span data-edit="search.sort.${k}">${l}</span></button>`).join('')}
           </div>
           <div id="results"></div>
         </div>
@@ -166,19 +175,19 @@ function renderFilters() {
   const areas = [...new Set(base.map(x => x.h.area))];
   $('#filters').innerHTML = `
     <div class="map-preview" data-img-slot="mapbg" style="background-image:url(${siteImgUrl('mapbg', 'photo-1524661135-423995f22d0b', 600)})"><button class="btn btn-primary btn-sm" id="map-open"><i class="fa-solid fa-map-location-dot"></i> ดูบนแผนที่</button></div>
-    <div class="f-sec"><div class="row between"><h4 style="margin:0">ตัวกรอง</h4><a href="javascript:" id="f-clear" class="small">ล้างทั้งหมด</a></div></div>
-    <div class="f-sec"><h4>งบประมาณต่อคืน</h4>
+    <div class="f-sec"><div class="row between"><h4 style="margin:0" data-edit="search.filter.title">ตัวกรอง</h4><a href="javascript:" id="f-clear" class="small"><span data-edit="search.filter.clear">ล้างทั้งหมด</span></a></div></div>
+    <div class="f-sec"><h4 data-edit="search.filter.budget">งบประมาณต่อคืน</h4>
       <input type="range" id="f-max" min="0" max="${maxP}" step="100" value="${F.max || maxP}">
       <div class="range-row"><input type="number" id="f-min-n" placeholder="ต่ำสุด" value="${F.min || ''}"> – <input type="number" id="f-max-n" placeholder="สูงสุด" value="${F.max || ''}"></div></div>
-    <div class="f-sec"><h4>ตัวเลือกยอดนิยม</h4>
+    <div class="f-sec"><h4 data-edit="search.filter.popular">ตัวเลือกยอดนิยม</h4>
       <label class="ck"><input type="checkbox" data-b="freeCancel" ${F.freeCancel ? 'checked' : ''}> ยกเลิกฟรี<span class="cnt">${count(h => h.rooms.some(r => r.freeCancel))}</span></label>
       <label class="ck"><input type="checkbox" data-b="payAtHotel" ${F.payAtHotel ? 'checked' : ''}> ชำระเงินที่ที่พัก<span class="cnt">${count(h => h.rooms.some(r => r.payAtHotel))}</span></label>
       <label class="ck"><input type="checkbox" data-b="breakfast" ${F.breakfast ? 'checked' : ''}> รวมอาหารเช้า<span class="cnt">${count(h => h.rooms.some(r => r.breakfast))}</span></label></div>
-    <div class="f-sec"><h4>ระดับดาว</h4>${[5, 4, 3, 2].map(s => ck('stars', s, starsHtml(s), count(h => h.stars === s))).join('')}</div>
-    <div class="f-sec"><h4>คะแนนรีวิว</h4>${[[9, 'ยอดเยี่ยม 9+'], [8.5, 'ดีเยี่ยม 8.5+'], [8, 'ดีมาก 8+'], [7, 'ดี 7+'], [0, 'ทั้งหมด']].map(([v, l]) => `<label class="ck"><input type="radio" name="score" value="${v}" ${F.score === v ? 'checked' : ''}> ${l}<span class="cnt">${count(h => h.rating >= v)}</span></label>`).join('')}</div>
-    <div class="f-sec"><h4>ประเภทที่พัก</h4>${types.map(t => ck('types', t, t, count(h => h.type === t))).join('')}</div>
-    <div class="f-sec"><h4>สิ่งอำนวยความสะดวก</h4>${['pool', 'beach', 'spa', 'gym', 'parking', 'airport', 'kids', 'pets', 'restaurant'].map(a => ck('amen', a, `<i class="fa-solid ${AMENITIES[a][0]} muted" style="width:16px"></i> ${AMENITIES[a][1]}`, count(h => h.amenities.includes(a)))).join('')}</div>
-    ${areas.length > 1 ? `<div class="f-sec"><h4>ย่าน / พื้นที่</h4>${areas.map(a => ck('areas', a, a, count(h => h.area === a))).join('')}</div>` : ''}`;
+    <div class="f-sec"><h4 data-edit="search.filter.stars">ระดับดาว</h4>${[5, 4, 3, 2].map(s => ck('stars', s, starsHtml(s), count(h => h.stars === s))).join('')}</div>
+    <div class="f-sec"><h4 data-edit="search.filter.score">คะแนนรีวิว</h4>${[[9, 'ยอดเยี่ยม 9+'], [8.5, 'ดีเยี่ยม 8.5+'], [8, 'ดีมาก 8+'], [7, 'ดี 7+'], [0, 'ทั้งหมด']].map(([v, l]) => `<label class="ck"><input type="radio" name="score" value="${v}" ${F.score === v ? 'checked' : ''}> ${l}<span class="cnt">${count(h => h.rating >= v)}</span></label>`).join('')}</div>
+    <div class="f-sec"><h4 data-edit="search.filter.type">ประเภทที่พัก</h4>${types.map(t => ck('types', t, t, count(h => h.type === t))).join('')}</div>
+    <div class="f-sec"><h4 data-edit="search.filter.amen">สิ่งอำนวยความสะดวก</h4>${['pool', 'beach', 'spa', 'gym', 'parking', 'airport', 'kids', 'pets', 'restaurant'].map(a => ck('amen', a, `<i class="fa-solid ${AMENITIES[a][0]} muted" style="width:16px"></i> ${AMENITIES[a][1]}`, count(h => h.amenities.includes(a)))).join('')}</div>
+    ${areas.length > 1 ? `<div class="f-sec"><h4 data-edit="search.filter.area">ย่าน / พื้นที่</h4>${areas.map(a => ck('areas', a, a, count(h => h.area === a))).join('')}</div>` : ''}`;
   const fl = $('#filters');
   const upd = () => { page = 1; renderResults(); };
   $$('[data-g]', fl).forEach(i => i.onchange = () => { const g = i.dataset.g, v = isNaN(i.value) ? i.value : +i.value; F[g] = i.checked ? [...F[g], v] : F[g].filter(x => x !== v); upd(); });
@@ -189,6 +198,8 @@ function renderFilters() {
   $('#f-max-n', fl).onchange = e => { F.max = +e.target.value || 0; upd(); };
   $('#f-clear', fl).onclick = () => { resetFilters(); renderFilters(); upd(); };
   $('#map-open', fl).onclick = () => { viewMode = 'map'; renderResults(); };
+  // ตัวกรองถูกวาดใหม่หลังหน้าโหลด — ใส่เนื้อหาที่แก้ไว้ / ปุ่มแก้ไขให้ป้ายข้อความเหล่านี้ด้วย
+  if (!PORTAL && typeof applyContent === 'function') { applyContent(); if (ED.on) edDecorate(); }
 }
 function sortList(list) {
   const p = x => x.best ? x.best.perNight : 1e9;
@@ -230,7 +241,7 @@ function resultCard({ h, best }) {
         ${off >= 25 ? '<span class="deal-badge">ดีลพิเศษ</span>' : ''}
         ${off > 0 ? `<div><span class="tag-s red">-${off}%</span> <span class="old-price">${money(best.perNightOrig)}</span></div>` : ''}
         <div class="price">${money(best.perNight)}</div>
-        <div class="per">ต่อห้องต่อคืน (ไม่รวมภาษี)</div>
+        <div class="per">ต่อห้องต่อคืน</div>
         <div class="small muted">${nights()} คืน, ${S.rooms} ห้อง: <b style="color:var(--text)">${money(total)}</b></div>
       </div>` : '<div><div class="red bold">ห้องเต็มในวันที่เลือก</div><div class="small muted">ลองเปลี่ยนวันเข้าพัก</div></div>'}
     </div></div>`;
@@ -458,7 +469,7 @@ function roomHtml(h, r, guestsPerRoom) {
             <div>${'<i class="fa-solid fa-user"></i>'.repeat(r.maxGuests)}${!fits ? '<div class="small red" style="margin-top:4px">ต้องจองหลายห้อง</div>' : ''}</div>
             <div style="text-align:right">
               ${off > 0 ? `<span class="tag-s red">-${off}%</span><div class="old-price">${money(q.perNightOrig)}</div>` : ''}
-              <div class="price">${money(q.perNight)}</div><div class="per">ไม่รวมภาษีและค่าธรรมเนียม</div>
+              <div class="price">${money(q.perNight)}</div><div class="per">ต่อห้องต่อคืน</div>
             </div>
             <div>
               <select data-qty="${r.id}|${o.id}">${Array.from({ length: maxQ }, (_, i) => `<option value="${i + 1}" ${i + 1 === defQ ? 'selected' : ''}>${i + 1} ห้อง</option>`).join('')}</select>
@@ -521,10 +532,11 @@ function pageBook(app, params) {
       <div class="sum-row"><span>ราคาห้องพัก</span><span>${money(q.sub)}</span></div>
       ${memberOff ? `<div class="sum-row green"><span>ส่วนลดสมาชิก 5%</span><span>-${money(memberOff)}</span></div>` : ''}
       ${st.off ? `<div class="sum-row green"><span>โค้ด ${esc(st.coupon.code)}</span><span>-${money(st.off)}</span></div>` : ''}
-      <div class="sum-row"><span>ภาษีและค่าธรรมเนียม (17.7%)</span><span>${money(c.tax)}</span></div>
+      ${c.tax ? `<div class="sum-row"><span>ภาษีและค่าธรรมเนียม</span><span>${money(c.tax)}</span></div>` : ''}
       <div class="sum-row total"><span>ราคารวมทั้งหมด</span><span class="red">${money(c.total)}</span></div>
       ${!u ? '<div class="notice info small" style="margin-top:12px"><i class="fa-solid fa-gift"></i><div><a href="javascript:" id="login-save">เข้าสู่ระบบ</a> เพื่อรับส่วนลดสมาชิกเพิ่ม 5%</div></div>' : ''}
       <div class="coupon-row"><input id="cp" placeholder="ใส่โค้ดส่วนลด" value="${st.coupon ? esc(st.coupon.code) : ''}"><button class="btn btn-outline" id="cp-btn">${st.coupon ? 'ลบ' : 'ใช้ส่วนลด'}</button></div>
+      ${st.coupon ? `<div class="small green" style="margin-top:6px"><i class="fa-solid fa-circle-check"></i> ${esc(st.coupon.code)}: ลด ${couponOffText(st.coupon)} · ${couponCondText(st.coupon)}</div>` : '<div class="small muted" style="margin-top:6px">โค้ดบางรายการมีเงื่อนไข เช่น ยอดจองขั้นต่ำหรือจำนวนครั้งที่ใช้ได้</div>'}
     </div>`;
   };
   const steps = () => `<div class="steps">${['กรอกข้อมูลผู้เข้าพัก', 'ชำระเงิน', 'ยืนยันการจอง'].map((s, i) => `<div class="step ${st.step === i + 1 ? 'active' : st.step > i + 1 ? 'done' : ''}"><span class="n">${st.step > i + 1 ? '<i class="fa-solid fa-check"></i>' : i + 1}</span>${s}</div>`).join('')}</div>`;
@@ -612,7 +624,8 @@ function pageBook(app, params) {
         : `<div class="notice warn"><i class="fa-solid fa-circle-info"></i><div>ที่พักนี้ยังไม่เปิดรับชำระเงินออนไลน์สำหรับห้องนี้ — กรุณาติดต่อ ${esc(ow?.phone || set.phone)} · LINE ${esc(ow?.line || set.line)}</div></div>`}
         <div id="pay-detail"></div>
       </div>
-      <div class="panel small muted"><i class="fa-solid fa-shield-halved"></i> ${ow ? `ชำระเงินตรงถึงเจ้าของรีสอร์ท <b>${esc(ow.name)}</b> · ` : ''}การจองจะสมบูรณ์เมื่อเจ้าของรีสอร์ทยืนยัน · การกด "ยืนยันการจอง" ถือว่าคุณยอมรับ<a href="#/help">ข้อกำหนดและเงื่อนไข</a></div>
+      <div class="panel small muted"><i class="fa-solid fa-shield-halved"></i> ${ow ? `ชำระเงินตรงถึงเจ้าของรีสอร์ท <b>${esc(ow.name)}</b> · ` : ''}การจองจะสมบูรณ์เมื่อเจ้าของรีสอร์ทยืนยัน · การกด "ยืนยันการจอง" ถือว่าคุณยอมรับ<a href="#/terms" target="_blank" rel="noopener">ข้อกำหนดและเงื่อนไข</a></div>
+      <label class="panel small" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="tc-ok" ${st.terms ? 'checked' : ''} style="margin-top:3px"><span>${TERMS_GUEST_LABEL} <a href="#/terms" target="_blank" rel="noopener">(อ่านเงื่อนไข)</a></span></label>
       <div class="row between wrap">
         <button class="btn btn-ghost" id="back1"><i class="fa-solid fa-chevron-left"></i> ย้อนกลับ</button>
         <div class="row"><div style="text-align:right"><div class="small muted">ยอดชำระ</div><div class="price" id="pay-total">${money(c.total)}</div></div>
@@ -629,8 +642,10 @@ function pageBook(app, params) {
     $$('[name=pay]').forEach(r => r.onchange = () => { st.pay = r.value; $$('.pay-opt').forEach(o => o.classList.toggle('active', o.contains(r))); detail(); });
     detail();
     $('#back1').onclick = () => { st.step = 1; draw(); };
+    $('#tc-ok').onchange = e => { st.terms = e.target.checked; };
     $('#confirm').onclick = () => {
       if (!st.pay) return;
+      if (!$('#tc-ok').checked) return toast('กรุณาติ๊กยอมรับเงื่อนไขการใช้งานและการรับส่วนลดก่อนยืนยันการจอง', 'err');
       if (DB.available(room, S.checkIn, S.checkOut) < qty) return toast('ขออภัย ห้องเพิ่งถูกจองไป กรุณาเลือกห้องอื่น', 'err');
       const btn = $('#confirm'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังดำเนินการ...';
       // ราคา โค้ดส่วนลด และห้องว่างถูกคำนวณ/ตรวจซ้ำที่เซิร์ฟเวอร์ (sd_create_booking)
@@ -689,7 +704,7 @@ function pageBookingView(app, params, id) {
         <div class="sum-row"><span>ราคาห้องพัก</span><span>${money(b.price.room)}</span></div>
         ${b.price.member ? `<div class="sum-row green"><span>ส่วนลดสมาชิก</span><span>-${money(b.price.member)}</span></div>` : ''}
         ${b.price.coupon ? `<div class="sum-row green"><span>โค้ด ${esc(b.price.couponCode)}</span><span>-${money(b.price.coupon)}</span></div>` : ''}
-        <div class="sum-row"><span>ภาษีและค่าธรรมเนียม</span><span>${money(b.price.tax)}</span></div>
+        ${b.price.tax ? `<div class="sum-row"><span>ภาษีและค่าธรรมเนียม</span><span>${money(b.price.tax)}</span></div>` : ''}
         <div class="sum-row total"><span>รวมทั้งหมด</span><span>${money(b.price.total)}</span></div>
       </div>
     </div>
@@ -749,7 +764,7 @@ function pageMyBookings(app, params) {
   app.innerHTML = `<div class="container" style="padding-top:24px;max-width:980px">
     <h1 class="sec-title">การจองของฉัน</h1>
     ${!u ? `<div class="panel"><h3>ค้นหาการจอง</h3><p class="small muted">เข้าสู่ระบบเพื่อดูการจองทั้งหมด หรือค้นหาด้วยหมายเลขการจองและ PIN</p>
-      <div class="form-grid"><div class="fg"><label>หมายเลขการจอง</label><input id="f-id" placeholder="SD..."></div><div class="fg"><label>PIN</label><input id="f-pin" maxlength="4"></div></div>
+      <div class="form-grid"><div class="fg"><label>หมายเลขการจอง</label><input id="f-id" placeholder="SD..."></div><div class="fg"><label>PIN</label><input id="f-pin" maxlength="6" inputmode="numeric"></div></div>
       <div class="row" style="margin-top:14px"><button class="btn btn-primary" id="f-go">ค้นหา</button><button class="btn btn-outline" data-auth2>เข้าสู่ระบบ</button></div></div>` : `
     <div class="tabs-line">${[['upcoming', 'กำลังจะมาถึง'], ['completed', 'เข้าพักแล้ว'], ['cancelled', 'ยกเลิกแล้ว']].map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? 'active' : ''}">${l} (${groups[k].length})</button>`).join('')}</div>
     ${groups[tab].length ? groups[tab].map(b => {
@@ -769,8 +784,9 @@ function pageMyBookings(app, params) {
   $$('[data-tab]', app).forEach(b => b.onclick = () => go(`/my-bookings?tab=${b.dataset.tab}`));
   $('[data-auth2]', app)?.addEventListener('click', () => authModal('login'));
   $('#f-go', app)?.addEventListener('click', async () => {
-    const b = await DB.lookupBooking($('#f-id').value.trim(), $('#f-pin').value.trim()).catch(() => null);
-    if (!b) return toast('ไม่พบการจอง หรือ PIN ไม่ถูกต้อง', 'err');
+    let err = '';
+    const b = await DB.lookupBooking($('#f-id').value.trim(), $('#f-pin').value.trim()).catch(e => { err = e.message; return null; });
+    if (!b) return toast(err || 'ไม่พบการจอง หรือ PIN ไม่ถูกต้อง', 'err');
     go(`/booking/${b.id}`);
   });
   $$('[data-review]', app).forEach(btn => btn.onclick = () => reviewModal(DB.booking(btn.dataset.review), () => pageMyBookings(app, params)));
@@ -814,8 +830,8 @@ function pageProfile(app) {
 function pageHelp(app) {
   const faq = [
     ['จะยกเลิกการจองได้อย่างไร?', 'ไปที่ "การจองของฉัน" เลือกการจองที่ต้องการ แล้วกด "ยกเลิกการจอง" หากห้องเป็นแบบยกเลิกฟรีและยังไม่ถึงวันก่อนเช็คอิน คุณจะได้รับเงินคืนเต็มจำนวน'],
-    ['ราคาที่แสดงรวมภาษีหรือไม่?', 'ราคาต่อคืนที่แสดงในหน้าค้นหายังไม่รวมภาษีและค่าธรรมเนียม 17.7% (ค่าบริการ 10% + VAT 7%) ราคารวมทั้งหมดจะแสดงในขั้นตอนการจอง'],
-    ['ใครเป็นผู้ยืนยันการจองและรับเงิน?', 'ที่พักแต่ละแห่งดำเนินการโดยเจ้าของรีสอร์ทเอง — คุณโอนเงินตรงถึงเจ้าของรีสอร์ท แนบสลิป แล้วเจ้าของรีสอร์ทจะตรวจสอบและยืนยันการจอง หากมีปัญหาติดต่อทีมงาน StayDee ได้ตลอด'],
+    ['ราคาที่แสดงรวมภาษีหรือไม่?', 'ราคาที่แสดงเป็นราคาสุทธิ ไม่มีค่าธรรมเนียมหรือภาษีเพิ่ม ราคารวมทั้งหมดจะแสดงในขั้นตอนการจอง'],
+    ['ใครเป็นผู้ยืนยันการจองและรับเงิน?', 'ที่พักแต่ละแห่งดำเนินการโดยเจ้าของรีสอร์ทเอง — คุณโอนเงินตรงถึงเจ้าของรีสอร์ท แนบสลิป แล้วเจ้าของรีสอร์ทจะตรวจสอบและยืนยันการจอง หากมีปัญหาติดต่อทีมงาน ชมรมรีสอร์ท & ที่พัก เกาะล้าน ได้ตลอด'],
     ['ชำระเงินด้วยวิธีใดได้บ้าง?', 'พร้อมเพย์ (สแกน QR จากแอปธนาคารใดก็ได้) โอนผ่านธนาคาร และชำระที่ที่พัก (เฉพาะห้องที่ระบุ) — ยังไม่รับบัตรเครดิต'],
     ['ค้นหาการจองโดยไม่มีบัญชีได้ไหม?', 'ได้ ใช้หมายเลขการจองและ PIN ที่ได้รับในหน้า "การจองของฉัน"'],
   ];

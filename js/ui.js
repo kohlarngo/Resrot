@@ -90,17 +90,17 @@ function searchBoxHtml(mode = 'hero') {
       <input id="sb-q" placeholder="ระบุหาด หรือชื่อที่พักบนเกาะล้าน" value="${esc(S.q)}" autocomplete="off">
     </div>
     <div class="field date-field" data-pop="cal">
-      <div><i class="fa-regular fa-calendar icon"></i><span class="lbl">เช็คอิน</span><span class="val" id="sb-in">${fmtDate(S.checkIn)}</span></div>
-      <div><span class="lbl">เช็คเอาท์</span><span class="val" id="sb-out">${fmtDate(S.checkOut)}</span></div>
+      <div><i class="fa-regular fa-calendar icon"></i><span class="lbl" data-edit="search.checkin">เช็คอิน</span><span class="val" id="sb-in">${fmtDate(S.checkIn)}</span></div>
+      <div><span class="lbl" data-edit="search.checkout">เช็คเอาท์</span><span class="val" id="sb-out">${fmtDate(S.checkOut)}</span></div>
     </div>
     <div class="field" data-pop="guests"><i class="fa-regular fa-user icon"></i>
-      <span class="lbl">ผู้เข้าพัก · ห้อง</span><span class="val" id="sb-g">${guestsText()}</span>
+      <span class="lbl" data-edit="search.guests">ผู้เข้าพัก · ห้อง</span><span class="val" id="sb-g">${guestsText()}</span>
     </div>`;
-  if (mode === 'mini') return `<div class="search-bar-mini"><div class="container"><div class="mini-grid sb-root" style="position:relative">${fields}<button class="btn btn-lg" id="sb-go">ค้นหา</button></div></div></div>`;
+  if (mode === 'mini') return `<div class="search-bar-mini"><div class="container"><div class="mini-grid sb-root" style="position:relative">${fields}<button class="btn btn-lg" id="sb-go"><span data-edit="search.btn">ค้นหา</span></button></div></div></div>`;
   return `
     <div class="search-card sb-root">
       <div class="search-grid" style="position:relative">${fields}</div>
-      <button class="btn btn-primary search-btn" id="sb-go">ค้นหา</button>
+      <button class="btn btn-primary search-btn" id="sb-go"><span data-edit="search.btn">ค้นหา</span></button>
     </div>`;
 }
 
@@ -199,7 +199,7 @@ function bindSearchBox(root, onSearch) {
     const a = new Date(now.getFullYear(), now.getMonth() + calOffset, 1);
     const b = new Date(now.getFullYear(), now.getMonth() + calOffset + 1, 1);
     const n = S.checkOut ? diffDays(S.checkIn, S.checkOut) : 0;
-    const months = isMobile() ? monthHtml(a.getFullYear(), a.getMonth(), true, true) : monthHtml(a.getFullYear(), a.getMonth(), true, false) + monthHtml(b.getFullYear(), b.getMonth(), false, true);
+    const months = monthHtml(a.getFullYear(), a.getMonth(), true, true);
     pop.innerHTML = `<div class="calendar">${months}</div>
       <div class="cal-foot"><span class="muted">${pickingOut ? 'เลือกวันเช็คเอาท์' : 'เลือกวันเช็คอิน'}${n ? ` · <b style="color:var(--text)">${n} คืน</b>` : ''}</span><span class="small muted"><span class="red">●</span> วันหยุดสุดสัปดาห์ราคาอาจสูงขึ้น</span></div>`;
     $$('[data-nav]', pop).forEach(b => b.onclick = () => { calOffset = Math.max(0, Math.min(11, calOffset + +b.dataset.nav)); renderCal(); });
@@ -298,7 +298,7 @@ function footerHtml() {
     ${sosFooterHtml()}
     <div><h4 data-edit="footer.dest.title">จุดหมายยอดนิยม</h4>${DESTINATIONS.slice(0, 5).map((d, i) => `<a href="#/search?q=${encodeURIComponent(d.name)}"><span data-edit="footer.dest${i}">ที่พัก${d.name}</span></a>`).join('')}</div>
     <div><h4 data-edit="footer.partner.title">พาร์ทเนอร์</h4><a href="owner.html#/admin/signup"><span data-edit="footer.partner1">ลงทะเบียนรีสอร์ทฟรี</span></a><a href="#/help"><span data-edit="footer.partner2">ร่วมเป็นพันธมิตร</span></a></div>
-  </div><div class="foot-bottom"><span data-edit="footer.copy" data-edit-n="${new Date().getFullYear()}">© ${new Date().getFullYear()} StayDee — ระบบจองที่พักเกาะล้าน · ราคาทั้งหมดเป็นสกุลเงินบาท (THB)</span></div></div></footer>`;
+  </div><div class="foot-bottom"><span data-edit="footer.copy" data-edit-n="${new Date().getFullYear()}">© ${new Date().getFullYear()} ชมรมรีสอร์ท & ที่พัก เกาะล้าน — ระบบจองที่พักเกาะล้าน · ราคาทั้งหมดเป็นสกุลเงินบาท (THB)</span></div></div></footer>`;
 }
 
 // ---------- Auth modal ----------
@@ -307,6 +307,7 @@ function authModal(mode = 'login', after) {
   const m = openModal(`
     <h2>${isLogin ? 'เข้าสู่ระบบ' : 'สร้างบัญชีใหม่'}</h2>
     <p class="muted small" style="margin:0 0 16px">${isLogin ? 'เข้าสู่ระบบเพื่อจัดการการจองและรับส่วนลดพิเศษสำหรับสมาชิก' : 'สมัครฟรี รับส่วนลดสมาชิกทันที'}</p>
+    ${isLogin ? '' : `<label class="small" style="display:flex;gap:8px;align-items:flex-start;margin:0 0 12px"><input type="checkbox" id="auth-terms" style="margin-top:3px"><span>${TERMS_GUEST_LABEL} <a href="#/terms" target="_blank" rel="noopener">(อ่านเงื่อนไข)</a></span></label>`}
     <div class="oauth-btns">
       <button type="button" class="oauth-btn" data-oauth="google"><svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.3l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.6 5.9c4.4-4.1 7-10.1 7-17.6z"/><path fill="#FBBC05" d="M10.5 28.6c-.5-1.5-.8-3-.8-4.6s.3-3.1.8-4.6l-7.9-6.1C.9 16.5 0 20.1 0 24s.9 7.5 2.6 10.7l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.9l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg> ดำเนินการต่อด้วย Google</button>
       <button type="button" class="oauth-btn fb" data-oauth="facebook"><i class="fa-brands fa-facebook"></i> ดำเนินการต่อด้วย Facebook</button>
@@ -323,6 +324,7 @@ function authModal(mode = 'login', after) {
   $('#sw', m).onclick = () => authModal(isLogin ? 'register' : 'login', after);
   $$('[data-oauth]', m).forEach(b => b.onclick = async () => {
     const err = $('#auth-err', m); err.textContent = '';
+    if (!isLogin && !$('#auth-terms', m).checked) return err.textContent = 'กรุณาติ๊กยอมรับเงื่อนไขการใช้งานก่อน';
     $$('[data-oauth]', m).forEach(x => x.disabled = true);
     const r = await DB.loginOAuth(b.dataset.oauth); // สำเร็จ = เบราว์เซอร์ถูกพาไปหน้าผู้ให้บริการ
     if (r.error) { $$('[data-oauth]', m).forEach(x => x.disabled = false); err.textContent = r.error; }
@@ -332,6 +334,7 @@ function authModal(mode = 'login', after) {
     const f = Object.fromEntries(new FormData(e.target));
     const err = $('#auth-err', m);
     if (!isLogin && !f.name?.trim()) return err.textContent = 'กรุณากรอกชื่อ';
+    if (!isLogin && !$('#auth-terms', m).checked) return err.textContent = 'กรุณาติ๊กยอมรับเงื่อนไขการใช้งานก่อน';
     if (!/^\S+@\S+\.\S+$/.test(f.email)) return err.textContent = 'รูปแบบอีเมลไม่ถูกต้อง';
     if ((f.pass || '').length < 6) return err.textContent = 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
     const btn = $('button', e.target); btn.disabled = true; err.textContent = '';

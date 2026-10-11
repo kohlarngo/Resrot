@@ -3,9 +3,9 @@
 //  · {0} {1} ... = ตัวเลข/วันที่ในข้อความ (ตัวแปลดึงออกมาแล้วใส่คืนให้)   · {0?night:nights} = เลือกเอกพจน์/พหูพจน์ตามเลข {0}
 //  · ข้อมูลที่เจ้าของรีสอร์ทกรอกเอง (ชื่อ คำอธิบาย รีวิว) ไม่ถูกแปล ยกเว้นคำที่ตรงกับพจนานุกรม (ประเภทที่พัก ชื่อหาด ห้องมาตรฐาน ฯลฯ)
 const LANGS = {
-  th: { flag: '🇹🇭', name: 'ไทย', title: 'StayDee — จองที่พักเกาะล้าน ราคาดีที่สุด' },
-  en: { flag: '🇬🇧', name: 'English', title: 'StayDee — Book Koh Larn stays at the best price' },
-  zh: { flag: '🇨🇳', name: '中文', title: 'StayDee — 预订格兰岛住宿，价格最优' },
+  th: { flag: '🇹🇭', name: 'ไทย', title: 'ชมรมรีสอร์ท & ที่พัก เกาะล้าน — จองที่พักเกาะล้าน ราคาดีที่สุด' },
+  en: { flag: '🇬🇧', name: 'English', title: 'Koh Larn Resort & Stay Club — Book Koh Larn stays at the best price' },
+  zh: { flag: '🇨🇳', name: '中文', title: '格兰岛度假村与住宿俱乐部 — 预订格兰岛住宿，价格最优' },
 };
 let LANG = (() => {
   try {
@@ -49,7 +49,7 @@ const I18N_ROWS = [
   [`ช่วยเหลือ`, `Help`, `帮助`], [`ศูนย์ช่วยเหลือ`, `Help center`, `帮助中心`], [`คำถามที่พบบ่อย`, `FAQ`, `常见问题`], [`นโยบายความเป็นส่วนตัว`, `Privacy policy`, `隐私政策`],
   [`ข้อกำหนดการใช้งาน`, `Terms of use`, `使用条款`], [`จุดหมายยอดนิยม`, `Popular destinations`, `热门目的地`], [`พาร์ทเนอร์`, `Partners`, `合作伙伴`],
   [`ลงทะเบียนรีสอร์ทฟรี`, `List your resort for free`, `免费入驻度假村`], [`ระบบเจ้าของรีสอร์ท`, `Resort owner portal`, `度假村业主系统`], [`ร่วมเป็นพันธมิตร`, `Become a partner`, `成为合作伙伴`],
-  [`© {0} StayDee — ระบบจองที่พักเกาะล้าน · ราคาทั้งหมดเป็นสกุลเงินบาท (THB)`, `© {0} StayDee — Koh Larn booking platform · All prices are in Thai baht (THB)`, `© {0} StayDee — 格兰岛住宿预订平台 · 所有价格均以泰铢 (THB) 计`],
+  [`© {0} ชมรมรีสอร์ท & ที่พัก เกาะล้าน — ระบบจองที่พักเกาะล้าน · ราคาทั้งหมดเป็นสกุลเงินบาท (THB)`, `© {0} Koh Larn Resort & Stay Club — Koh Larn booking platform · All prices are in Thai baht (THB)`, `© {0} 格兰岛度假村与住宿俱乐部 — 格兰岛住宿预订平台 · 所有价格均以泰铢 (THB) 计`],
   // ---------- เข้าสู่ระบบ ----------
   [`ดำเนินการต่อด้วย Google`, `Continue with Google`, `使用 Google 继续`], [`ดำเนินการต่อด้วย Facebook`, `Continue with Facebook`, `使用 Facebook 继续`], [`หรือใช้อีเมล`, `or use email`, `或使用邮箱`],
   [`ต้องเปิดเว็บผ่านโดเมนจริง (https) จึงจะเข้าสู่ระบบด้วย Google / Facebook ได้`, `Open the site on its real https domain to log in with Google / Facebook`, `需通过正式 https 域名访问网站，才能使用 Google / Facebook 登录`],
@@ -68,7 +68,7 @@ const I18N_ROWS = [
   [`ใช้โค้ด`, `Use code`, `使用优惠码`], [`(คลิกเพื่อคัดลอก)`, `(click to copy)`, `（点击复制）`], [`ดีลพูลวิลล่า`, `Pool villa deal`, `泳池别墅优惠`], [`ลดทันที ฿{0}`, `Instant ฿{0} off`, `立减 ฿{0}`],
   [`เมื่อจองครบ ฿{0}`, `when you book ฿{0}+`, `订单满 ฿{0} 可用`], [`ที่พักที่คุณดูล่าสุด`, `Recently viewed`, `最近浏览`], [`จุดหมายปลายทางยอดนิยมในเกาะล้าน`, `Popular destinations on Koh Larn`, `格兰岛热门目的地`],
   [`ดีลสุดคุ้มวันนี้`, `Today's best deals`, `今日超值优惠`], [`ดูทั้งหมด`, `See all`, `查看全部`], [`ที่พักแนะนำตามชายหาด`, `Recommended stays by beach`, `按海滩推荐住宿`], [`ยังไม่มีที่พักในบริเวณนี้`, `No properties in this area yet`, `该区域暂无住宿`],
-  [`ทำไมต้องจองกับ StayDee`, `Why book with StayDee`, `为什么选择 StayDee 预订`], [`รับประกันราคาดีที่สุด`, `Best price guarantee`, `最低价保证`], [`เจอราคาถูกกว่า เราคืนส่วนต่างให้`, `Find it cheaper and we refund the difference`, `发现更低价，我们补差价`],
+  [`ทำไมต้องจองกับ ชมรมรีสอร์ท & ที่พัก เกาะล้าน`, `Why book with Koh Larn Resort & Stay Club`, `为什么选择 格兰岛度假村与住宿俱乐部 预订`], [`รับประกันราคาดีที่สุด`, `Best price guarantee`, `最低价保证`], [`เจอราคาถูกกว่า เราคืนส่วนต่างให้`, `Find it cheaper and we refund the difference`, `发现更低价，我们补差价`],
   [`ยกเลิกฟรี`, `Free cancellation`, `免费取消`], [`ที่พักหลายแห่งยกเลิกได้ฟรีก่อนเข้าพัก`, `Many properties allow free cancellation before check-in`, `许多住宿在入住前可免费取消`],
   [`ชำระเงินปลอดภัย`, `Secure payment`, `安全支付`], [`สแกนจ่ายพร้อมเพย์ได้ทุกธนาคาร หรือชำระที่ที่พัก`, `Pay by PromptPay QR from any bank, or pay at the property`, `支持任意银行扫码支付 (PromptPay)，或到店支付`],
   [`บริการ {0} ชม.`, `{0}-hour support`, `{0} 小时服务`], [`ทีมงานพร้อมช่วยเหลือคุณตลอดเวลา`, `Our team is here to help any time`, `团队随时为您提供帮助`],
@@ -87,7 +87,7 @@ const I18N_ROWS = [
   [`ไม่สามารถโหลดแผนที่ได้ (ต้องเชื่อมต่ออินเทอร์เน็ต)`, `Unable to load the map (internet connection required)`, `无法加载地图（需要网络连接）`], [`ดูรายละเอียด →`, `View details →`, `查看详情 →`],
   [`แสดงเพิ่มเติม ({0})`, `Show more ({0})`, `显示更多（{0}）`], [`ห่างจากท่าเรือหน้าบ้าน {0} กม.`, `{0} km from Na Ban pier`, `距那班码头 {0} 公里`], [`ไม่ต้องชำระล่วงหน้า`, `No prepayment needed`, `无需预付`],
   [`ติดชายหาด`, `Beachfront`, `海滨`], [`เหลือเพียง {0} ห้องในราคานี้!`, `Only {0} {0?room:rooms} left at this price!`, `此价格仅剩 {0} 间！`], [`ดีลพิเศษ`, `Special deal`, `特惠`],
-  [`ต่อห้องต่อคืน (ไม่รวมภาษี)`, `per room per night (excl. taxes)`, `每间每晚（不含税）`], [`{0} คืน, {1} ห้อง:`, `{0} {0?night:nights}, {1} {1?room:rooms}:`, `{0} 晚，{1} 间：`],
+  [`ต่อห้องต่อคืน`, `per room per night`, `每间每晚`], [`{0} คืน, {1} ห้อง:`, `{0} {0?night:nights}, {1} {1?room:rooms}:`, `{0} 晚，{1} 间：`],
   [`ห้องเต็มในวันที่เลือก`, `Sold out on your dates`, `所选日期已订满`], [`ลองเปลี่ยนวันเข้าพัก`, `Try different dates`, `请更换入住日期`],
   [`รายการโปรดของฉัน`, `My favorites`, `我的收藏`], [`ยังไม่มีที่พักในรายการโปรด`, `No favorites yet`, `暂无收藏`], [`กดรูปหัวใจที่ที่พักเพื่อบันทึกไว้ดูภายหลัง`, `Tap the heart on a property to save it for later`, `点击住宿上的爱心即可收藏`],
   // ---------- หน้าที่พัก ----------
@@ -182,9 +182,9 @@ const I18N_ROWS = [
   [`จะยกเลิกการจองได้อย่างไร?`, `How do I cancel a booking?`, `如何取消订单？`],
   [`ไปที่ "การจองของฉัน" เลือกการจองที่ต้องการ แล้วกด "ยกเลิกการจอง" หากห้องเป็นแบบยกเลิกฟรีและยังไม่ถึงวันก่อนเช็คอิน คุณจะได้รับเงินคืนเต็มจำนวน`, `Go to "My bookings", pick the booking and click "Cancel booking". If the room has free cancellation and check-in is still more than a day away, you'll get a full refund.`, `进入“我的订单”，选择订单并点击“取消订单”。如果房型支持免费取消且尚未到入住前一日，您将获得全额退款。`],
   [`ราคาที่แสดงรวมภาษีหรือไม่?`, `Do the prices include tax?`, `显示的价格含税吗？`],
-  [`ราคาต่อคืนที่แสดงในหน้าค้นหายังไม่รวมภาษีและค่าธรรมเนียม {0}% (ค่าบริการ {1}% + VAT {2}%) ราคารวมทั้งหมดจะแสดงในขั้นตอนการจอง`, `Nightly prices shown in search results exclude taxes and fees of {0}% ({1}% service charge + {2}% VAT). The full total is shown during booking.`, `搜索结果中的每晚价格不含 {0}% 税费（{1}% 服务费 + {2}% 增值税），总价将在预订步骤中显示。`],
+  [`ราคาที่แสดงเป็นราคาสุทธิ ไม่มีค่าธรรมเนียมหรือภาษีเพิ่ม ราคารวมทั้งหมดจะแสดงในขั้นตอนการจอง`, `Prices shown are final — no extra taxes or service fees. The full total is shown during booking.`, `显示价格为最终价格，无额外税费或服务费，总价将在预订步骤中显示。`],
   [`ใครเป็นผู้ยืนยันการจองและรับเงิน?`, `Who confirms bookings and receives payment?`, `谁负责确认订单并收款？`],
-  [`ที่พักแต่ละแห่งดำเนินการโดยเจ้าของรีสอร์ทเอง — คุณโอนเงินตรงถึงเจ้าของรีสอร์ท แนบสลิป แล้วเจ้าของรีสอร์ทจะตรวจสอบและยืนยันการจอง หากมีปัญหาติดต่อทีมงาน StayDee ได้ตลอด`, `Each property is run by its own resort owner — you transfer money directly to the owner, attach the slip, and the owner verifies and confirms your booking. If anything goes wrong, the StayDee team is always available.`, `每家住宿由度假村业主自行运营 — 您直接向业主转账并上传凭证，业主核实后确认订单。如有问题，StayDee 团队随时为您服务。`],
+  [`ที่พักแต่ละแห่งดำเนินการโดยเจ้าของรีสอร์ทเอง — คุณโอนเงินตรงถึงเจ้าของรีสอร์ท แนบสลิป แล้วเจ้าของรีสอร์ทจะตรวจสอบและยืนยันการจอง หากมีปัญหาติดต่อทีมงาน ชมรมรีสอร์ท & ที่พัก เกาะล้าน ได้ตลอด`, `Each property is run by its own resort owner — you transfer money directly to the owner, attach the slip, and the owner verifies and confirms your booking. If anything goes wrong, the Koh Larn Resort & Stay Club team is always available.`, `每家住宿由度假村业主自行运营 — 您直接向业主转账并上传凭证，业主核实后确认订单。如有问题，格兰岛度假村与住宿俱乐部 团队随时为您服务。`],
   [`ชำระเงินด้วยวิธีใดได้บ้าง?`, `Which payment methods are accepted?`, `支持哪些支付方式？`],
   [`พร้อมเพย์ (สแกน QR จากแอปธนาคารใดก็ได้) โอนผ่านธนาคาร และชำระที่ที่พัก (เฉพาะห้องที่ระบุ) — ยังไม่รับบัตรเครดิต`, `PromptPay (scan the QR from any banking app), bank transfer, and pay at the property (selected rooms only). Credit cards are not accepted yet.`, `PromptPay（可用任意银行 App 扫码）、银行转账，以及到店支付（仅限指定房型）。暂不支持信用卡。`],
   [`ค้นหาการจองโดยไม่มีบัญชีได้ไหม?`, `Can I look up a booking without an account?`, `没有账号可以查询订单吗？`], [`ได้ ใช้หมายเลขการจองและ PIN ที่ได้รับในหน้า "การจองของฉัน"`, `Yes — use the booking number and PIN you received on the "My bookings" page.`, `可以，在“我的订单”页面使用订单号和您收到的 PIN 即可查询。`],

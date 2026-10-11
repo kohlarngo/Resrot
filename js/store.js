@@ -17,10 +17,10 @@ const LOCAL_KEYS = ['search', 'recent', 'favs', 'mybk'];
 // ล้างข้อมูลระบบเดิมที่เคยเก็บใน localStorage (เวอร์ชันก่อนย้ายไป Supabase)
 ['hotels', 'coupons', 'users', 'bookings', 'reviews', 'session', 'seedVersion', 'staffSeed', 'audit', 'errors', 'settings', 'flags', 'sos', 'sos_contacts'].forEach(LS.del);
 
-const TAX_RATE = 0.177; // ค่าบริการ 10% + VAT 7%
+const TAX_RATE = 0; // ไม่คิดภาษี/ค่าธรรมเนียมเพิ่ม (เดิม 0.177 = ค่าบริการ 10% + VAT 7%) — ต้องตรงกับ sd_create_booking ในฐานข้อมูล
 
 // แคชข้อมูลจากฐานข้อมูล — แต่ละคนเห็นเฉพาะแถวที่ RLS อนุญาต
-const CACHE = { loaded: false, hotels: [], owners: {}, kv: {}, occ: [], pubReviews: [], me: null, bookings: [], profiles: [], coupons: [], reviews: [], audit: [], errors: [], sos: [] };
+const CACHE = { pubCoupons: null, loaded: false, hotels: [], owners: {}, kv: {}, occ: [], pubReviews: [], me: null, bookings: [], profiles: [], coupons: [], reviews: [], audit: [], errors: [], sos: [] };
 let lastLocalWrite = 0;
 
 async function fetchAll(build) {
@@ -35,6 +35,7 @@ async function fetchAll(build) {
 async function rpc(fn, args) {
   const { data, error } = await supa.rpc(fn, args);
   if (error) throw new Error(error.message);
+  if (data && data.error) throw new Error(data.error); // ฟังก์ชันที่ตรวจ PIN คืน {error} แทน raise เพื่อให้ตัวนับล็อกไม่ถูก rollback
   return data;
 }
 function dbWrite(req, what) {
@@ -47,21 +48,22 @@ function dbWrite(req, what) {
   });
 }
 const toUser = p => p && { id: p.id, name: p.name, email: p.email, phone: p.phone, role: p.role, active: p.active, lastLogin: p.last_login, createdAt: p.created_at, createdBy: p.created_by,
-  ownerStatus: p.owner_status, ownerNote: p.owner_note, appliedAt: p.applied_at, biz: p.biz || {}, payout: p.payout || {} };
+  perms: p.perms ?? null, ownerStatus: p.owner_status, ownerNote: p.owner_note, appliedAt: p.applied_at, biz: p.biz || {}, payout: p.payout || {} };
 const toReview = r => ({ id: r.id, bookingId: r.booking_id, hotelId: r.hotel_id, userId: r.user_id, name: r.name, country: r.country, trip: r.trip, score: +r.score, title: r.title, text: r.text, room: r.room, date: r.date });
-const toCoupon = c => ({ code: c.code, type: c.type, value: +c.value, min: +c.min_amount, desc: c.description, active: c.active, ownerId: c.owner_id });
-const fromCoupon = c => ({ code: c.code, type: c.type, value: +c.value, min_amount: +c.min || 0, description: c.desc || '', active: !!c.active, owner_id: c.ownerId || null });
+const toCoupon = c => ({ code: c.code, type: c.type, value: +c.value, min: +c.min_amount, desc: c.description, active: c.active, ownerId: c.owner_id, image: c.image || '', maxUses: c.max_uses ?? null, hasMax: 'max_uses' in c });
+const fromCoupon = c => ({ code: c.code, type: c.type, value: +c.value, min_amount: +c.min || 0, description: c.desc || '', active: !!c.active, owner_id: c.ownerId || null, ...(c.image ? { image: c.image } : {}), ...(c.maxUses || c.hasMax ? { max_uses: c.maxUses || null } : {}) });
 const byNaturalId = (a, b) => a.id.localeCompare(b.id, 'en', { numeric: true });
 
 const DB = {
   // โหลดข้อมูลทั้งหมดที่ผู้ใช้ปัจจุบันมีสิทธิ์เห็น
   async load() {
-    const [hotels, kv, occ, pub, owners, { data: { session } }] = await Promise.all([
+    const [hotels, kv, occ, pub, owners, pubCp, { data: { session } }] = await Promise.all([
       fetchAll(() => supa.from('sd_hotels').select('data')),
       supa.from('sd_kv').select('key,value'),
       fetchAll(() => supa.rpc('sd_occupancy')),
       fetchAll(() => supa.rpc('sd_public_reviews')),
       fetchAll(() => supa.rpc('sd_public_owners')),
+      supa.rpc('sd_public_coupons').then(r => (r.error ? null : r.data || [])).catch(() => null), // โค้ดส่วนลดสาธารณะ (null = ฐานข้อมูลยังไม่มีฟังก์ชันนี้)
       supa.auth.getSession(),
     ]);
     CACHE.owners = Object.fromEntries(owners.map(o => [o.id, o]));
@@ -69,7 +71,7 @@ const DB = {
     CACHE.hotels = hotels.map(r => r.data).sort(byNaturalId);
     CACHE.kv = Object.fromEntries(kv.data.map(r => [r.key, r.value]));
     CACHE.occ = occ.map(r => ({ roomId: r.room_id, checkIn: r.check_in, checkOut: r.check_out, qty: r.qty }));
-    CACHE.pubReviews = pub;
+    CACHE.pubReviews = pub; CACHE.pubCoupons = pubCp;
     Object.assign(CACHE, { me: null, bookings: [], profiles: [], coupons: [], reviews: [], audit: [], errors: [], sos: [] });
     if (session) {
       let { data: p } = await supa.from('sd_profiles').select('*').eq('id', session.user.id).maybeSingle();
@@ -103,7 +105,7 @@ const DB = {
   // ในหน้าเจ้าของรีสอร์ท (owner.html) เห็นเฉพาะที่พักของตัวเอง
   hotels(all = false) {
     const list = PORTAL === 'owner' && CACHE.me ? CACHE.hotels.filter(h => h.ownerId === CACHE.me.id) : CACHE.hotels;
-    return all ? list : list.filter(x => x.active !== false);
+    return all ? list : list.filter(x => x.active !== false && !x.banned);
   },
   hotel(id) { return CACHE.hotels.find(h => h.id === id) || CACHE.hotels.find(h => h.slug && h.slug === id); },
   saveHotel(hotel) {
@@ -257,7 +259,22 @@ const DB = {
   // ---- Users / session ----
   users() { return CACHE.profiles; },
   // ---- เจ้าของรีสอร์ท ----
-  async applyOwner(form) { await rpc('sd_apply_owner', { p: form }); await this.load(); },
+  // สมัครเจ้าของรีสอร์ท: รูปบัตรประชาชนเก็บใน bucket ส่วนตัว sd-idcards/<uid>/ (ผู้ดูแลแพลตฟอร์มดูได้ผ่านลิงก์ชั่วคราว)
+  async applyOwner(form, idFile) {
+    if (idFile) {
+      const { data: { session } } = await supa.auth.getSession();
+      if (!session) throw new Error('กรุณาเข้าสู่ระบบก่อน');
+      const path = `${session.user.id}/${Date.now()}.jpg`;
+      const { error } = await supa.storage.from('sd-idcards').upload(path, await resizeImage(idFile, 1600), { contentType: 'image/jpeg', upsert: false });
+      if (error) throw new Error('อัปโหลดรูปบัตรไม่สำเร็จ: ' + error.message);
+      form = { ...form, idPhoto: path };
+    }
+    await rpc('sd_apply_owner', { p: form }); await this.load();
+  },
+  async idCardUrl(path) {
+    const { data, error } = await supa.storage.from('sd-idcards').createSignedUrl(path, 600);
+    return error ? null : data.signedUrl;
+  },
   async setOwnerStatus(id, status, note = '') { await rpc('sd_set_owner_status', { p_id: id, p_status: status, p_note: note }); await this.load(); },
   saveBusiness(biz, payout) { // ข้อมูลรีสอร์ท + บัญชีรับเงินของเจ้าของ (แก้ได้เฉพาะของตัวเอง)
     const me = CACHE.me;
@@ -299,7 +316,7 @@ const DB = {
     await this.load();
   },
   updateUser(id, patch) {
-    const map = { name: 'name', phone: 'phone', role: 'role', active: 'active', lastLogin: 'last_login' };
+    const map = { name: 'name', phone: 'phone', role: 'role', active: 'active', lastLogin: 'last_login', perms: 'perms' };
     const row = Object.fromEntries(Object.entries(patch).filter(([k]) => map[k]).map(([k, v]) => [map[k], v]));
     const i = CACHE.profiles.findIndex(u => u.id === id);
     if (i >= 0) CACHE.profiles[i] = { ...CACHE.profiles[i], ...patch };
@@ -549,11 +566,17 @@ function promoText(h, channel, extra = '') {
   return [`🏝️ ${h.name} — ${h.type}${h.area ? ' ' + h.area : ''} เกาะล้าน`, `ห้องพักเริ่มต้น ${from.toLocaleString()} บาท/คืน`, hl, extra, '', '📲 จองตรงกับรีสอร์ท ยืนยันไว ไม่มีค่าธรรมเนียมเพิ่ม', `👉 ${resortLink(h, channel)}`].filter((x, i) => x || i === 4).join(NL) + line + tags;
 }
 const isStaff = u => !!u && STAFF_ROLES.includes(u.role);
+// ข้อความเงื่อนไขของโค้ดส่วนลด (ใช้ทั้งหน้าแรก หน้าจอง และหน้าแอดมิน)
+const couponOffText = c => c.type === 'percent' ? `${c.value}%` : money(c.value);
+const couponCondText = c => [+c.min > 0 ? `เมื่อจองขั้นต่ำ ${money(c.min)}` : 'ไม่มียอดขั้นต่ำ', c.maxUses ? `จำกัด ${c.maxUses} ครั้ง${c.left != null ? ` (เหลือ ${c.left})` : ''}` : ''].filter(Boolean).join(' · ');
+const pubCoupon = code => (CACHE.pubCoupons || []).find(c => c.code === code);
 const isAdmin = u => !!u && u.role === 'admin' && u.active !== false;
 const ownerApproved = u => !!u && u.role === 'owner' && u.ownerStatus === 'approved';
-const can = (perm, u = DB.currentUser()) => !!u && u.active !== false && (u.role !== 'owner' || u.ownerStatus === 'approved') && (ROLE_PERMS[u.role] || []).includes(perm);
+// สิทธิ์จริงของผู้ใช้: ผู้ดูแลแพลตฟอร์มที่นักพัฒนากำหนดสิทธิ์รายคนไว้ (perms) ใช้ชุดนั้น · ที่เหลือใช้ตามบทบาท (ถูกจำกัดไม่เกินสิทธิ์ของบทบาทผู้ดูแล)
+const userPerms = u => u.role === 'admin' && Array.isArray(u.perms) ? u.perms.filter(p => ROLE_PERMS.admin.includes(p)) : (ROLE_PERMS[u.role] || []);
+const can = (perm, u = DB.currentUser()) => !!u && u.active !== false && (u.role !== 'owner' || u.ownerStatus === 'approved') && userPerms(u).includes(perm);
 
-const DEFAULT_SETTINGS = { bizName: 'StayDee เกาะล้าน', legalName: 'บริษัท สเตย์ดี จำกัด', taxId: '', phone: '038-000-000', email: 'contact@staydee.com', line: '@staydee', address: 'เกาะล้าน อ.บางละมุง จ.ชลบุรี 20150', announceOn: false, announce: '', announceType: 'info', targetMonthly: 300000, promptpayId: '', promptpayName: '', bankInfo: '' };
+const DEFAULT_SETTINGS = { bizName: 'ชมรมรีสอร์ท & ที่พัก เกาะล้าน', legalName: 'ชมรมรีสอร์ท & ที่พัก เกาะล้าน', taxId: '', phone: '038-000-000', email: 'contact@staydee.com', line: '@staydee', address: 'เกาะล้าน อ.บางละมุง จ.ชลบุรี 20150', announceOn: false, announce: '', announceType: 'info', targetMonthly: 300000, promptpayId: '', promptpayName: '', bankInfo: '' };
 // QR พร้อมเพย์จาก promptpay.io (สร้าง QR อย่างเดียว ไม่ยืนยันการชำระ) — id = เบอร์มือถือ 10 หลัก หรือเลขบัตร/เลขผู้เสียภาษี 13 หลัก
 const isPromptpayId = v => /^(0\d{9}|\d{13})$/.test(String(v || ''));
 const promptpayQr = (id, amount) => `https://promptpay.io/${encodeURIComponent(id)}${amount != null ? '/' + (+amount).toFixed(2) : ''}.png`;

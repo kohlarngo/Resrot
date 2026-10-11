@@ -10,6 +10,7 @@ const ROUTES = [
   [/^\/favorites$/, pageFavorites],
   [/^\/profile$/, pageProfile],
   [/^\/help$/, pageHelp],
+  [/^\/terms$/, pageTerms],
 ];
 
 function go(path, replace = false) {
