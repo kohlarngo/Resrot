@@ -1,0 +1,11 @@
+.git
+.gitignore
+.claude
+supabase
+docs
+src
+README.md
+wrangler.jsonc
+preview-calendar.html
+node_modules
+.wrangler

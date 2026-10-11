@@ -1,0 +1,10 @@
+{
+  "name": "resrot",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-09-17",
+  "assets": { "directory": "./", "binding": "ASSETS" },
+  "routes": [
+    { "pattern": "www.kohlarngo.com/hotel", "zone_name": "kohlarngo.com" },
+    { "pattern": "www.kohlarngo.com/hotel/*", "zone_name": "kohlarngo.com" }
+  ]
+}
