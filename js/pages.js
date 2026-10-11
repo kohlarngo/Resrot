@@ -7,6 +7,47 @@ function promoLine(code, fallbackCond, tail = '') {
   return `ใช้โค้ด <code>${esc(c.code)}</code> ${full ? '— ครบจำนวนแล้ว' : couponCondText(c)}${full ? '' : tail}`;
 }
 
+// ================= Ads (โฆษณา) =================
+// 3 ตำแหน่ง: banner (หน้าแรก) · featured (รีสอร์ทแนะนำ ขึ้นอันดับบนสุด) · card (แทรกในผลค้นหาและหน้ารายละเอียด)
+// ลิงก์รับเฉพาะ http(s) / เบอร์โทร / LINE — กันลิงก์อันตราย
+function adHref(a) {
+  if (/^https?:\/\//i.test(a.link || '')) return a.link;
+  if (a.hotelId) return `#/hotel/${a.hotelId}`;
+  const tel = String(a.phone || '').replace(/[^\d+]/g, '');
+  if (tel.length >= 8) return `tel:${tel}`;
+  return a.line ? socialUrl('line', a.line) : '';
+}
+function adAttrs(a) { const h = adHref(a); return `${h ? `href="${esc(h)}"` : ''} data-ad="${esc(a.id)}" ${/^https?:/i.test(h) ? 'target="_blank" rel="noopener sponsored"' : ''}`; }
+function adBanner() {
+  const list = DB.publicAds('banner'); if (!list.length) return '';
+  return `<section class="block ad-banner" style="padding-top:28px">${list.map((a, i) => `<a class="ad-slide ${i ? '' : 'on'}" ${adAttrs(a)} style="background-image:url('${esc(imgUrl(a.image, 1400))}')">
+    <span class="ad-tag">โฆษณา</span>${a.title || a.body ? `<div class="ad-cap"><b>${esc(a.title)}</b>${a.body ? `<span>${esc(a.body)}</span>` : ''}</div>` : ''}</a>`).join('')}
+    ${list.length > 1 ? `<div class="sl-dots">${list.map((_, i) => `<button class="sl-dot ${i ? '' : 'on'}" data-d="${i}" aria-label="แบนเนอร์ที่ ${i + 1}"></button>`).join('')}</div>` : ''}</section>`;
+}
+function adCard(a, wide) {
+  const call = a.phone ? `<span><i class="fa-solid fa-phone"></i> ${esc(a.phone)}</span>` : '', line = a.line ? `<span><i class="fa-brands fa-line"></i> ${esc(a.line)}</span>` : '';
+  return `<a class="ad-card ${wide ? 'wide' : ''}" ${adAttrs(a)}>
+    ${a.image ? `<div class="img">${imgTag(a.image, 600, '', a.id)}</div>` : ''}
+    <div class="body"><span class="ad-tag">โฆษณา</span><h3>${esc(a.title || a.advertiser)}</h3>${a.body ? `<p>${esc(a.body)}</p>` : ''}
+      <div class="ad-meta small">${a.advertiser && a.title ? `<b>${esc(a.advertiser)}</b>` : ''}${call}${line}</div></div></a>`;
+}
+// รีสอร์ทแนะนำ (จ่ายค่าโฆษณา) — แสดงป้ายกำกับให้ชัดเจนว่าเป็นโฆษณา
+const isFeatured = id => DB.featuredIds().includes(id);
+const featuredBadge = id => isFeatured(id) ? '<span class="ad-badge">แนะนำ · โฆษณา</span>' : '';
+function adHomeFeatured() {
+  const hs = DB.featuredIds().map(id => DB.hotel(id)).filter((h, i, a) => h && h.active !== false && a.indexOf(h) === i);
+  return hs.length ? `<section class="block"><h2 class="sec-title"><i class="fa-solid fa-award" style="color:var(--accent)"></i> รีสอร์ทแนะนำ</h2><div class="card-grid">${hs.slice(0, 4).map(h => hotelCard(h)).join('')}</div></section>` : '';
+}
+// ผูกการนับ + สไลด์แบนเนอร์ — นับการแสดงผลเมื่อโฆษณาถูกวาดบนหน้า และนับคลิกเมื่อกด
+function initAds(root) {
+  $$('[data-ad]', root).forEach(el => { DB.trackAd(el.dataset.ad, 'view'); if (!el.dataset.adBound) { el.dataset.adBound = 1; el.addEventListener('click', () => DB.trackAd(el.dataset.ad, 'click')); } });
+  const ban = $('.ad-banner', root); if (!ban) return;
+  const slides = $$('.ad-slide', ban), dots = $$('.sl-dot', ban); if (slides.length < 2) return;
+  let i = 0; const show = n => { slides[i].classList.remove('on'); dots[i]?.classList.remove('on'); i = n; slides[i].classList.add('on'); dots[i]?.classList.add('on'); };
+  dots.forEach((d, n) => d.onclick = () => show(n));
+  const t = setInterval(() => { if (!document.body.contains(ban)) return clearInterval(t); if (!document.hidden) show((i + 1) % slides.length); }, 5000);
+}
+
 // ================= Shared cards =================
 function favBtn(id) { const on = DB.favs().includes(id); return `<button class="fav-btn ${on ? 'on' : ''}" data-fav="${id}" title="บันทึกในรายการโปรด"><i class="fa-${on ? 'solid' : 'regular'} fa-heart"></i></button>`; }
 function bindFavs(root) {
@@ -24,7 +65,7 @@ function hotelCard(h) {
   const q = best || DB.quote(r, S.checkIn, S.checkOut);
   const off = q.perNightOrig ? Math.round((1 - q.perNight / q.perNightOrig) * 100) : 0;
   return `<div class="h-card" data-href="/hotel/${h.id}?${searchQuery()}">
-    <div class="img">${imgTag(h.images[0], 600, '', h.id)}${off > 0 ? `<span class="badge-off">-${off}%</span>` : ''}${favBtn(h.id)}</div>
+    <div class="img">${imgTag(h.images[0], 600, '', h.id)}${off > 0 ? `<span class="badge-off">-${off}%</span>` : ''}${featuredBadge(h.id)}${favBtn(h.id)}</div>
     <div class="body">
       <div class="name">${esc(h.name)}</div>
       ${starsHtml(h.stars)}
@@ -60,7 +101,8 @@ function pageHome(app) {
     ${searchBoxHtml('hero')}
   </div></div>
   <div class="container">
-    <section class="block" style="padding-top:56px">
+    ${adBanner()}
+    <section class="block" style="padding-top:${DB.publicAds('banner').length ? 28 : 56}px">
       <h2 class="sec-title" data-edit="home.promo.title">โปรโมชั่นที่คุณไม่ควรพลาด</h2>
       <div class="promo-row">
         <div class="promo" data-img-slot="promo1" data-q="หาดแสม">${bgSlides('promo1', IMG.beach1, 700)}<span class="tag" data-edit="home.promo1.tag">ลดสูงสุด 35%</span><h3 data-edit="home.promo1.title">ทะเลใสเกาะล้านเรียกหา</h3><p data-edit="home.promo1.text">รีสอร์ทริมหาดแสม ราคาพิเศษ</p></div>
@@ -68,6 +110,7 @@ function pageHome(app) {
         <div class="promo" data-img-slot="promo3" data-copy="SUMMER500">${bgSlides('promo3', IMG.villa1, 700)}<span class="tag" data-edit="home.promo3.tag">ดีลพูลวิลล่า</span><h3 data-edit="home.promo3.title">${promoOff('SUMMER500', 'ลดทันที ฿500', 'ลดทันที ')}</h3><p>${promoLine('SUMMER500', 'เมื่อจองครบ ฿3,000')}</p></div>
       </div>
     </section>
+    ${adHomeFeatured()}
     ${recent.length ? `<section class="block"><h2 class="sec-title">ที่พักที่คุณดูล่าสุด</h2><div class="card-grid">${recent.slice(0, 4).map(hotelCard).join('')}</div></section>` : ''}
     <section class="block">
       <h2 class="sec-title" data-edit="home.dest.title">จุดหมายปลายทางยอดนิยมในเกาะล้าน</h2>
@@ -94,6 +137,7 @@ function pageHome(app) {
   </div>`;
   bindSearchBox(app);
   initBgSlides(app);
+  initAds(app);
   const showCity = c => { $('#city-grid').innerHTML = hotels.filter(h => h.city === c).slice(0, 4).map(hotelCard).join('') || '<p class="muted">ยังไม่มีที่พักในบริเวณนี้</p>'; bindCards($('#city-grid')); };
   $$('#city-chips .chip').forEach(c => c.onclick = () => { $$('#city-chips .chip').forEach(x => x.classList.toggle('active', x === c)); showCity(c.dataset.city); });
   showCity(DESTINATIONS[0].name);
@@ -212,14 +256,15 @@ function sortList(list) {
     stars: (a, b) => b.h.stars - a.h.stars || p(a) - p(b),
     deals: (a, b) => disc(b) - disc(a),
   }[sortBy];
-  return list.sort(fn);
+  // รีสอร์ทแนะนำ (โฆษณา) ขึ้นบนสุดในการเรียงแบบ "แนะนำ" — การเรียงตามราคา/คะแนนอื่นๆ ยังเป็นไปตามจริง
+  return list.sort(sortBy === 'best' ? (a, b) => (isFeatured(b.h.id) - isFeatured(a.h.id)) || fn(a, b) : fn);
 }
 function resultCard({ h, best }) {
   const r = best?.room;
   const off = best ? Math.round((1 - best.perNight / best.perNightOrig) * 100) : 0;
   const total = best ? best.perNight * nights() * S.rooms : 0;
   return `<div class="r-card" data-href="/hotel/${h.id}?${searchQuery()}">
-    <div class="img">${imgTag(h.images[0], 600, '', h.id)}${favBtn(h.id)}
+    <div class="img">${imgTag(h.images[0], 600, '', h.id)}${featuredBadge(h.id)}${favBtn(h.id)}
       <div class="thumbs">${h.images.slice(1, 5).map(i => imgTag(i, 160)).join('')}</div></div>
     <div class="mid">
       <h3>${esc(h.name)}</h3>
@@ -270,8 +315,10 @@ function renderResults() {
     return;
   }
   const shown = list.slice(0, page * PAGE_SIZE);
-  box.innerHTML = shown.map(resultCard).join('') + (list.length > shown.length ? `<div style="text-align:center"><button class="btn btn-outline" id="more">แสดงเพิ่มเติม (${list.length - shown.length})</button></div>` : '');
+  const cards = DB.publicAds('card'); let ci = 0;
+  box.innerHTML = shown.map((x, i) => resultCard(x) + (cards.length && i % 6 === 2 ? adCard(cards[ci++ % cards.length], true) : '')).join('') + (list.length > shown.length ? `<div style="text-align:center"><button class="btn btn-outline" id="more">แสดงเพิ่มเติม (${list.length - shown.length})</button></div>` : '');
   bindCards(box);
+  initAds(box);
   $('#more')?.addEventListener('click', () => { page++; renderResults(); });
 }
 
@@ -387,11 +434,13 @@ function pageHotel(app, params, id) {
         </div>
         <div class="panel"><h3>จุดเด่น</h3>${h.highlights.map(x => `<div class="small" style="margin:6px 0"><i class="fa-solid fa-check green"></i> ${esc(x)}</div>`).join('')}
           <div class="small" style="margin:6px 0"><i class="fa-solid fa-clock green"></i> เช็คอิน ${h.checkIn} / เช็คเอาท์ ${h.checkOut}</div></div>
+        ${(() => { const c = DB.publicAds('card').filter(a => a.hotelId !== h.id); return c.length ? adCard(c[Math.floor(Math.random() * c.length)]) : ''; })()}
       </div></aside>
     </div>
   </div>`;
   bindSearchBox(app, () => go(`/hotel/${h.id}?${searchQuery()}`));
   bindFavs(app);
+  initAds(app);
   $$('[data-go]', app).forEach(a => a.onclick = () => { const t = $('#' + a.dataset.go); scrollTo({ top: t.getBoundingClientRect().top + scrollY - ($('.header')?.offsetHeight || 64) - 66, behavior: 'smooth' }); });
   $('#chg').onclick = () => { scrollTo({ top: 0, behavior: 'smooth' }); setTimeout(() => $('.date-field').dispatchEvent(new MouseEvent('mousedown', { bubbles: true })), 300); };
   $('#share').onclick = () => { copyText(resortLink(h)); toast('คัดลอกลิงก์รีสอร์ทแล้ว'); };

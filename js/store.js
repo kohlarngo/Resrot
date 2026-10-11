@@ -20,7 +20,7 @@ const LOCAL_KEYS = ['search', 'recent', 'favs', 'mybk'];
 const TAX_RATE = 0; // ไม่คิดภาษี/ค่าธรรมเนียมเพิ่ม (เดิม 0.177 = ค่าบริการ 10% + VAT 7%) — ต้องตรงกับ sd_create_booking ในฐานข้อมูล
 
 // แคชข้อมูลจากฐานข้อมูล — แต่ละคนเห็นเฉพาะแถวที่ RLS อนุญาต
-const CACHE = { pubCoupons: null, loaded: false, hotels: [], owners: {}, kv: {}, occ: [], pubReviews: [], me: null, bookings: [], profiles: [], coupons: [], reviews: [], audit: [], errors: [], sos: [] };
+const CACHE = { pubAds: [], ads: [], pubCoupons: null, loaded: false, hotels: [], owners: {}, kv: {}, occ: [], pubReviews: [], me: null, bookings: [], profiles: [], coupons: [], reviews: [], audit: [], errors: [], sos: [] };
 let lastLocalWrite = 0;
 
 async function fetchAll(build) {
@@ -52,27 +52,33 @@ const toUser = p => p && { id: p.id, name: p.name, email: p.email, phone: p.phon
 const toReview = r => ({ id: r.id, bookingId: r.booking_id, hotelId: r.hotel_id, userId: r.user_id, name: r.name, country: r.country, trip: r.trip, score: +r.score, title: r.title, text: r.text, room: r.room, date: r.date });
 const toCoupon = c => ({ code: c.code, type: c.type, value: +c.value, min: +c.min_amount, desc: c.description, active: c.active, ownerId: c.owner_id, image: c.image || '', maxUses: c.max_uses ?? null, hasMax: 'max_uses' in c });
 const fromCoupon = c => ({ code: c.code, type: c.type, value: +c.value, min_amount: +c.min || 0, description: c.desc || '', active: !!c.active, owner_id: c.ownerId || null, ...(c.image ? { image: c.image } : {}), ...(c.maxUses || c.hasMax ? { max_uses: c.maxUses || null } : {}) });
+const toAd = a => ({ id: a.id, kind: a.kind, advertiser: a.advertiser, hotelId: a.hotel_id || '', title: a.title, body: a.body, image: a.image, link: a.link, phone: a.phone, line: a.line,
+  start: a.start_date, end: a.end_date, active: a.active, fee: +a.fee || 0, paid: a.paid, note: a.note, views: a.views, clicks: a.clicks });
+const fromAd = a => ({ kind: a.kind, advertiser: a.advertiser, hotel_id: a.kind === 'featured' ? a.hotelId : null, title: a.title, body: a.body, image: a.image, link: a.link, phone: a.phone, line: a.line,
+  start_date: a.start, end_date: a.end, active: !!a.active, fee: +a.fee || 0, paid: !!a.paid, note: a.note });
 const byNaturalId = (a, b) => a.id.localeCompare(b.id, 'en', { numeric: true });
 
 const DB = {
   // โหลดข้อมูลทั้งหมดที่ผู้ใช้ปัจจุบันมีสิทธิ์เห็น
   async load() {
-    const [hotels, kv, occ, pub, owners, pubCp, { data: { session } }] = await Promise.all([
+    const [hotels, kv, occ, pub, owners, pubCp, pubAds, { data: { session } }] = await Promise.all([
       fetchAll(() => supa.from('sd_hotels').select('data')),
       supa.from('sd_kv').select('key,value'),
       fetchAll(() => supa.rpc('sd_occupancy')),
       fetchAll(() => supa.rpc('sd_public_reviews')),
       fetchAll(() => supa.rpc('sd_public_owners')),
       supa.rpc('sd_public_coupons').then(r => (r.error ? null : r.data || [])).catch(() => null), // โค้ดส่วนลดสาธารณะ (null = ฐานข้อมูลยังไม่มีฟังก์ชันนี้)
+      supa.rpc('sd_public_ads').then(r => (r.error ? [] : r.data || [])).catch(() => []), // โฆษณาที่กำลังแสดง (ไม่มีข้อมูลราคา)
       supa.auth.getSession(),
     ]);
+    CACHE.pubAds = pubAds;
     CACHE.owners = Object.fromEntries(owners.map(o => [o.id, o]));
     if (kv.error) throw kv.error;
     CACHE.hotels = hotels.map(r => r.data).sort(byNaturalId);
     CACHE.kv = Object.fromEntries(kv.data.map(r => [r.key, r.value]));
     CACHE.occ = occ.map(r => ({ roomId: r.room_id, checkIn: r.check_in, checkOut: r.check_out, qty: r.qty }));
     CACHE.pubReviews = pub; CACHE.pubCoupons = pubCp;
-    Object.assign(CACHE, { me: null, bookings: [], profiles: [], coupons: [], reviews: [], audit: [], errors: [], sos: [] });
+    Object.assign(CACHE, { me: null, ads: [], bookings: [], profiles: [], coupons: [], reviews: [], audit: [], errors: [], sos: [] });
     if (session) {
       let { data: p } = await supa.from('sd_profiles').select('*').eq('id', session.user.id).maybeSingle();
       const meta = session.user.user_metadata || {}; // Google / Facebook ส่งชื่อมาเป็น full_name หรือ name
@@ -82,7 +88,7 @@ const DB = {
     }
     if (CACHE.me) {
       const none = Promise.resolve([]);
-      const [bookings, profiles, coupons, reviews, audit, errors, sos] = await Promise.all([
+      const [bookings, profiles, coupons, reviews, audit, errors, sos, ads] = await Promise.all([
         fetchAll(() => supa.from('sd_bookings').select('data').order('created_at', { ascending: false })).then(r => r.map(x => x.data)),
         isAdmin(CACHE.me) || can('staff.manage') ? fetchAll(() => supa.from('sd_profiles').select('*').order('created_at')).then(r => r.map(toUser)) : Promise.resolve([CACHE.me]),
         can('coupons.edit') ? fetchAll(() => supa.from('sd_coupons').select('*').order('created_at')).then(r => r.map(toCoupon)) : none,
@@ -90,8 +96,9 @@ const DB = {
         isStaff(CACHE.me) ? supa.from('sd_audit').select('*').order('at', { ascending: false }).limit(1000).then(r => r.data || []) : none,
         can('dev.console') ? supa.from('sd_errors').select('*').order('at', { ascending: false }).limit(200).then(r => r.data || []) : none,
         can('sos.manage') ? fetchAll(() => supa.from('sd_sos').select('data').order('at', { ascending: false })).then(r => r.map(x => x.data)) : none,
+        can('ads.manage') ? fetchAll(() => supa.from('sd_ads').select('*').order('created_at', { ascending: false })).then(r => r.map(toAd)) : none,
       ]);
-      Object.assign(CACHE, { bookings, profiles, coupons, reviews, audit, errors, sos });
+      Object.assign(CACHE, { bookings, profiles, coupons, reviews, audit, errors, sos, ads });
     }
     // การจองที่ทำจากเครื่องนี้โดยไม่ล็อกอิน — ดึงด้วยรหัส + PIN (เฉพาะหน้าเว็บลูกค้า ไม่ปนกับหลังบ้าน)
     const extra = PORTAL ? [] : await Promise.all(LS.get('mybk', []).filter(x => !CACHE.bookings.some(b => b.id === x.id))
@@ -224,6 +231,26 @@ const DB = {
     if (!b) return null;
     LS.set('mybk', [{ id: b.id, pin: b.pin }, ...LS.get('mybk', []).filter(x => x.id !== b.id)].slice(0, 30));
     return this._replaceBooking(b);
+  },
+
+  // ---- Ads (โฆษณา) ----
+  ads() { return CACHE.ads; },
+  publicAds(kind) { return CACHE.pubAds.filter(a => a.kind === kind); },
+  featuredIds() { return CACHE.pubAds.filter(a => a.kind === 'featured').map(a => a.hotelId); },
+  async saveAd(ad) {
+    const row = fromAd(ad);
+    const req = ad.id ? supa.from('sd_ads').update(row).eq('id', ad.id).select().single() : supa.from('sd_ads').insert(row).select().single();
+    const r = await dbWrite(req, 'โฆษณา'); if (!r?.data) return null;
+    const saved = toAd(r.data), i = CACHE.ads.findIndex(x => x.id === saved.id);
+    if (i >= 0) CACHE.ads[i] = saved; else CACHE.ads.unshift(saved);
+    return saved;
+  },
+  deleteAd(id) { CACHE.ads = CACHE.ads.filter(a => a.id !== id); return dbWrite(supa.from('sd_ads').delete().eq('id', id), 'ลบโฆษณา'); },
+  // นับการแสดงผล (ครั้งเดียวต่อโฆษณาต่อการเปิดหน้าเว็บ) และการคลิก — ไม่นับตอนเจ้าหน้าที่ดูเว็บ
+  trackAd(id, what) {
+    if (CACHE.me && isStaff(CACHE.me)) return;
+    const seen = (this._adSeen ||= new Set()); if (what === 'view') { if (seen.has(id)) return; seen.add(id); }
+    supa.rpc('sd_ad_track', { p_id: id, p_what: what }).then(() => {}, () => {});
   },
 
   // ---- Coupons ----
@@ -517,6 +544,7 @@ const PERMS = {
   'hotels.media': 'แก้รูป / สไลด์ / ข้อมูลที่พักของทุกรีสอร์ท (นักพัฒนา)',
   'hotels.edit':'จัดการที่พัก ห้อง รูป และราคา',
   'coupons.edit': 'จัดการโค้ดส่วนลด',
+  'ads.manage': 'จัดการโฆษณา (แบนเนอร์ / รีสอร์ทแนะนำ / การ์ดโฆษณา) (นักพัฒนา)',
   'payout.edit': 'ตั้งค่าบัญชีรับเงินของรีสอร์ท',
   'reviews.view': 'ดูรีวิวจากลูกค้า',
   'reviews.manage': 'ลบ / จัดการรีวิว',
@@ -535,7 +563,7 @@ const PERMS = {
 const ROLE_PERMS = {
   owner: ['exec.view', 'reports.view', 'ops.view', 'frontdesk', 'bookings.view', 'bookings.edit', 'inventory', 'hotels.edit', 'coupons.edit', 'reviews.view', 'customers.view', 'payout.edit'],
   admin: ['exec.view', 'reports.view', 'partners.manage', 'bookings.view', 'bookings.edit', 'inventory', 'hotels.edit', 'coupons.edit', 'reviews.view', 'reviews.manage', 'customers.view', 'sos.manage', 'data.backup', 'data.reset'],
-  dev: ['staff.manage', 'audit.view', 'settings.business', 'dev.console', 'flags.edit', 'hotels.media'],
+  dev: ['staff.manage', 'audit.view', 'settings.business', 'dev.console', 'flags.edit', 'hotels.media', 'ads.manage', 'checkin.view'],
   user: [],
 };
 const STAFF_ROLES = ['owner', 'admin', 'dev'];

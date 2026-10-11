@@ -63,6 +63,7 @@ const BO_NAV_BY_ROLE = {
       ['devrooms', 'fa-bed', 'ห้อง & รูปห้อง', 'hotels.media', () => boRoomsPage],
       ['content', 'fa-pen-to-square', 'แก้หน้าเว็บ (ข้อความ / สี / รูป)', 'hotels.media', () => boDevContent],
       ['siteimg', 'fa-image', 'รูปทั้งเว็บ (โลโก้ แบนเนอร์ ชายหาด)', 'hotels.media', () => boDevSiteImages],
+      ['ads', 'fa-bullhorn', 'โฆษณา', 'ads.manage', () => admAds],
     ] },
     { g: 'เทคนิค', items: [
       ['system', 'fa-microchip', 'สถานะระบบ', 'dev.console', () => boSystem],
@@ -1600,6 +1601,83 @@ function admCoupons(main) {
       list.push({ code, type: v.type, value: +v.value, min: +v.min || 0, desc: v.desc.trim() || condTxt(), image: v.image || '', maxUses: Math.floor(+v.maxUses) > 0 ? Math.floor(+v.maxUses) : null, active: true, ownerId: admin ? null : DB.currentUser().id });
       DB.saveCoupons(list); DB.log('coupon.add', code); closeModal(); toast('เพิ่มโค้ดแล้ว'); admCoupons(main);
     };
+  };
+}
+
+// ================= Ads (โฆษณา) =================
+// ราคาที่ตกลงกับผู้ลงโฆษณาเป็นข้อมูลภายใน (ไม่แสดงบนเว็บ) — ระบบแค่บันทึกยอด/สถานะรับเงิน และนับการแสดงผล/คลิก
+const AD_KINDS = { banner: ['fa-panorama', 'แบนเนอร์หน้าแรก', 'แสดงใต้ช่องค้นหาหน้าแรก (รูปแนวนอน แนะนำ 1400×400)'], featured: ['fa-award', 'รีสอร์ทแนะนำ', 'รีสอร์ทขึ้นอันดับบนสุดของผลค้นหา + ส่วน "รีสอร์ทแนะนำ" หน้าแรก'], card: ['fa-rectangle-ad', 'การ์ดโฆษณา', 'แทรกในรายการผลค้นหาและข้างหน้ารายละเอียดที่พัก (ธุรกิจภายนอกหรือรีสอร์ท)'] };
+function adStatus(a) {
+  const t = todayISO();
+  if (!a.active) return ['ปิดอยู่', ''];
+  if (a.end < t) return ['หมดอายุ', 'bad'];
+  if (a.start > t) return ['รอเริ่ม', 'warn'];
+  return ['กำลังแสดง', 'ok'];
+}
+function admAds(main) {
+  const list = DB.ads(), live = list.filter(a => adStatus(a)[0] === 'กำลังแสดง');
+  const sumFee = list.reduce((s, a) => s + a.fee, 0), paid = list.filter(a => a.paid).reduce((s, a) => s + a.fee, 0);
+  main.innerHTML = pageHead('โฆษณา', `กำลังแสดง ${live.length} รายการ · ยอดตกลง ${money(sumFee)} · รับเงินแล้ว ${money(paid)}`, '<button class="btn btn-primary" id="ad-add"><i class="fa-solid fa-plus"></i> เพิ่มโฆษณา</button>') + `
+    <section class="card flush"><div class="table-scroll"><table class="tbl"><thead><tr><th>รูป</th><th>โฆษณา</th><th>ตำแหน่ง</th><th>ช่วงเวลา</th><th>สถานะ</th><th>แสดง / คลิก</th><th style="text-align:right">ค่าโฆษณา</th><th></th></tr></thead><tbody>
+    ${list.map((a, i) => { const [st, cls] = adStatus(a), h = a.hotelId && DB.hotel(a.hotelId); return `<tr>
+      <td>${a.image ? `<img src="${esc(a.image)}" alt="" style="width:72px;height:44px;object-fit:cover;border-radius:6px">` : '<span class="muted small">—</span>'}</td>
+      <td><b>${esc(a.advertiser || a.title || '-')}</b><div class="small muted">${esc(a.title)}${h ? ` · ${esc(h.name)}` : ''}</div></td>
+      <td class="small"><i class="fa-solid ${AD_KINDS[a.kind][0]}"></i> ${AD_KINDS[a.kind][1]}</td>
+      <td class="small">${fmtDate(a.start, false)} – ${fmtDate(a.end, false)}</td>
+      <td><span class="pill ${cls}">${st}</span></td>
+      <td class="small">${a.views.toLocaleString()} / ${a.clicks.toLocaleString()}<div class="muted">${a.views ? (a.clicks / a.views * 100).toFixed(1) + '% คลิก' : '-'}</div></td>
+      <td style="text-align:right">${a.fee ? money(a.fee) : '<span class="muted">-</span>'}<div><label class="small"><input type="checkbox" data-apaid="${i}" ${a.paid ? 'checked' : ''}> รับเงินแล้ว</label></div></td>
+      <td style="white-space:nowrap;text-align:right"><label class="switch"><input type="checkbox" data-aact="${i}" ${a.active ? 'checked' : ''}><span></span></label>
+        <button class="btn btn-sm btn-ghost" data-aedit="${i}" title="แก้ไข"><i class="fa-solid fa-pen"></i></button><button class="btn btn-sm btn-ghost red" data-adel="${i}" title="ลบ"><i class="fa-solid fa-trash"></i></button></td></tr>`; }).join('') || '<tr><td colspan="8" class="muted">ยังไม่มีโฆษณา — กด "เพิ่มโฆษณา" หลังตกลงราคากับผู้ลงโฆษณาแล้ว</td></tr>'}</tbody></table></div></section>`;
+  const patch = async (a, ch, what) => { await DB.saveAd({ ...a, ...ch }); DB.log('ad.' + what, `${a.advertiser || a.title}`); admAds(main); };
+  $$('[data-aact]', main).forEach(c => c.onchange = () => { const a = list[+c.dataset.aact]; patch(a, { active: c.checked }, 'toggle'); });
+  $$('[data-apaid]', main).forEach(c => c.onchange = () => { const a = list[+c.dataset.apaid]; patch(a, { paid: c.checked }, 'paid'); });
+  $$('[data-aedit]', main).forEach(b => b.onclick = () => adForm(main, list[+b.dataset.aedit]));
+  $$('[data-adel]', main).forEach(b => b.onclick = async () => { const a = list[+b.dataset.adel]; if (!(await confirmBox(`ลบโฆษณา <b>${esc(a.advertiser || a.title)}</b>? สถิติแสดง/คลิกจะหายไปด้วย`, 'ลบ'))) return; await DB.deleteAd(a.id); DB.log('ad.delete', a.advertiser || a.title); toast('ลบโฆษณาแล้ว'); admAds(main); });
+  $('#ad-add').onclick = () => adForm(main, null);
+}
+function adForm(main, ad) {
+  const a = ad || { kind: 'banner', advertiser: '', hotelId: '', title: '', body: '', image: '', link: '', phone: '', line: '', start: todayISO(), end: isoOf(new Date(Date.now() + 30 * 864e5)), active: true, fee: 0, paid: false, note: '' };
+  const m = openModal(`<h2>${ad ? 'แก้ไข' : 'เพิ่ม'}โฆษณา</h2><form id="adf" class="form-grid" style="margin-top:14px" novalidate>
+    <div class="fg full"><label>ตำแหน่งที่แสดง</label><select name="kind">${Object.entries(AD_KINDS).map(([k, v]) => `<option value="${k}" ${a.kind === k ? 'selected' : ''}>${v[1]}</option>`).join('')}</select><div class="small muted" id="ad-kh" style="margin-top:4px"></div></div>
+    <div class="fg full"><label>ชื่อผู้ลงโฆษณา (ร้าน / รีสอร์ท)</label><input name="advertiser" value="${esc(a.advertiser)}" maxlength="80"></div>
+    <div class="fg full" id="ad-hotel"><label>รีสอร์ทที่ต้องการดัน</label><select name="hotelId"><option value="">— เลือกรีสอร์ท —</option>${DB.hotels(true).map(h => `<option value="${esc(h.id)}" ${a.hotelId === h.id ? 'selected' : ''}>${esc(h.name)}</option>`).join('')}</select></div>
+    <div class="fg full" id="ad-txt"><label>หัวข้อ</label><input name="title" value="${esc(a.title)}" maxlength="80"></div>
+    <div class="fg full" id="ad-body"><label>ข้อความสั้นๆ</label><textarea name="body" rows="2" maxlength="200">${esc(a.body)}</textarea></div>
+    <div class="fg full" id="ad-img"><label>รูปโฆษณา</label><div class="row" style="gap:10px;align-items:center"><div id="adf-prev" style="width:120px;height:64px;border-radius:8px;background:#f1f3f6;display:grid;place-items:center;overflow:hidden" class="muted small">ไม่มีรูป</div><button type="button" class="btn btn-outline btn-sm" id="adf-img"><i class="fa-regular fa-image"></i> เลือกรูป</button><button type="button" class="btn btn-ghost btn-sm red" id="adf-imgx" style="display:none">ลบรูป</button></div><input type="hidden" name="image" value="${esc(a.image)}"></div>
+    <div class="fg full" id="ad-link"><label>ลิงก์เมื่อกด (https://...) — เว้นว่างได้ถ้าใส่เบอร์โทร/LINE</label><input name="link" value="${esc(a.link)}" placeholder="https://facebook.com/ชื่อเพจ"></div>
+    <div class="fg" id="ad-phone"><label>เบอร์โทร</label><input name="phone" value="${esc(a.phone)}" maxlength="30"></div><div class="fg" id="ad-line"><label>LINE ID</label><input name="line" value="${esc(a.line)}" maxlength="60" placeholder="@ไลน์ไอดี"></div>
+    <div class="fg"><label>เริ่มแสดง</label><input name="start" type="date" value="${a.start}"></div><div class="fg"><label>แสดงถึงวันที่</label><input name="end" type="date" value="${a.end}"></div>
+    <div class="fg"><label>ค่าโฆษณาที่ตกลง (฿) — ข้อมูลภายใน</label><input name="fee" type="number" min="0" value="${a.fee || ''}"></div>
+    <div class="fg"><label>&nbsp;</label><label class="small"><input type="checkbox" name="paid" ${a.paid ? 'checked' : ''}> รับเงินแล้ว</label></div>
+    <div class="fg full"><label>บันทึกภายใน (ไม่แสดงบนเว็บ)</label><input name="note" value="${esc(a.note)}" maxlength="200" placeholder="เช่น ติดต่อคุณ... โอนเข้าบัญชี..."></div>
+    <div class="full"><button class="btn btn-primary btn-block">บันทึก</button></div></form>`);
+  const f = $('#adf', m);
+  const sync = () => { const k = f.elements.kind.value; $('#ad-kh', m).textContent = AD_KINDS[k][2];
+    $('#ad-hotel', m).style.display = k === 'featured' ? '' : 'none';
+    ['#ad-txt', '#ad-body', '#ad-img', '#ad-link', '#ad-phone', '#ad-line'].forEach(x => $(x, m).style.display = k === 'featured' ? 'none' : ''); };
+  f.elements.kind.onchange = sync; sync();
+  const setImg = u => { f.elements.image.value = u || ''; $('#adf-prev', m).innerHTML = u ? `<img src="${esc(u)}" alt="" style="width:100%;height:100%;object-fit:cover">` : 'ไม่มีรูป'; $('#adf-imgx', m).style.display = u ? '' : 'none'; };
+  setImg(a.image);
+  $('#adf-img', m).onclick = async () => { try { toast('เลือกรูปจากเครื่อง...', 'info'); const u = await pickAndUploadImage(1600); if (u) setImg(u); } catch (e) { toast('อัปโหลดรูปไม่สำเร็จ: ' + e.message, 'err'); } };
+  $('#adf-imgx', m).onclick = () => setImg('');
+  f.onsubmit = async e => {
+    e.preventDefault();
+    const v = Object.fromEntries(new FormData(f)), k = v.kind;
+    if (k === 'featured' && !v.hotelId) return toast('กรุณาเลือกรีสอร์ทที่ต้องการดัน', 'err');
+    if (k !== 'featured') {
+      if (!v.advertiser.trim() && !v.title.trim()) return toast('กรุณาใส่ชื่อผู้ลงโฆษณาหรือหัวข้อ', 'err');
+      if (k === 'banner' && !v.image) return toast('แบนเนอร์ต้องมีรูป', 'err');
+      if (!v.image && !v.title.trim()) return toast('กรุณาใส่รูปหรือหัวข้อ', 'err');
+      if (v.link.trim() && !/^https?:\/\//i.test(v.link.trim())) return toast('ลิงก์ต้องขึ้นต้นด้วย https://', 'err');
+    }
+    if (!v.start || !v.end || v.end < v.start) return toast('ช่วงวันที่ไม่ถูกต้อง', 'err');
+    const next = { ...a, kind: k, advertiser: v.advertiser.trim(), hotelId: k === 'featured' ? v.hotelId : '', title: k === 'featured' ? '' : v.title.trim(), body: k === 'featured' ? '' : v.body.trim(),
+      image: k === 'featured' ? '' : v.image, link: k === 'featured' ? '' : v.link.trim(), phone: k === 'featured' ? '' : v.phone.trim(), line: k === 'featured' ? '' : v.line.trim(),
+      start: v.start, end: v.end, fee: +v.fee || 0, paid: !!v.paid, note: v.note.trim() };
+    if (k === 'featured' && !next.advertiser) next.advertiser = DB.hotel(v.hotelId)?.name || '';
+    const saved = await DB.saveAd(next); if (!saved) return;
+    DB.log(ad ? 'ad.edit' : 'ad.add', `${next.advertiser || next.title} (${k})`); closeModal(); toast('บันทึกโฆษณาแล้ว'); admAds(main);
   };
 }
 
