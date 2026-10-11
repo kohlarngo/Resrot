@@ -320,9 +320,20 @@ function authModal(mode = 'login', after) {
     </div>
     <div class="oauth-or"><span>หรือใช้อีเมล</span></div>
     <form id="auth-f" class="form-grid" style="grid-template-columns:1fr" novalidate>
-      ${isLogin ? '' : '<div class="fg"><label>ชื่อ-นามสกุล</label><input name="name" required></div>'}
-      <div class="fg"><label>อีเมล</label><input name="email" type="email" required></div>
-      <div class="fg"><label>รหัสผ่าน</label><input name="pass" type="password" required minlength="6"></div>
+      ${isLogin ? '' : `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="fg"><label>ชื่อจริง <span class="red">*</span></label><input name="first" autocomplete="given-name" maxlength="50"><span class="red small fe" data-fe="first"></span></div>
+        <div class="fg"><label>นามสกุล <span class="red">*</span></label><input name="last" autocomplete="family-name" maxlength="50"><span class="red small fe" data-fe="last"></span></div></div>
+      <div class="fg"><label>เบอร์โทรศัพท์ <span class="red">*</span></label><input name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="0812345678"><span class="small muted">ใช้ให้รีสอร์ทติดต่อเรื่องการจอง</span><span class="red small fe" data-fe="phone"></span></div>`}
+      <div class="fg"><label>อีเมล${isLogin ? '' : ' <span class="red">*</span>'}</label><input name="email" type="email" autocomplete="${isLogin ? 'username' : 'email'}" required><span class="red small fe" data-fe="email"></span></div>
+      <div class="fg"><label>รหัสผ่าน${isLogin ? '' : ' <span class="red">*</span>'}</label>
+        <div style="position:relative"><input name="pass" type="password" autocomplete="${isLogin ? 'current-password' : 'new-password'}" required minlength="${isLogin ? 6 : 8}" style="width:100%;padding-right:44px">
+          <button type="button" id="pw-eye" class="btn btn-ghost btn-sm" style="position:absolute;right:2px;top:50%;transform:translateY(-50%)" aria-label="แสดง/ซ่อนรหัสผ่าน"><i class="fa-regular fa-eye"></i></button></div>
+        ${isLogin ? '' : `<div id="pw-bar" style="height:5px;border-radius:3px;background:#e8ebf0;margin-top:6px;overflow:hidden"><i style="display:block;height:100%;width:0;transition:.2s"></i></div>
+        <span class="small muted" id="pw-txt">อย่างน้อย 8 ตัวอักษร ผสมตัวอักษรและตัวเลข</span>`}<span class="red small fe" data-fe="pass"></span></div>
+      ${isLogin ? '' : `<div class="fg"><label>ยืนยันรหัสผ่าน <span class="red">*</span></label><input name="pass2" type="password" autocomplete="new-password"><span class="red small fe" data-fe="pass2"></span></div>
+      <label class="small" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" name="age18" style="margin-top:3px"><span>ข้าพเจ้ามีอายุ 18 ปีบริบูรณ์ขึ้นไป (หรือบรรลุนิติภาวะตามกฎหมาย) <span class="red">*</span></span></label>
+      <span class="red small fe" data-fe="age18"></span>
+      <label class="small" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" name="marketing" style="margin-top:3px"><span>รับข่าวสารโปรโมชั่นและส่วนลดทางอีเมล/โทรศัพท์ (ไม่บังคับ — ยกเลิกได้ทุกเมื่อ)</span></label>`}
       <div class="red small" id="auth-err"></div>
       <button class="btn btn-primary btn-block btn-lg">${isLogin ? 'เข้าสู่ระบบ' : 'สร้างบัญชี'}</button>
     </form>
@@ -334,6 +345,13 @@ function authModal(mode = 'login', after) {
     cb.onchange = sync; sync();
     $('#auth-terms-ok', m).onclick = () => { cb.checked = true; sync(); $('#auth-terms-box', m).open = false; };
   }
+  $('#pw-eye', m).onclick = () => { const i = $('[name=pass]', m), show = i.type === 'password'; i.type = show ? 'text' : 'password'; $('#pw-eye i', m).className = show ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye'; };
+  const pwScore = v => (v.length >= 8) + (/[a-zA-Z]/.test(v) && /\d/.test(v)) + (v.length >= 12 || /[^a-zA-Z0-9]/.test(v));
+  if (!isLogin) $('[name=pass]', m).addEventListener('input', e => {
+    const v = e.target.value, sc = v ? Math.max(1, pwScore(v)) : 0, bar = $('#pw-bar i', m);
+    bar.style.width = [0, 34, 67, 100][sc] + '%'; bar.style.background = ['', '#e5484d', '#f5a623', '#2e9e5b'][sc];
+    $('#pw-txt', m).textContent = v ? ['', 'รหัสผ่านอ่อน', 'พอใช้ — ลองเพิ่มความยาวหรือสัญลักษณ์', 'รหัสผ่านแข็งแรง'][sc] : 'อย่างน้อย 8 ตัวอักษร ผสมตัวอักษรและตัวเลข';
+  });
   $$('[data-oauth]', m).forEach(b => b.onclick = async () => {
     const err = $('#auth-err', m); err.textContent = '';
     if (!isLogin && !$('#auth-terms', m).checked) return err.textContent = 'กรุณาติ๊กยอมรับเงื่อนไขการใช้งานก่อน';
@@ -344,13 +362,25 @@ function authModal(mode = 'login', after) {
   $('#auth-f', m).onsubmit = async e => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.target));
-    const err = $('#auth-err', m);
-    if (!isLogin && !f.name?.trim()) return err.textContent = 'กรุณากรอกชื่อ';
+    const err = $('#auth-err', m); err.textContent = '';
+    $$('.fe', m).forEach(x => x.textContent = '');
+    const bad = {}; // ข้อผิดพลาดแสดงใต้ช่องที่กรอกผิด
+    if (!/^\S+@\S+\.\S+$/.test((f.email || '').trim())) bad.email = 'รูปแบบอีเมลไม่ถูกต้อง';
+    if (isLogin) { if ((f.pass || '').length < 6) bad.pass = 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'; }
+    else {
+      if (!f.first?.trim()) bad.first = 'กรุณากรอกชื่อจริง';
+      if (!f.last?.trim()) bad.last = 'กรุณากรอกนามสกุล';
+      const digits = (f.phone || '').replace(/\D/g, '');
+      if (digits.length < 9 || digits.length > 15 || !/^\+?[\d\s-]+$/.test((f.phone || '').trim())) bad.phone = 'กรุณากรอกเบอร์โทรให้ถูกต้อง (9-15 หลัก)';
+      if ((f.pass || '').length < 8 || !/[a-zA-Z]/.test(f.pass) || !/\d/.test(f.pass)) bad.pass = 'รหัสผ่านอย่างน้อย 8 ตัว และต้องมีทั้งตัวอักษรและตัวเลข';
+      else if (f.pass !== f.pass2) bad.pass2 = 'รหัสผ่านทั้งสองช่องไม่ตรงกัน';
+      if (!f.age18) bad.age18 = 'ต้องยืนยันว่ามีอายุ 18 ปีขึ้นไป';
+    }
+    const keys = Object.keys(bad);
+    if (keys.length) { keys.forEach(k => { const el = $(`[data-fe=${k}]`, m); if (el) el.textContent = bad[k]; }); $(`[name=${keys[0]}]`, m)?.focus(); return; }
     if (!isLogin && !$('#auth-terms', m).checked) return err.textContent = 'กรุณาติ๊กยอมรับเงื่อนไขการใช้งานก่อน';
-    if (!/^\S+@\S+\.\S+$/.test(f.email)) return err.textContent = 'รูปแบบอีเมลไม่ถูกต้อง';
-    if ((f.pass || '').length < 6) return err.textContent = 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
-    const btn = $('button', e.target); btn.disabled = true; err.textContent = '';
-    const r = await (isLogin ? DB.login(f.email, f.pass) : DB.register(f.name, f.email, f.pass));
+    const btn = $('button.btn-primary', e.target); btn.disabled = true;
+    const r = await (isLogin ? DB.login(f.email, f.pass) : DB.register(`${f.first.trim()} ${f.last.trim()}`, f.email, f.pass, f.phone.trim(), !!f.marketing));
     btn.disabled = false;
     if (r.error) return err.textContent = r.error;
     closeModal(); toast(`ยินดีต้อนรับ ${r.user.name}`); after ? after() : render(); termsGate();

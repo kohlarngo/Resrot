@@ -321,8 +321,8 @@ const DB = {
     if (isStaff(CACHE.me)) this.log('auth.login', CACHE.me.email);
     return { user: CACHE.me };
   },
-  async register(name, email, pass, phone = '') {
-    const { data, error } = await supa.auth.signUp({ email: email.trim(), password: pass, options: { data: { name: name.trim(), termsAt: new Date().toISOString() } } });
+  async register(name, email, pass, phone = '', marketing = false) {
+    const { data, error } = await supa.auth.signUp({ email: email.trim(), password: pass, options: { data: { name: name.trim(), phone, marketing, termsAt: new Date().toISOString() } } });
     if (error) return { error: /already|exists/i.test(error.message) ? 'อีเมลนี้ถูกใช้งานแล้ว' : error.message };
     if (!data.session) return { error: 'กรุณายืนยันอีเมลจากลิงก์ที่ส่งไป แล้วเข้าสู่ระบบอีกครั้ง' };
     await rpc('sd_ensure_profile', { p_name: name.trim(), p_phone: phone });
