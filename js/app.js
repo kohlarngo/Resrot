@@ -71,6 +71,7 @@ function boot() {
     render();
     if (oauthErr) toast(`เข้าสู่ระบบด้วยบัญชีโซเชียลไม่สำเร็จ: ${oauthErr}`, 'err');
     else if (back && CACHE.me) toast(`ยินดีต้อนรับ ${CACHE.me.name}`);
+    termsGate();
   }).catch(e => {
     console.error(e);
     $('#app').innerHTML = `<div class="container"><div class="empty" style="margin-top:60px"><i class="fa-solid fa-wifi"></i><h3>เชื่อมต่อฐานข้อมูลไม่สำเร็จ</h3><p class="muted small">${esc(e.message || String(e))}</p><button class="btn btn-primary" id="retry">ลองอีกครั้ง</button></div></div>`;

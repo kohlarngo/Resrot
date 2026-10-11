@@ -353,7 +353,24 @@ function authModal(mode = 'login', after) {
     const r = await (isLogin ? DB.login(f.email, f.pass) : DB.register(f.name, f.email, f.pass));
     btn.disabled = false;
     if (r.error) return err.textContent = r.error;
-    closeModal(); toast(`ยินดีต้อนรับ ${r.user.name}`); after ? after() : render();
+    closeModal(); toast(`ยินดีต้อนรับ ${r.user.name}`); after ? after() : render(); termsGate();
   };
+}
+// ลูกค้าที่ยังไม่เคยยอมรับเงื่อนไข (เช่น เข้าด้วย Google/Facebook ครั้งแรก) ต้องยอมรับก่อนใช้งานต่อ · ไม่ยอมรับ = ออกจากระบบ
+function termsGate() {
+  const u = DB.currentUser();
+  if (!u || u.role !== 'user' || u.termsAt) return;
+  let m = openModal(`<h2><i class="fa-solid fa-file-contract"></i> เงื่อนไขการใช้งาน</h2>
+    <p class="muted small" style="margin:4px 0 10px">กรุณาอ่านและยอมรับเงื่อนไขก่อนใช้งานบัญชีนี้</p>
+    <div style="max-height:46vh;overflow:auto;font-size:13px;border:1px solid var(--line,#e3e6ec);border-radius:8px;padding:4px 10px">${termsHtml('guest')}</div>
+    <label class="small" style="display:flex;gap:8px;align-items:flex-start;margin:12px 0"><input type="checkbox" id="tg-ok" style="margin-top:3px"><span>${TERMS_GUEST_LABEL}</span></label>
+    <div class="red small" id="tg-err"></div>
+    <div class="row" style="justify-content:flex-end;gap:8px"><button class="btn btn-ghost" id="tg-no">ไม่ยอมรับ (ออกจากระบบ)</button><button class="btn btn-primary" id="tg-yes" disabled>ยอมรับและใช้งานต่อ</button></div>`);
+  const c = m.cloneNode(true); m.replaceWith(c); m = c; // ปิดด้วยการคลิกพื้นหลังไม่ได้ ต้องเลือกยอมรับหรือออกจากระบบ
+  m.querySelector('.modal-close')?.remove();
+  const cb = m.querySelector('#tg-ok'), yes = m.querySelector('#tg-yes');
+  cb.onchange = () => yes.disabled = !cb.checked;
+  yes.onclick = async () => { yes.disabled = true; const r = await DB.acceptTerms(); if (r.error) { yes.disabled = false; m.querySelector('#tg-err').textContent = r.error; } else { closeModal(); toast('ขอบคุณที่ยอมรับเงื่อนไข'); } };
+  m.querySelector('#tg-no').onclick = async () => { closeModal(); await DB.logout(); render(); toast('ออกจากระบบแล้ว — ต้องยอมรับเงื่อนไขจึงจะใช้งานบัญชีได้'); };
 }
 function requireLogin(cb) { if (DB.currentUser()) return cb(); authModal('login', cb); }

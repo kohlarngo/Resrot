@@ -78,7 +78,7 @@ const DB = {
       const meta = session.user.user_metadata || {}; // Google / Facebook ส่งชื่อมาเป็น full_name หรือ name
       if (!p) p = await rpc('sd_ensure_profile', { p_name: meta.name || meta.full_name || null, p_phone: null }).catch(() => null);
       if (p?.active === false) await supa.auth.signOut();
-      else CACHE.me = toUser(p);
+      else { CACHE.me = toUser(p); if (CACHE.me) CACHE.me.termsAt = meta.termsAt || null; } // วันที่ลูกค้ายอมรับเงื่อนไข (เก็บใน metadata ของบัญชี)
     }
     if (CACHE.me) {
       const none = Promise.resolve([]);
@@ -295,7 +295,7 @@ const DB = {
     return { user: CACHE.me };
   },
   async register(name, email, pass, phone = '') {
-    const { data, error } = await supa.auth.signUp({ email: email.trim(), password: pass, options: { data: { name: name.trim() } } });
+    const { data, error } = await supa.auth.signUp({ email: email.trim(), password: pass, options: { data: { name: name.trim(), termsAt: new Date().toISOString() } } });
     if (error) return { error: /already|exists/i.test(error.message) ? 'อีเมลนี้ถูกใช้งานแล้ว' : error.message };
     if (!data.session) return { error: 'กรุณายืนยันอีเมลจากลิงก์ที่ส่งไป แล้วเข้าสู่ระบบอีกครั้ง' };
     await rpc('sd_ensure_profile', { p_name: name.trim(), p_phone: phone });
@@ -309,6 +309,14 @@ const DB = {
     try { localStorage.setItem('sd_after_login', location.hash || '#/'); } catch {}
     const { error } = await supa.auth.signInWithOAuth({ provider, options: { redirectTo: location.origin + location.pathname, queryParams: provider === 'google' ? { prompt: 'select_account' } : undefined } });
     return error ? { error: error.message } : {};
+  },
+  // ลูกค้าที่เข้าด้วย Google/Facebook ครั้งแรกยังไม่เคยยอมรับเงื่อนไข — บันทึกวันที่ยอมรับไว้ใน metadata ของบัญชี
+  async acceptTerms() {
+    const termsAt = new Date().toISOString();
+    const { error } = await supa.auth.updateUser({ data: { termsAt } });
+    if (error) return { error: error.message };
+    if (CACHE.me) CACHE.me.termsAt = termsAt;
+    return {};
   },
   async logout() {
     if (isStaff(CACHE.me)) await this.log('auth.logout', CACHE.me.email);
