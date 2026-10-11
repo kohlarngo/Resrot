@@ -307,7 +307,13 @@ function authModal(mode = 'login', after) {
   const m = openModal(`
     <h2>${isLogin ? 'เข้าสู่ระบบ' : 'สร้างบัญชีใหม่'}</h2>
     <p class="muted small" style="margin:0 0 16px">${isLogin ? 'เข้าสู่ระบบเพื่อจัดการการจองและรับส่วนลดพิเศษสำหรับสมาชิก' : 'สมัครฟรี รับส่วนลดสมาชิกทันที'}</p>
-    ${isLogin ? '' : `<label class="small" style="display:flex;gap:8px;align-items:flex-start;margin:0 0 12px"><input type="checkbox" id="auth-terms" style="margin-top:3px"><span>${TERMS_GUEST_LABEL} <a href="#/terms" target="_blank" rel="noopener">(อ่านเงื่อนไข)</a></span></label>`}
+    ${isLogin ? '' : `<div class="panel" style="padding:10px 12px;margin:0 0 14px">
+      <label class="small" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="auth-terms" style="margin-top:3px"><span>${TERMS_GUEST_LABEL}</span></label>
+      <details id="auth-terms-box" style="margin-top:8px"><summary class="small" style="cursor:pointer;color:var(--primary)">อ่านเงื่อนไขทั้งหมด</summary>
+        <div style="max-height:200px;overflow:auto;margin:8px 0;font-size:13px;border:1px solid var(--line,#e3e6ec);border-radius:8px;padding:4px 10px">${termsHtml('guest')}</div>
+        <button type="button" class="btn btn-sm btn-primary" id="auth-terms-ok"><i class="fa-solid fa-check"></i> ยอมรับเงื่อนไข</button></details>
+      <div class="small muted" id="auth-terms-hint" style="margin-top:6px">ติ๊กยอมรับเงื่อนไขก่อน จึงจะสมัครได้</div></div>`}
+    ${isLogin ? `<p class="small muted" style="margin:0 0 12px">การดำเนินการต่อด้วย Google/Facebook ครั้งแรกถือเป็นการสมัครสมาชิก และยอมรับ<a href="#/terms" target="_blank" rel="noopener">เงื่อนไขการใช้งาน</a></p>` : ''}
     <div class="oauth-btns">
       <button type="button" class="oauth-btn" data-oauth="google"><svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.3l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.6 5.9c4.4-4.1 7-10.1 7-17.6z"/><path fill="#FBBC05" d="M10.5 28.6c-.5-1.5-.8-3-.8-4.6s.3-3.1.8-4.6l-7.9-6.1C.9 16.5 0 20.1 0 24s.9 7.5 2.6 10.7l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.9l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg> ดำเนินการต่อด้วย Google</button>
       <button type="button" class="oauth-btn fb" data-oauth="facebook"><i class="fa-brands fa-facebook"></i> ดำเนินการต่อด้วย Facebook</button>
@@ -322,6 +328,12 @@ function authModal(mode = 'login', after) {
     </form>
     <p class="small" style="text-align:center;margin:16px 0 0">${isLogin ? 'ยังไม่มีบัญชี? <a href="javascript:" id="sw">สร้างบัญชี</a>' : 'มีบัญชีแล้ว? <a href="javascript:" id="sw">เข้าสู่ระบบ</a>'}</p>`);
   $('#sw', m).onclick = () => authModal(isLogin ? 'register' : 'login', after);
+  if (!isLogin) { // ต้องยอมรับเงื่อนไขก่อน ปุ่มสมัครทุกแบบจึงจะกดได้
+    const cb = $('#auth-terms', m), gated = () => $$('[data-oauth], #auth-f .btn-primary', m);
+    const sync = () => { gated().forEach(x => x.disabled = !cb.checked); $('#auth-terms-hint', m).style.display = cb.checked ? 'none' : ''; };
+    cb.onchange = sync; sync();
+    $('#auth-terms-ok', m).onclick = () => { cb.checked = true; sync(); $('#auth-terms-box', m).open = false; };
+  }
   $$('[data-oauth]', m).forEach(b => b.onclick = async () => {
     const err = $('#auth-err', m); err.textContent = '';
     if (!isLogin && !$('#auth-terms', m).checked) return err.textContent = 'กรุณาติ๊กยอมรับเงื่อนไขการใช้งานก่อน';
