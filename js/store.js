@@ -5,7 +5,7 @@
 const SUPABASE_URL = 'https://whtomiamqwhhdrllibix.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_zNqyiYcujJvjcTKthvo_Kw_EuGWsKCL'; // publishable key — เปิดเผยได้ ความปลอดภัยอยู่ที่ RLS
 // PKCE: ล็อกอินด้วย Google / Facebook กลับมาเป็น ?code=... (ไม่ใช้ #access_token เพราะหน้าเว็บใช้ hash เป็นเส้นทาง)
-const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { storageKey: 'sd_auth', flowType: 'pkce' } });
+const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { storageKey: /^(owner|admin|dev)$/.test(window.PORTAL) ? 'sd_auth_' + window.PORTAL : 'sd_auth', flowType: 'pkce' } });
 
 // ค่าที่เก็บเฉพาะในเบราว์เซอร์นี้ (การค้นหาล่าสุด รายการโปรด การจองที่ทำแบบไม่ล็อกอิน)
 const LS = {

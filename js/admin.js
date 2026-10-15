@@ -1421,17 +1421,17 @@ function addRoomFlow(done) {
 function hotelForm(h, done, opts = {}) {
   const isNew = !h;
   const ob = isAdmin(DB.currentUser()) ? {} : DB.currentUser()?.biz || {}, oz = ob.lat != null ? nearestZone(+ob.lat, +ob.lng).d : DESTINATIONS[0]; // ค่าเริ่มต้นจากพิกัดที่สมัครไว้
-  h = h ? JSON.parse(JSON.stringify(h)) : { id: 'h' + Date.now(), ownerId: isAdmin(DB.currentUser()) ? null : DB.currentUser().id, name: '', type: 'รีสอร์ท', stars: 0, city: oz.name, area: '', lat: ob.lat != null ? +ob.lat : oz.lat, lng: ob.lng != null ? +ob.lng : oz.lng, rating: 0, reviews: 0, images: [IMG.pool1, IMG.room1, IMG.ext1], amenities: ['wifi', 'ac'], rooms: [], distance: 1, description: '', checkIn: '14:00', checkOut: '12:00', highlights: ['ทำเลดี', 'คุ้มค่าเงิน', 'Wi-Fi ฟรี'], active: true };
+  h = h ? JSON.parse(JSON.stringify(h)) : { id: 'h' + Date.now(), ownerId: isAdmin(DB.currentUser()) ? null : DB.currentUser().id, name: '', type: 'รีสอร์ท', stars: 0, city: oz.name, area: '', lat: ob.lat != null ? +ob.lat : oz.lat, lng: ob.lng != null ? +ob.lng : oz.lng, rating: 0, reviews: 0, images: [IMG.pool1, IMG.room1, IMG.ext1], amenities: ['wifi', 'ac'], rooms: [], distance: 1, description: '', checkIn: '14:00', checkOut: '12:00', highlights: ['ทำเลดี', 'คุ้มค่าเงิน', 'Wi-Fi ฟรี'], houseRules: DEFAULT_HOUSE_RULES, active: true };
+  const HIDDEN_AMEN = ['ev', 'frontdesk', 'shuttle', 'sunset', 'parking']; // ไม่ให้เลือกในฟอร์ม (ค่าเดิมที่บันทึกไว้ยังคงอยู่)
+  const BED_OPTIONS = [...new Set(Object.values(ROOM_TEMPLATES).map(t => t.bed))];
   const roomRow = (r, i) => `<div class="room-edit" data-ri="${i}"><div class="row between"><b>ห้อง #${i + 1}</b><button type="button" class="btn btn-sm btn-danger" data-rdel="${i}"><i class="fa-solid fa-trash"></i></button></div>
     <div class="form-grid" style="grid-template-columns:repeat(4,1fr);margin-top:8px">
       <div class="fg" style="grid-column:span 2"><label>ชื่อห้อง</label><input data-rf="name" value="${esc(r.name)}"></div>
       <div class="fg"><label>ราคา/คืน (฿)</label><input data-rf="price" type="number" value="${r.price}"></div>
-      <div class="fg"><label>ส่วนลด %</label><input data-rf="discount" type="number" value="${r.discount}"></div>
       <div class="fg"><label>จำนวนห้อง</label><input data-rf="total" type="number" value="${r.total}"></div>
       <div class="fg"><label>พักได้ (คน)</label><input data-rf="maxGuests" type="number" value="${r.maxGuests}"></div>
       <div class="fg"><label>ขนาด (ตร.ม.)</label><input data-rf="size" type="number" value="${r.size}"></div>
-      <div class="fg"><label>วิว</label><input data-rf="view" value="${esc(r.view)}"></div>
-      <div class="fg" style="grid-column:span 2"><label>เตียง</label><input data-rf="bed" value="${esc(r.bed)}"></div>
+      <div class="fg" style="grid-column:span 2"><label>เตียง</label><select data-rf="bed">${[...new Set([...BED_OPTIONS, r.bed].filter(Boolean))].map(b => `<option ${b === r.bed ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select></div>
       <div class="fg" style="grid-column:span 2"><label>URL รูปห้อง</label><input data-rf="img" value="${esc(r.img)}"></div>
     </div>
     <div class="row wrap small" style="margin-top:8px">${[['breakfast', 'รวมอาหารเช้า'], ['freeCancel', 'ยกเลิกฟรี'], ['payAtHotel', 'ชำระที่ที่พัก']].map(([k, l]) => `<label class="row" style="gap:6px"><input type="checkbox" data-rf="${k}" ${r[k] ? 'checked' : ''}> ${l}</label>`).join('')}</div></div>`;
@@ -1441,24 +1441,24 @@ function hotelForm(h, done, opts = {}) {
         <div class="fg full"><label>ชื่อที่พัก <span class="req">*</span></label><input name="name" value="${esc(h.name)}"></div>
         <div class="fg"><label>ประเภท</label><select name="type">${['โรงแรม', 'รีสอร์ท', 'วิลล่า', 'บังกะโล', 'เกสต์เฮาส์', 'โฮสเทล', 'แกลมปิ้ง'].map(t => `<option ${h.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
         <div class="fg"><label>หาด / ย่าน</label><select name="city">${DESTINATIONS.map(d => `<option ${h.city === d.name ? 'selected' : ''}>${d.name}</option>`).join('')}</select></div>
-        <div class="fg"><label>ย่าน / พื้นที่ <span class="req">*</span></label><input name="area" value="${esc(h.area)}"></div>
         <div class="fg full"><label>ตำแหน่งที่พัก — คลิกบนแผนที่ หรือลากหมุดไปที่รีสอร์ท <span class="req">*</span></label><div id="h-map" class="pick-map"></div>
           <div class="row between wrap small" style="margin-top:6px;gap:8px"><span class="muted"><i class="fa-solid fa-location-dot"></i> <span id="h-coord"></span></span><button type="button" class="btn btn-ghost btn-sm" id="h-gps"><i class="fa-solid fa-location-crosshairs"></i> ใช้ตำแหน่งปัจจุบันของฉัน</button></div></div>
         <div class="fg"><label>ระยะจากท่าเรือหน้าบ้าน (กม.)</label><input name="distance" type="number" step="0.1" min="0" value="${h.distance}"><div class="small muted" style="margin-top:4px">คำนวณให้อัตโนมัติเมื่อปักหมุด (แก้ได้)</div></div>
         <div class="fg"><label>เวลาเช็คอิน</label><input name="checkIn" value="${h.checkIn}"></div>
         <div class="fg"><label>เวลาเช็คเอาท์</label><input name="checkOut" value="${h.checkOut}"></div>
-        <div class="fg full"><label>ลิงก์ประจำรีสอร์ท (ชื่อสั้น a-z 0-9 -)</label><input name="slug" value="${esc(h.slug || '')}" placeholder="เช่น sea-view-lan" maxlength="40"><div class="small muted" style="margin-top:4px">ลูกค้ากดลิงก์นี้แล้วจองผ่านเราได้ทันที: <code id="slug-prev"></code></div></div>
+        ${isAdmin(DB.currentUser()) ? `<div class="fg full"><label>ลิงก์ประจำรีสอร์ท (ชื่อสั้น a-z 0-9 -)</label><input name="slug" value="${esc(h.slug || '')}" placeholder="เช่น sea-view-lan" maxlength="40"><div class="small muted" style="margin-top:4px">ลูกค้ากดลิงก์นี้แล้วจองผ่านเราได้ทันที: <code id="slug-prev"></code></div></div>` : ''}
         <div class="fg full"><label>ช่องทางโซเชียลของรีสอร์ท (แสดงหน้าเว็บ และใส่ในข้อความโปรโมต)</label>
           <div class="form-grid" style="margin-top:6px">${Object.entries(SOCIALS).map(([k, c]) => `<div class="fg"><label><i class="${c.icon}" style="color:${c.color}"></i> ${c.label}</label><input name="soc_${k}" value="${esc(h.social?.[k] || '')}" placeholder="${esc(c.ph)}"></div>`).join('')}</div></div>
         <div class="fg full"><label>คำอธิบาย</label><textarea name="description" rows="3">${esc(h.description)}</textarea></div>
         <div class="fg full"><label>จุดเด่น (คั่นด้วยบรรทัดใหม่)</label><textarea name="highlights" rows="3">${esc(h.highlights.join('\n'))}</textarea></div>
         <div class="fg full"><label>รูปภาพ (URL หรือ Unsplash photo id — บรรทัดละ 1 รูป)</label><textarea name="images" rows="3">${esc(h.images.join('\n'))}</textarea>
           <div class="row small" style="margin-top:6px"><label class="btn btn-outline btn-sm" style="cursor:pointer"><i class="fa-solid fa-upload"></i> อัปโหลดรูปจากเครื่อง<input type="file" id="h-up" accept="image/*" multiple hidden></label><span class="muted">รูปจะถูกย่อแล้วอัปโหลดขึ้นระบบ (Supabase Storage)</span></div></div>
-        <div class="fg full"><label>สิ่งอำนวยความสะดวก</label><div class="row wrap small">${Object.entries(AMENITIES).map(([k, [ic, l]]) => `<label class="row" style="gap:6px;min-width:170px"><input type="checkbox" name="amen" value="${k}" ${h.amenities.includes(k) ? 'checked' : ''}> <i class="fa-solid ${ic} muted"></i> ${l}</label>`).join('')}</div></div>
+        <div class="fg full"><label>สิ่งอำนวยความสะดวก</label><div class="row wrap small">${Object.entries(AMENITIES).filter(([k]) => !HIDDEN_AMEN.includes(k)).map(([k, [ic, l]]) => `<label class="row" style="gap:6px;min-width:170px"><input type="checkbox" name="amen" value="${k}" ${h.amenities.includes(k) ? 'checked' : ''}> <i class="fa-solid ${ic} muted"></i> ${l}</label>`).join('')}${h.amenities.filter(a => a.startsWith('x:')).map(a => `<label class="row" style="gap:6px;min-width:170px"><input type="checkbox" name="amen" value="${esc(a)}" checked> <i class="fa-solid fa-circle-check muted"></i> ${esc(a.slice(2))}</label>`).join('')}<span id="amen-custom" class="row wrap" style="gap:6px;width:100%"></span></div>
+          <div class="row" style="gap:8px;margin-top:8px"><input id="amen-new" maxlength="40" placeholder="พิมพ์สิ่งอำนวยความสะดวกเพิ่มเอง เช่น ร้านนวด" style="flex:1"><button type="button" class="btn btn-outline btn-sm" id="amen-add"><i class="fa-solid fa-plus"></i> เพิ่ม</button></div></div>
       </div>
       <div style="margin:20px 0 10px"><h3 style="margin:0 0 8px">ประเภทห้องพัก</h3>
-        <div class="small muted" style="margin-bottom:6px">กดไอคอนเพื่อเพิ่มห้องตามประเภท (แก้ชื่อ ราคา จำนวนได้ภายหลัง)</div>
-        <div class="row wrap" style="gap:8px">${Object.entries(ROOM_TEMPLATES).map(([k, t]) => `<button type="button" class="btn btn-outline btn-sm" data-radd="${k}" title="เพิ่ม ${esc(t.name)}"><i class="fa-solid ${ROOM_ICONS[k]}"></i> ${esc(t.name.replace(/^ห้อง/, ''))}</button>`).join('')}</div></div>
+        <div class="small muted" style="margin-bottom:6px">กดไอคอนเพื่อเพิ่มห้องตามประเภท หรือกด "เพิ่มห้อง" เพื่อเพิ่มห้องเปล่า (แก้ชื่อ ราคา จำนวนได้ภายหลัง)</div>
+        <div class="row wrap" style="gap:8px"><button type="button" class="btn btn-primary btn-sm" id="r-addblank"><i class="fa-solid fa-plus"></i> เพิ่มห้อง</button>${Object.entries(ROOM_TEMPLATES).map(([k, t]) => `<button type="button" class="btn btn-outline btn-sm" data-radd="${k}" title="เพิ่ม ${esc(t.name)}"><i class="fa-solid ${ROOM_ICONS[k]}"></i> ${esc(t.name.replace(/^ห้อง/, ''))}</button>`).join('')}</div></div>
       <div id="r-list"></div>
       <div class="row" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary">บันทึก</button></div>
     </form>`, 'wide');
@@ -1467,13 +1467,13 @@ function hotelForm(h, done, opts = {}) {
     $$('[data-rf]', el).forEach(i => { const k = i.dataset.rf; r[k] = i.type === 'checkbox' ? i.checked : i.type === 'number' ? +i.value : i.value; });
   });
   const drawRooms = () => {
-    $('#r-list', m).innerHTML = h.rooms.map(roomRow).join('') || '<p class="muted small">ยังไม่มีห้องพัก — กด "เพิ่มห้อง"</p>';
+    $('#r-list', m).innerHTML = h.rooms.map(roomRow).join('') || '<p class="muted small">ยังไม่มีห้องพัก — กดปุ่ม "เพิ่มห้อง" ด้านบน</p>';
     $$('[data-rdel]', m).forEach(b => b.onclick = () => { readRooms(); h.rooms.splice(+b.dataset.rdel, 1); drawRooms(); });
   };
   drawRooms();
   if (opts.focusRooms) setTimeout(() => $('#r-list', m).scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
-  const slugPrev = () => $('#slug-prev', m).textContent = resortLink({ id: h.id, slug: normSlug($('[name=slug]', m).value) });
-  $('[name=slug]', m).oninput = slugPrev; slugPrev();
+  if ($('[name=slug]', m)) { const slugPrev = () => $('#slug-prev', m).textContent = resortLink({ id: h.id, slug: normSlug($('[name=slug]', m).value) });
+    $('[name=slug]', m).oninput = slugPrev; slugPrev(); }
   // แผนที่เลือกตำแหน่ง (แทนการพิมพ์ละติจูด / ลองจิจูด)
   const pos = { lat: +h.lat, lng: +h.lng }, PIER = DESTINATIONS[0];
   const kmFrom = (a, b) => { const R = 6371, rad = x => x * Math.PI / 180, dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
@@ -1503,9 +1503,22 @@ function hotelForm(h, done, opts = {}) {
   };
   $$('[data-radd]', m).forEach(b => b.onclick = () => {
     readRooms(); const t = ROOM_TEMPLATES[b.dataset.radd];
-    h.rooms.push({ id: `${h.id}-r${Date.now() % 100000}`, name: t.name, size: t.size, bed: t.bed, maxGuests: t.maxGuests, view: t.view, img: t.img, total: 5, price: Math.round(1600 * t.mult / 50) * 50, discount: 10, breakfast: t.mult >= 1.25, freeCancel: true, payAtHotel: false });
+    h.rooms.push({ id: `${h.id}-r${Date.now() % 100000}`, name: t.name, size: t.size, bed: t.bed, maxGuests: t.maxGuests, view: t.view, img: t.img, total: 5, price: Math.round(1600 * t.mult / 50) * 50, discount: 0, breakfast: t.mult >= 1.25, freeCancel: true, payAtHotel: false });
     drawRooms(); $$('[data-ri]', m).at(-1)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
+  const addAmen = () => { const inp = $('#amen-new', m), t = inp.value.trim().slice(0, 40); if (!t) return;
+    const key = 'x:' + t;
+    if ($$('[name=amen]', m).some(c => c.value === key || (AMENITIES[c.value]?.[1] === t))) { inp.value = ''; return toast('มีรายการนี้อยู่แล้ว', 'err'); }
+    const lb = document.createElement('label'); lb.className = 'row'; lb.style.cssText = 'gap:6px;min-width:170px';
+    lb.innerHTML = `<input type="checkbox" name="amen" checked> <i class="fa-solid fa-circle-check muted"></i> <span></span>`;
+    $('input', lb).value = key; $('span', lb).textContent = t; $('#amen-custom', m).before(lb); inp.value = ''; };
+  $('#amen-add', m).onclick = addAmen;
+  $('#amen-new', m).onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); addAmen(); } };
+  $('#r-addblank', m).onclick = () => {
+    readRooms(); const t = ROOM_TEMPLATES.standard;
+    h.rooms.push({ id: `${h.id}-r${Date.now() % 100000}`, name: '', size: 0, bed: t.bed, maxGuests: 2, view: '', img: t.img, total: 1, price: 0, discount: 0, breakfast: false, freeCancel: true, payAtHotel: false });
+    drawRooms(); $$('[data-ri]', m).at(-1)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
   $('#h-up', m).onchange = async e => {
     const ta = $('[name=images]', m), files = [...e.target.files];
     toast(`กำลังอัปโหลด ${files.length} รูป...`, 'info');
@@ -1520,18 +1533,18 @@ function hotelForm(h, done, opts = {}) {
     readRooms();
     const f = new FormData(e.target);
     const v = Object.fromEntries(f);
-    if (!v.name.trim() || !v.area.trim()) return toast('กรุณากรอกชื่อและย่านของที่พัก', 'err');
-    const sl = normSlug(v.slug);
+    if (!v.name.trim()) return toast('กรุณากรอกชื่อที่พัก', 'err');
+    const sl = 'slug' in v ? normSlug(v.slug) : h.slug;
     if (sl && DB.hotels(true).some(x => x.id !== h.id && (x.slug === sl || x.id === sl))) return toast('ชื่อลิงก์นี้ถูกใช้แล้ว กรุณาเลือกชื่ออื่น', 'err');
     if (!h.rooms.length) return toast('กรุณาเพิ่มห้องพักอย่างน้อย 1 ประเภท', 'err');
     if (h.rooms.some(r => !r.name.trim() || r.price <= 0 || r.total < 1 || r.maxGuests < 1)) return toast('ข้อมูลห้องไม่ครบ (ชื่อ ราคา จำนวนห้อง จำนวนคน)', 'err');
     Object.assign(h, {
-      name: v.name.trim(), type: v.type, city: v.city, area: v.area.trim(), lat: pos.lat, lng: pos.lng, distance: Math.max(0, +v.distance || 0),
+      name: v.name.trim(), type: v.type, city: v.city, area: (h.area || '').trim() || v.city, lat: pos.lat, lng: pos.lng, distance: Math.max(0, +v.distance || 0),
       checkIn: v.checkIn, checkOut: v.checkOut, description: v.description,
       highlights: v.highlights.split('\n').map(s => s.trim()).filter(Boolean),
       images: v.images.split('\n').map(s => s.trim()).filter(Boolean),
       amenities: f.getAll('amen'),
-      slug: normSlug(v.slug) || undefined,
+      slug: sl || undefined,
       social: Object.fromEntries(Object.keys(SOCIALS).map(k => [k, (v['soc_' + k] || '').trim()]).filter(([, x]) => x)),
     });
     if (!h.images.length) h.images = [IMG.pool1];
@@ -1610,7 +1623,7 @@ function admCoupons(main) {
 
 // ================= Ads (โฆษณา) =================
 // ราคาที่ตกลงกับผู้ลงโฆษณาเป็นข้อมูลภายใน (ไม่แสดงบนเว็บ) — ระบบแค่บันทึกยอด/สถานะรับเงิน และนับการแสดงผล/คลิก
-const AD_KINDS = { banner: ['fa-panorama', 'แบนเนอร์หน้าแรก', 'แสดงใต้ช่องค้นหาหน้าแรก (รูปแนวนอน แนะนำ 1400×400)'], featured: ['fa-award', 'รีสอร์ทแนะนำ', 'รีสอร์ทขึ้นอันดับบนสุดของผลค้นหา + ส่วน "รีสอร์ทแนะนำ" หน้าแรก'], card: ['fa-rectangle-ad', 'การ์ดโฆษณา', 'แทรกในรายการผลค้นหาและข้างหน้ารายละเอียดที่พัก (ธุรกิจภายนอกหรือรีสอร์ท)'] };
+const AD_KINDS = { banner: ['fa-panorama', 'แบนเนอร์หน้าแรก', 'แสดงใต้ช่องค้นหาหน้าแรก (รูปแนวนอน แนะนำ 1400×400)'], featured: ['fa-award', 'รีสอร์ทแนะนำ', 'รีสอร์ทขึ้นอันดับบนสุดของผลค้นหา + ส่วน "รีสอร์ทแนะนำ" หน้าแรก'], popup: ['fa-window-restore', 'ป๊อปอัพหน้าแรก', 'เด้งขึ้นกลางจอเมื่อลูกค้าเปิดเว็บ มีปุ่มปิด (แสดงครั้งเดียวต่อการเปิดเว็บแต่ละครั้ง)'], card: ['fa-rectangle-ad', 'การ์ดโฆษณา', 'แทรกในรายการผลค้นหาและข้างหน้ารายละเอียดที่พัก (ธุรกิจภายนอกหรือรีสอร์ท)'] };
 function adStatus(a) {
   const t = todayISO();
   if (!a.active) return ['ปิดอยู่', ''];
@@ -1655,14 +1668,27 @@ function adForm(main, ad) {
     <div class="fg"><label>ค่าโฆษณาที่ตกลง (฿) — ข้อมูลภายใน</label><input name="fee" type="number" min="0" value="${a.fee || ''}"></div>
     <div class="fg"><label>&nbsp;</label><label class="small"><input type="checkbox" name="paid" ${a.paid ? 'checked' : ''}> รับเงินแล้ว</label></div>
     <div class="fg full"><label>บันทึกภายใน (ไม่แสดงบนเว็บ)</label><input name="note" value="${esc(a.note)}" maxlength="200" placeholder="เช่น ติดต่อคุณ... โอนเข้าบัญชี..."></div>
+    <div class="fg full"><label>ตัวอย่างที่ลูกค้าจะเห็นบนเว็บ</label><div id="ad-live" style="background:#f6f8fb;border:1px dashed #cfd6e0;border-radius:12px;padding:12px"></div><div class="small muted" style="margin-top:4px" id="ad-where"></div></div>
     <div class="full"><button class="btn btn-primary btn-block">บันทึก</button></div></form>`);
   const f = $('#adf', m);
+  const AD_WHERE = { banner: 'แสดงที่หน้าแรก ใต้ช่องค้นหา', popup: 'เด้งเป็นป๊อปอัพกลางจอที่หน้าแรกเมื่อลูกค้าเปิดเว็บ มีปุ่มปิด', card: 'แสดงแทรกในผลค้นหา (ทุก 6 รายการ เมื่อมีผลอย่างน้อย 3 รายการ) และท้ายหน้ารายละเอียดรีสอร์ท — ไม่ขึ้นหน้าแรก', featured: 'รีสอร์ทขึ้นอันดับบนสุดของผลค้นหา และอยู่ในส่วน "รีสอร์ทแนะนำ" หน้าแรก' };
+  const preview = () => { try {
+    const v = Object.fromEntries(new FormData(f)), k = v.kind, box = $('#ad-live', m);
+    $('#ad-where', m).textContent = AD_WHERE[k] + ' · ต้องเปิดสวิตช์ และอยู่ในช่วงวันที่แสดง';
+    const x = { id: 'preview', kind: k, advertiser: v.advertiser, hotelId: v.hotelId, title: v.title, body: v.body, image: v.image, link: '', phone: v.phone, line: v.line };
+    if (k === 'banner') box.innerHTML = `<div class="ad-banner"><div class="ad-slide on" style="background-image:url('${esc(x.image)}')"><span class="ad-tag">โฆษณา</span>${x.title || x.body ? `<div class="ad-cap"><b>${esc(x.title)}</b>${x.body ? `<span>${esc(x.body)}</span>` : ''}</div>` : ''}</div></div>`;
+    else if (k === 'popup') box.innerHTML = `<div style="pointer-events:none">${adPopupHtml({ ...x, id: '' }, true)}</div>`;
+    else if (k === 'card') box.innerHTML = adCard({ ...x, id: '' }, false).replace(/^<a /, '<a style="pointer-events:none" ');
+    else { const h = DB.hotel(x.hotelId); box.innerHTML = h ? `<div style="pointer-events:none">${featuredBadgePreview(h)}</div>` : '<span class="muted small">เลือกรีสอร์ทเพื่อดูตัวอย่าง</span>'; }
+  } catch (e) { $('#ad-live', m).textContent = 'ดูตัวอย่างไม่ได้: ' + e.message; } };
+  const featuredBadgePreview = h => `<span class="ad-badge">แนะนำ · โฆษณา</span> ${hotelCard(h)}`;
+  f.addEventListener('input', preview); f.addEventListener('change', preview);
   const sync = () => { const k = f.elements.kind.value; $('#ad-kh', m).textContent = AD_KINDS[k][2];
     $('#ad-hotel', m).style.display = k === 'featured' ? '' : 'none';
     ['#ad-txt', '#ad-body', '#ad-img', '#ad-link', '#ad-phone', '#ad-line'].forEach(x => $(x, m).style.display = k === 'featured' ? 'none' : ''); };
-  f.elements.kind.onchange = sync; sync();
-  const setImg = u => { f.elements.image.value = u || ''; $('#adf-prev', m).innerHTML = u ? `<img src="${esc(u)}" alt="" style="width:100%;height:100%;object-fit:cover">` : 'ไม่มีรูป'; $('#adf-imgx', m).style.display = u ? '' : 'none'; };
-  setImg(a.image);
+  f.elements.kind.onchange = () => { sync(); preview(); }; sync();
+  const setImg = u => { f.elements.image.value = u || ''; setTimeout(preview); $('#adf-prev', m).innerHTML = u ? `<img src="${esc(u)}" alt="" style="width:100%;height:100%;object-fit:cover">` : 'ไม่มีรูป'; $('#adf-imgx', m).style.display = u ? '' : 'none'; };
+  setImg(a.image); preview();
   $('#adf-img', m).onclick = async () => { try { toast('เลือกรูปจากเครื่อง...', 'info'); const u = await pickAndUploadImage(1600); if (u) setImg(u); } catch (e) { toast('อัปโหลดรูปไม่สำเร็จ: ' + e.message, 'err'); } };
   $('#adf-imgx', m).onclick = () => setImg('');
   f.onsubmit = async e => {
@@ -1671,7 +1697,7 @@ function adForm(main, ad) {
     if (k === 'featured' && !v.hotelId) return toast('กรุณาเลือกรีสอร์ทที่ต้องการดัน', 'err');
     if (k !== 'featured') {
       if (!v.advertiser.trim() && !v.title.trim()) return toast('กรุณาใส่ชื่อผู้ลงโฆษณาหรือหัวข้อ', 'err');
-      if (k === 'banner' && !v.image) return toast('แบนเนอร์ต้องมีรูป', 'err');
+      if ((k === 'banner' || k === 'popup') && !v.image) return toast('แบนเนอร์/ป๊อปอัพต้องมีรูป', 'err');
       if (!v.image && !v.title.trim()) return toast('กรุณาใส่รูปหรือหัวข้อ', 'err');
       if (v.link.trim() && !/^https?:\/\//i.test(v.link.trim())) return toast('ลิงก์ต้องขึ้นต้นด้วย https://', 'err');
     }

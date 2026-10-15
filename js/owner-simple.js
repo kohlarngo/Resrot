@@ -131,7 +131,6 @@ function roomModal(h, r, done) {
       ${isNew ? `<div class="fg full"><label>เริ่มจากประเภทห้อง (เติมค่าให้อัตโนมัติ)</label><div class="row wrap" style="gap:8px">${Object.entries(ROOM_TEMPLATES).map(([k, t]) => `<button type="button" class="btn btn-outline btn-sm" data-tpl="${k}"><i class="fa-solid ${ROOM_ICONS[k]}"></i> ${esc(t.name.replace(/^ห้อง/, ''))}</button>`).join('')}</div></div>` : ''}
       <div class="fg full"><label>ชื่อห้อง <span class="req">*</span></label><input name="name" value="${esc(r.name)}"></div>
       <div class="fg"><label>ราคาต่อคืน (฿) <span class="req">*</span></label><input name="price" type="number" min="1" value="${r.price}"></div>
-      <div class="fg"><label>ส่วนลด %</label><input name="discount" type="number" min="0" max="90" value="${r.discount || 0}"></div>
       <div class="fg"><label>จำนวนห้อง <span class="req">*</span></label><input name="total" type="number" min="1" value="${r.total}"></div>
       <div class="fg"><label>พักได้ (คน) <span class="req">*</span></label><input name="maxGuests" type="number" min="1" value="${r.maxGuests}"></div>
       <div class="fg"><label>ขนาด (ตร.ม.)</label><input name="size" type="number" min="0" value="${r.size}"></div>
@@ -158,7 +157,7 @@ function roomModal(h, r, done) {
     const v = k => f.elements[k].value, n = k => +f.elements[k].value;
     if (!v('name').trim()) return toast('กรุณาใส่ชื่อห้อง', 'err');
     if (!(n('price') > 0) || !(n('total') >= 1) || !(n('maxGuests') >= 1)) return toast('ราคา จำนวนห้อง และจำนวนคนต้องมากกว่า 0', 'err');
-    Object.assign(r, { name: v('name').trim(), price: n('price'), discount: Math.min(90, Math.max(0, n('discount') || 0)), total: Math.floor(n('total')), maxGuests: Math.floor(n('maxGuests')), size: n('size') || 0, view: v('view').trim(), bed: v('bed').trim(), img: v('img').trim() || r.img,
+    Object.assign(r, { name: v('name').trim(), price: n('price'), total: Math.floor(n('total')), maxGuests: Math.floor(n('maxGuests')), size: n('size') || 0, view: v('view').trim(), bed: v('bed').trim(), img: v('img').trim() || r.img,
       breakfast: f.elements.breakfast.checked, freeCancel: f.elements.freeCancel.checked, payAtHotel: f.elements.payAtHotel.checked });
     if (isNew) h.rooms.push(r); else h.rooms = h.rooms.map(x => x.id === r.id ? r : x);
     DB.saveHotel(h); DB.log(isNew ? 'room.add' : 'room.edit', `${h.name} / ${r.name}`); closeModal(); toast(isNew ? 'เพิ่มห้องแล้ว' : 'บันทึกแล้ว'); done?.();
@@ -175,7 +174,7 @@ function boShopPage(main) {
           <label class="switch big"><input type="checkbox" data-act="${h.id}" ${h.active !== false ? 'checked' : ''} ${h.banned ? 'disabled' : ''}><span></span>${h.banned ? 'ถูกแบน' : h.active !== false ? 'เปิดขาย' : 'ปิดการขาย'}</label></div>
         ${h.banned ? `<div class="small red" style="margin-top:6px"><i class="fa-solid fa-ban"></i> ถูกแบนโดยผู้ดูแลระบบ (${h.banned.until ? 'ถึง ' + fmtDateTime(h.banned.until) : 'ถาวร'})${h.banned.reason ? ` — ${esc(h.banned.reason)}` : ''} · ติดต่อทีมงานเพื่อขอปลดแบน</div>` : ''}<p class="small" style="margin:10px 0">${esc(h.description || '— ยังไม่มีคำอธิบาย —')}</p>
         <div class="sh-thumbs">${h.images.slice(0, 8).map(i => imgTag(i, 160)).join('')}${h.images.length > 8 ? `<span class="small muted">+${h.images.length - 8}</span>` : ''}</div>
-        <div class="small" style="margin-top:8px"><i class="fa-solid fa-images"></i> สไลด์รูป: ${h.images.length < 2 ? '<span class="muted">ต้องมีรูปอย่างน้อย 2 รูป</span>' : h.slideshow?.on === false ? '<span class="muted">ปิดอยู่ (แสดงเป็นแกลเลอรี)</span>' : `<b>เปิด</b> · เปลี่ยนรูปทุก ${Math.min(15, Math.max(2, Math.round(+h.slideshow?.seconds || 4)))} วินาที`}</div>
+        <div class="small" style="margin-top:8px"><i class="fa-solid fa-images"></i> สไลด์รูป: ${h.images.length < 2 ? '<span class="muted">ต้องมีรูปอย่างน้อย 2 รูป</span>' : h.slideshow?.on !== true ? '<span class="muted">ปิดอยู่ — เปิดได้โดยผู้พัฒนาระบบเท่านั้น (แสดงเป็นแกลเลอรี)</span>' : `<b>เปิด</b> · เปลี่ยนรูปทุก ${Math.min(15, Math.max(2, Math.round(+h.slideshow?.seconds || 4)))} วินาที`}</div>
         <div class="row wrap small" style="gap:10px;margin-top:10px">${soc.length ? soc.map(([k, c]) => `<span><i class="${c.icon}" style="color:${c.color}"></i> ${c.label}</span>`).join('') : '<span class="muted">ยังไม่ได้ใส่ลิงก์โซเชียล</span>'}<span class="muted">· ลิงก์: <code>${esc(resortLink(h).replace(/^https?:\/\//, ''))}</code></span></div>
         <div class="row wrap" style="gap:8px;margin-top:14px"><button class="btn btn-primary" data-deco="${h.id}"><i class="fa-solid fa-paintbrush"></i> ตกแต่งหน้ารีสอร์ท</button>
           <a class="btn btn-outline" href="${siteUrl('#/hotel/' + (h.slug || h.id))}" target="_blank" rel="noopener"><i class="fa-solid fa-eye"></i> ดูหน้าเว็บ</a>
@@ -194,32 +193,32 @@ function shopModal(h, done) {
   const m = openModal(`<h2><i class="fa-solid fa-paintbrush"></i> ตกแต่งหน้ารีสอร์ท <span class="small muted">· ${esc(h.name)}</span></h2>
     <form id="sh-f" class="form-grid" novalidate style="margin-top:14px">
       <div class="fg full"><label>รูปภาพ — รูปแรกคือ <b>ภาพปก</b> (กดดาวเพื่อตั้งรูปอื่นเป็นปก)</label><div id="sh-imgs"></div></div>
-      <div class="fg full slide-set"><label class="row" style="gap:8px;font-weight:700"><input type="checkbox" name="slide_on" ${h.slideshow?.on !== false ? 'checked' : ''}> <i class="fa-solid fa-images"></i> สไลด์รูปอัตโนมัติบนหน้ารีสอร์ท</label>
+      ${can('hotels.media') ? `<div class="fg full slide-set"><label class="row" style="gap:8px;font-weight:700"><input type="checkbox" name="slide_on" ${h.slideshow?.on === true ? 'checked' : ''}> <i class="fa-solid fa-images"></i> สไลด์รูปอัตโนมัติบนหน้ารีสอร์ท</label>
         <div class="row wrap" style="gap:8px;margin-top:8px;align-items:center"><span class="small">เปลี่ยนรูปทุก</span>
           <input name="slide_sec" type="range" min="2" max="15" step="1" value="${Math.min(15, Math.max(2, Math.round(+h.slideshow?.seconds || 4)))}" style="flex:1;min-width:140px;max-width:260px"><b id="sl-sec-v" style="min-width:64px"></b></div>
-        <div class="small muted" style="margin-top:4px">ลูกค้าเอาเมาส์ชี้หรือแตะรูป สไลด์จะหยุดชั่วคราว · ต้องมีรูปอย่างน้อย 2 รูป</div></div>
+        <div class="small muted" style="margin-top:4px">ลูกค้าเอาเมาส์ชี้หรือแตะรูป สไลด์จะหยุดชั่วคราว · ต้องมีรูปอย่างน้อย 2 รูป</div></div>` : ''}
       <div class="fg full"><label>ชื่อรีสอร์ท <span class="req">*</span></label><input name="name" value="${esc(h.name)}"></div>
       <div class="fg full"><label>คำอธิบาย</label><textarea name="description" rows="3">${esc(h.description || '')}</textarea></div>
       <div class="fg full"><label>จุดเด่น (บรรทัดละ 1 ข้อ)</label><textarea name="highlights" rows="3">${esc((h.highlights || []).join('\n'))}</textarea></div>
       <div class="fg full"><label><i class="fa-solid fa-scale-balanced"></i> กฎของรีสอร์ท (บรรทัดละ 1 ข้อ) — แสดงให้ผู้เข้าพักอ่านและเซ็นรับทราบตอนลงทะเบียนเช็คอิน และพิมพ์ในเอกสาร</label>
-        <textarea name="houseRules" rows="6" maxlength="2000" placeholder="เช่น&#10;ห้ามสูบบุหรี่ในห้องพัก&#10;เงียบหลัง 22.00 น.&#10;กุญแจหายปรับ 500 บาท&#10;ห้ามนำอาหารมีกลิ่นแรงเข้าห้อง">${esc(h.houseRules || '')}</textarea>
+        <textarea name="houseRules" rows="6" maxlength="2000" placeholder="เช่น&#10;ห้ามสูบบุหรี่ในห้องพัก&#10;เงียบหลัง 22.00 น.&#10;กุญแจหายปรับ 500 บาท&#10;ห้ามนำอาหารมีกลิ่นแรงเข้าห้อง">${esc(h.houseRules || DEFAULT_HOUSE_RULES)}</textarea>
         <div class="small muted" style="margin-top:4px">เว้นว่าง = ไม่แสดงส่วนกฎในฟอร์มลงทะเบียน · ผู้เข้าพักแต่ละท่านเซ็นตามข้อความ ณ วันที่ลงทะเบียน (แก้กฎภายหลังไม่กระทบเอกสารเดิม)</div></div>
-      <div class="fg full"><label>ชื่อลิงก์ประจำรีสอร์ท (a-z 0-9 -)</label><input name="slug" value="${esc(h.slug || '')}" maxlength="40" placeholder="เช่น sea-view-lan"><div class="small muted" style="margin-top:4px">ลิงก์: <code id="sh-link"></code></div></div>
+      ${isAdmin(DB.currentUser()) ? `<div class="fg full"><label>ชื่อลิงก์ประจำรีสอร์ท (a-z 0-9 -)</label><input name="slug" value="${esc(h.slug || '')}" maxlength="40" placeholder="เช่น sea-view-lan"><div class="small muted" style="margin-top:4px">ลิงก์: <code id="sh-link"></code></div></div>` : ''}
       ${Object.entries(SOCIALS).map(([k, c]) => `<div class="fg"><label><i class="${c.icon}" style="color:${c.color}"></i> ${c.label}</label><input name="soc_${k}" value="${esc(h.social?.[k] || '')}" placeholder="${esc(c.ph)}"></div>`).join('')}
     </form>
     <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary" id="sh-save">บันทึก</button></div>`, 'wide');
   imgManager($('#sh-imgs', m), imgs);
   const f = $('#sh-f', m), link = () => $('#sh-link', m).textContent = resortLink({ id: h.id, slug: normSlug(f.elements.slug.value) });
-  f.elements.slug.oninput = link; link();
-  const secLbl = () => $('#sl-sec-v', m).textContent = f.elements.slide_sec.value + ' วินาที';
-  f.elements.slide_sec.oninput = secLbl; secLbl();
+  if (f.elements.slug) { f.elements.slug.oninput = link; link(); }
+  if (f.elements.slide_sec) { const secLbl = () => $('#sl-sec-v', m).textContent = f.elements.slide_sec.value + ' วินาที';
+    f.elements.slide_sec.oninput = secLbl; secLbl(); }
   $('#sh-save', m).onclick = () => {
     const v = k => f.elements[k].value;
     if (!v('name').trim()) return toast('กรุณาใส่ชื่อรีสอร์ท', 'err');
-    const sl = normSlug(v('slug'));
+    const sl = f.elements.slug ? normSlug(v('slug')) : h.slug;
     if (sl && DB.hotels(true).some(x => x.id !== h.id && (x.slug === sl || x.id === sl))) return toast('ชื่อลิงก์นี้ถูกใช้แล้ว กรุณาเลือกชื่ออื่น', 'err');
     Object.assign(h, { name: v('name').trim(), description: v('description'), images: imgs.length ? imgs : h.images, slug: sl || undefined,
-      slideshow: { on: f.elements.slide_on.checked, seconds: Math.min(15, Math.max(2, Math.round(+v('slide_sec')) || 4)) },
+      slideshow: f.elements.slide_on ? { on: f.elements.slide_on.checked, seconds: Math.min(15, Math.max(2, Math.round(+v('slide_sec')) || 4)) } : h.slideshow,
       highlights: v('highlights').split('\n').map(s => s.trim()).filter(Boolean),
       houseRules: v('houseRules').split('\n').map(s => s.trim()).filter(Boolean).join('\n').slice(0, 2000),
       social: Object.fromEntries(Object.keys(SOCIALS).map(k => [k, v('soc_' + k).trim()]).filter(([, x]) => x)) });
@@ -240,12 +239,12 @@ function boDevMedia(main) {
         <button class="btn btn-primary btn-sm" id="bulk-go"><i class="fa-solid fa-check-double"></i> ใช้กับทุกรีสอร์ท</button></div></section>
     ${hotels.map(h => `<section class="card sh-card" data-h="${h.id}"><div class="sh-cover" style="aspect-ratio:21/6">${imgTag(h.images[0], 900, '', h.id)}<span class="im-badge">ภาพปก</span></div>
       <div class="sh-body"><div class="row between wrap" style="gap:10px"><div><h3 style="margin:0">${esc(h.name)}</h3><div class="small muted">เจ้าของ: ${esc(ownerName(h))} · ${h.images.length} รูป · ${h.rooms.length} ประเภทห้อง${h.active === false ? ' · <span class="red">ปิดการขาย</span>' : ''}</div></div>
-          <div class="row wrap" style="gap:8px;align-items:center"><label class="row" style="gap:6px"><input type="checkbox" data-sl-on="${h.id}" ${h.slideshow?.on !== false ? 'checked' : ''} ${h.images.length < 2 ? 'disabled' : ''}> สไลด์</label>
+          <div class="row wrap" style="gap:8px;align-items:center"><label class="row" style="gap:6px"><input type="checkbox" data-sl-on="${h.id}" ${h.slideshow?.on === true ? 'checked' : ''} ${h.images.length < 2 ? 'disabled' : ''}> สไลด์</label>
             <input type="range" data-sl-sec="${h.id}" min="2" max="15" step="1" value="${sec(h)}" style="width:150px" ${h.images.length < 2 ? 'disabled' : ''}><b data-sl-v="${h.id}" style="min-width:64px">${sec(h)} วินาที</b></div></div>
         <div class="sh-thumbs" style="margin-top:10px">${h.images.slice(0, 8).map(i => imgTag(i, 160)).join('')}${h.images.length > 8 ? `<span class="small muted">+${h.images.length - 8}</span>` : ''}</div>
         <div class="row wrap" style="gap:8px;margin-top:12px"><button class="btn btn-primary btn-sm" data-deco="${h.id}"><i class="fa-solid fa-paintbrush"></i> จัดการรูป & ตกแต่งหน้า</button>
           <a class="btn btn-outline btn-sm" href="${siteUrl('#/hotel/' + (h.slug || h.id))}" target="_blank" rel="noopener"><i class="fa-solid fa-eye"></i> ดูหน้าเว็บ</a></div></div></section>`).join('') || '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><p class="muted">ยังไม่มีรีสอร์ทในระบบ</p></div></section>'}`;
-  const save = (id, patch) => { const h = JSON.parse(JSON.stringify(DB.hotel(id))); h.slideshow = { on: h.slideshow?.on !== false, seconds: sec(h), ...patch }; DB.saveHotel(h); DB.log('hotel.slideshow', `${h.name} → ${h.slideshow.on ? 'เปิด ' + h.slideshow.seconds + ' วินาที' : 'ปิด'}`); };
+  const save = (id, patch) => { const h = JSON.parse(JSON.stringify(DB.hotel(id))); h.slideshow = { on: h.slideshow?.on === true, seconds: sec(h), ...patch }; DB.saveHotel(h); DB.log('hotel.slideshow', `${h.name} → ${h.slideshow.on ? 'เปิด ' + h.slideshow.seconds + ' วินาที' : 'ปิด'}`); };
   $$('[data-sl-on]', main).forEach(c => c.onchange = () => { save(c.dataset.slOn, { on: c.checked }); toast(c.checked ? 'เปิดสไลด์แล้ว' : 'ปิดสไลด์แล้ว'); });
   $$('[data-sl-sec]', main).forEach(r => {
     r.oninput = () => $(`[data-sl-v="${r.dataset.slSec}"]`, main).textContent = r.value + ' วินาที';

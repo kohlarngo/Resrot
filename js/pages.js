@@ -31,6 +31,27 @@ function adCard(a, wide) {
     <div class="body"><span class="ad-tag">โฆษณา</span><h3>${esc(a.title || a.advertiser)}</h3>${a.body ? `<p>${esc(a.body)}</p>` : ''}
       <div class="ad-meta small">${a.advertiser && a.title ? `<b>${esc(a.advertiser)}</b>` : ''}${call}${line}</div></div></a>`;
 }
+// ป๊อปอัพหน้าแรก — เด้งครั้งเดียวต่อการเปิดเว็บ (ต่อโฆษณา) ปิดได้ด้วยปุ่ม X / คลิกพื้นหลัง / ปุ่ม Esc
+function adPopupHtml(a, inline) {
+  const body = `${a.image ? `<img src="${esc(imgUrl(a.image, 900))}" alt="${esc(a.title || a.advertiser)}">` : ''}
+    ${a.title || a.body ? `<div class="ad-pop-txt">${a.title ? `<h3>${esc(a.title)}</h3>` : ''}${a.body ? `<p>${esc(a.body)}</p>` : ''}</div>` : ''}`;
+  const h = adHref(a), inner = h ? `<a ${adAttrs(a)}>${body}</a>` : `<div data-ad="${esc(a.id)}">${body}</div>`;
+  return `<div class="ad-pop-box ${inline ? 'inline' : ''}"><span class="ad-tag">โฆษณา</span><button type="button" class="ad-pop-x" aria-label="ปิด"><i class="fa-solid fa-xmark"></i></button>${inner}</div>`;
+}
+function showAdPopup() {
+  if (document.querySelector('.ad-pop')) return;
+  let seen = []; try { seen = JSON.parse(sessionStorage.getItem('sd_ad_pop') || '[]'); } catch {}
+  const a = DB.publicAds('popup').find(x => !seen.includes(x.id)); if (!a) return;
+  try { sessionStorage.setItem('sd_ad_pop', JSON.stringify([...seen, a.id])); } catch {}
+  const el = document.createElement('div'); el.className = 'ad-pop'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true');
+  el.innerHTML = adPopupHtml(a);
+  const close = () => { el.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = e => { if (e.key === 'Escape') close(); };
+  el.onclick = e => { if (e.target === el || e.target.closest('.ad-pop-x')) close(); };
+  document.addEventListener('keydown', onKey);
+  document.body.appendChild(el); initAds(el);
+  $('.ad-pop-x', el).focus();
+}
 // รีสอร์ทแนะนำ (จ่ายค่าโฆษณา) — แสดงป้ายกำกับให้ชัดเจนว่าเป็นโฆษณา
 const isFeatured = id => DB.featuredIds().includes(id);
 const featuredBadge = id => isFeatured(id) ? '<span class="ad-badge">แนะนำ · โฆษณา</span>' : '';
@@ -137,7 +158,7 @@ function pageHome(app) {
   </div>`;
   bindSearchBox(app);
   initBgSlides(app);
-  initAds(app);
+  initAds(app); setTimeout(showAdPopup, 600);
   const showCity = c => { $('#city-grid').innerHTML = hotels.filter(h => h.city === c).slice(0, 4).map(hotelCard).join('') || '<p class="muted">ยังไม่มีที่พักในบริเวณนี้</p>'; bindCards($('#city-grid')); };
   $$('#city-chips .chip').forEach(c => c.onclick = () => { $$('#city-chips .chip').forEach(x => x.classList.toggle('active', x === c)); showCity(c.dataset.city); });
   showCity(DESTINATIONS[0].name);
@@ -283,7 +304,7 @@ function resultCard({ h, best }) {
         ${r?.breakfast ? '<span class="tag-s blue"><i class="fa-solid fa-mug-saucer"></i> รวมอาหารเช้า</span>' : ''}
         ${h.amenities.includes('beach') ? '<span class="tag-s"><i class="fa-solid fa-umbrella-beach"></i> ติดชายหาด</span>' : ''}
       </div>
-      <div class="amen-icons">${h.amenities.slice(0, 6).map(a => AMENITIES[a] ? `<i class="fa-solid ${AMENITIES[a][0]}" title="${AMENITIES[a][1]}"></i>` : '').join('')}</div>
+      <div class="amen-icons">${h.amenities.slice(0, 6).map(a => { const i = amenInfo(a); return i ? `<i class="fa-solid ${i[0]}" title="${esc(i[1])}"></i>` : ''; }).join('')}</div>
       ${r ? `<div class="small" style="margin-top:8px"><b>${esc(r.name)}</b> · ${r.bed}</div>` : ''}
     </div>
     <div class="right">
@@ -365,7 +386,7 @@ function pageHotel(app, params, id) {
   DB.pushRecent(h.id);
   const reviews = DB.reviews(h.id);
   const best = DB.cheapest(h, S);
-  const slideOn = h.slideshow?.on !== false && h.images.length > 1; // สไลด์รูปอัตโนมัติ (เจ้าของเปิด/ปิด และตั้งเวลาได้ในหลังบ้าน)
+  const slideOn = h.slideshow?.on === true && h.images.length > 1; // สไลด์รูปอัตโนมัติ (เจ้าของเปิด/ปิด และตั้งเวลาได้ในหลังบ้าน)
   const guestsPerRoom = Math.ceil((S.adults + S.children) / S.rooms);
   const cats =[['ความสะอาด', 0.2], ['ทำเลที่ตั้ง', 0.35], ['การบริการ', 0.1], ['สิ่งอำนวยความสะดวก', -0.2], ['ความคุ้มค่า', -0.05], ['ห้องพัก', 0]];
 
@@ -407,7 +428,7 @@ function pageHotel(app, params, id) {
         </div>
 
         <div class="panel" id="amen"><h2>สิ่งอำนวยความสะดวก</h2>
-          <div class="amen-grid">${h.amenities.map(a => AMENITIES[a] ? `<div><i class="fa-solid ${AMENITIES[a][0]}"></i>${AMENITIES[a][1]}</div>` : '').join('')}</div></div>
+          <div class="amen-grid">${h.amenities.map(a => { const i = amenInfo(a); return i ? `<div><i class="fa-solid ${i[0]}"></i>${esc(i[1])}</div>` : ''; }).join('')}</div></div>
 
         <div class="panel" id="rev"><h2>รีวิวจากผู้เข้าพักจริง</h2>
           <div class="row wrap" style="gap:30px;align-items:flex-start;margin-bottom:10px">
