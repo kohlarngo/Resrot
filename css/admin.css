@@ -513,3 +513,12 @@ body[data-portal] .bo-side { border-top: 4px solid var(--pc); }
 .ck-actions .btn { min-height: 48px; }
 .ck-actions .btn-primary { flex: 1; max-width: 360px; }
 .ck-rules { margin: 0; padding-left: 22px; font-size: 15px; line-height: 1.7; }
+
+/* เช็กลิสต์เริ่มต้นใช้งาน (เจ้าของรีสอร์ท) */
+.ck-bar { height: 8px; border-radius: 4px; background: #f1e7d1; overflow: hidden; margin: 2px 0 8px; } .ck-bar i { display: block; height: 100%; background: linear-gradient(90deg, #e0a030, #0a8f3c); border-radius: 4px; transition: width .4s; }
+.ck-step .ck-miss { color: #b42318; margin-top: 2px; font-size: 12.5px; }
+.ck-step.next { background: #fff8e8; border-radius: 10px; }
+.ck-go { background: #b7791f; color: #fff; font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 16px; white-space: nowrap; }
+.ck-extra { margin-top: 10px; border-top: 2px dashed var(--bo-line); padding-top: 8px; } .ck-extra .ck-step { padding: 8px 4px; } .ck-extra .ck-n { width: 26px; height: 26px; background: #eef1f6; color: #5b6676; font-size: 12px; }
+.ck-extra .ck-step.done .ck-n { background: #e6f6ec; color: #0a8f3c; }
+.ck-foot { padding-top: 10px; border-top: 1px solid var(--bo-line); margin-top: 6px; }

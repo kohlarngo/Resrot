@@ -12,6 +12,7 @@ const BO_NAV_BY_ROLE = {
       ['frontdesk', 'fa-bell-concierge', 'แขกเข้า-ออกวันนี้', 'frontdesk', () => boFrontdesk],
       ['approvals', 'fa-clipboard-check', 'ตรวจสลิป (มุมมองการ์ด)', 'frontdesk', () => boApprovals],
       ['calendar', 'fa-table-cells', 'ตารางห้องว่าง / ปิดห้อง', 'inventory', () => admCalendar],
+      ['channels', 'fa-arrows-rotate', 'จองจากช่องทางอื่น', 'inventory', () => boChannels],
       ['today', 'fa-sun', 'ภาพรวมวันนี้', 'ops.view', () => boToday],
     ] },
     { g: 'ตั้งค่ารีสอร์ท', items: [
@@ -1156,19 +1157,21 @@ function boBookings(main, params) {
 }
 
 // ปิดห้อง: ลูกค้ามาจากช่องทางอื่น (เว็บอื่น โทร LINE walk-in) หรือปิดซ่อม → ตัดห้องออกจากระบบทันที กันลูกค้าบนเว็บจองซ้ำ
+const BLOCK_CHANNELS = ['Agoda', 'Booking.com', 'Traveloka', 'Trip.com', 'Airbnb', 'โทรศัพท์ / LINE', 'หน้าเคาน์เตอร์', 'ปิดห้อง'];
 function blockRoomsModal(h, preset, done) {
   if (!h?.rooms?.length) return toast('ที่พักนี้ยังไม่มีห้องพัก', 'err');
   const ci0 = preset.date || todayISO(), room0 = h.rooms.find(r => r.id === preset.roomId) || h.rooms[0];
-  const m = openModal(`<h2><i class="fa-solid fa-ban"></i> ปิดห้อง</h2>
-    <p class="muted small" style="margin:4px 0 12px">${esc(h.name)} — เลือกห้องและวันที่ที่ไม่ต้องการให้ลูกค้าบนเว็บจอง (เช่น มีลูกค้าจองทางอื่นแล้ว)</p>
+  const m = openModal(`<h2><i class="fa-solid fa-ban"></i> ปิดห้อง / บันทึกการจองช่องทางอื่น</h2>
+    <p class="muted small" style="margin:4px 0 12px">${esc(h.name)} — เลือกห้องและวันที่ที่ไม่ต้องการให้ลูกค้าบนเว็บจอง (เช่น มีลูกค้าจอง Agoda / Booking.com / โทรศัพท์แล้ว)</p>
     <form id="bl-f" class="form-grid" novalidate>
+      <div class="fg full"><label>จองมาจากช่องทางไหน</label><select name="channel">${BLOCK_CHANNELS.map(c => `<option value="${esc(c)}" ${c === (preset.channel || 'ปิดห้อง') ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></div>
       <div class="fg full"><label>ประเภทห้อง</label><select name="roomId">${h.rooms.map(r => `<option value="${r.id}" ${r.id === room0.id ? 'selected' : ''}>${esc(r.name)} (${r.total} ห้อง)</option>`).join('')}</select></div>
       <div class="fg"><label>เข้าพัก</label><input name="checkIn" type="date" value="${ci0}"></div>
       <div class="fg"><label>เช็คเอาท์</label><input name="checkOut" type="date" value="${addDays(ci0, 1)}"></div>
       <div class="fg"><label>จำนวนห้อง</label><input name="qty" type="number" min="1" value="1"></div>
       <div class="fg"><label>ชื่อลูกค้า (ไม่บังคับ)</label><input name="guestName" placeholder="เช่น คุณสมชาย"></div>
       <div class="fg"><label>เบอร์โทร (ไม่บังคับ)</label><input name="phone" type="tel"></div>
-      <div class="fg full"><label>หมายเหตุ</label><input name="note" placeholder="เช่น จองผ่านเว็บ A เลขที่ 12345"></div>
+      <div class="fg full"><label>เลขที่จอง / หมายเหตุ</label><input name="note" placeholder="เช่น เลขที่จอง Agoda 12345"></div>
     </form>
     <div class="notice info" id="bl-hint" style="margin-top:8px"></div>
     <div class="red small" id="bl-err" style="margin-top:6px"></div>
@@ -1190,7 +1193,7 @@ function blockRoomsModal(h, preset, done) {
     if (qty > free) return err.textContent = `ช่วงนี้เหลือห้องว่างแค่ ${free} ห้อง — ปิดได้ไม่เกินนี้`;
     const btn = $('#bl-go', m); btn.disabled = true;
     try {
-      await DB.blockRooms({ hotelId: h.id, roomId: r.id, checkIn: ci, checkOut: co, qty, channel: 'ปิดห้อง', guestName: val('guestName'), phone: val('phone'), note: val('note') });
+      await DB.blockRooms({ hotelId: h.id, roomId: r.id, checkIn: ci, checkOut: co, qty, channel: val('channel') || 'ปิดห้อง', guestName: val('guestName'), phone: val('phone'), note: val('note') });
       DB.log('booking.block', `${h.name} · ${r.name} × ${qty} · ${ci} → ${co}`);
       closeModal(); toast(`ปิดห้อง ${qty} ห้อง (${fmtDate(ci, false)} – ${fmtDate(co, false)}) แล้ว`); done?.();
     } catch (e) { btn.disabled = false; err.textContent = e.message; }
@@ -2041,6 +2044,9 @@ function boFlags(main) {
     <section class="card">
       ${sw('maintenance', 'โหมดปิดปรับปรุง (Maintenance)', 'หน้าเว็บลูกค้าจะแสดงข้อความปิดปรับปรุง ทีมงานยังเข้าใช้งานได้ตามปกติ')}
       <div class="fg" style="margin:-4px 0 18px"><label class="small">ข้อความที่แสดงให้ลูกค้า</label><div class="row"><input id="fl-msg" value="${esc(fl.maintenanceMsg)}" style="flex:1"><button class="btn btn-outline btn-sm" id="fl-msg-save">บันทึก</button></div></div>
+    </section>
+    <section class="card">
+      ${sw('icalSync', 'ซิงก์ปฏิทิน Agoda / Booking.com (iCal)', 'เปิดแล้วเจ้าของรีสอร์ทจะเห็นกล่อง “ซิงก์อัตโนมัติ” ในหน้า “จองจากช่องทางอื่น” และระบบจะดึงปฏิทินทุก 20 นาที · ปิดอยู่ = กล่องซ่อน และระบบหยุดดึง (ลิงก์ที่เคยบันทึกไว้ไม่ถูกลบ)')}
     </section>
     <div class="notice info"><i class="fa-solid fa-circle-info"></i><div>สิทธิ์ถูกบังคับที่ฐานข้อมูลด้วย Row Level Security (ตาราง <code>sd_role_perms</code> + ฟังก์ชัน <code>sd_can()</code>) — <code>ROLE_PERMS</code> ใน <code>js/store.js</code> ใช้ซ่อนเมนูเท่านั้น หากแก้สิทธิ์ต้องแก้ทั้งสองที่ให้ตรงกัน</div></div>`;
   $$('[data-fl]', main).forEach(c => c.onchange = () => { DB.saveFlags({ [c.dataset.fl]: c.checked }); DB.log('flags.save', `${c.dataset.fl} = ${c.checked}`); toast('อัปเดตแล้ว'); render(); });

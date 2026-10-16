@@ -670,7 +670,7 @@ function payMethods(offer, hotel) {
   }
   return m;
 }
-const DEFAULT_FLAGS = { maintenance: false, maintenanceMsg: 'ระบบกำลังปิดปรับปรุงชั่วคราว จะกลับมาให้บริการเร็วๆ นี้', debug: false };
+const DEFAULT_FLAGS = { maintenance: false, maintenanceMsg: 'ระบบกำลังปิดปรับปรุงชั่วคราว จะกลับมาให้บริการเร็วๆ นี้', debug: false, icalSync: false };
 const APP_VERSION = '3.0.0';
 
 // เก็บ error ฝั่ง client ลงฐานข้อมูลให้นักพัฒนาดูในหน้า Logs

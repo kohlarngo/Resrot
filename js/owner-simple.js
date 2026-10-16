@@ -4,17 +4,34 @@
 // ใช้ฟังก์ชันกลางจาก admin.js (pageHead, kpi, bkAction, bindBk, hotelForm, sharePromo ฯลฯ)
 
 // ---------- ขั้นตอนเริ่มต้น (แสดงจนกว่าจะทำครบ) ----------
+// ขั้นที่ต้องทำก่อนเปิดขาย: แต่ละขั้นบอกชัดว่า "ยังขาดอะไร" · ขั้นเสริม (ไม่นับคะแนน) แสดงท้ายการ์ด
 function ownerSetupCard() {
-  const u = DB.currentUser(), po = u.payout || {}, hs = DB.hotels(true);
+  const u = DB.currentUser(), po = u.payout || {}, bz = u.biz || {}, hs = DB.hotels(true);
+  const rooms = hs.reduce((n, h) => n + (h.rooms || []).length, 0), maxImg = Math.max(0, ...hs.map(h => (h.images || []).length));
+  const hasPay = isPromptpayId(po.promptpayId) || !!(po.bankInfo || '').trim();
+  const missing = (...a) => a.filter(Boolean).join(' · ');
   const steps = [
-    [hs.some(h => h.rooms.length), 'เพิ่มรีสอร์ทและห้องพัก', 'ใส่ห้อง ราคา จำนวนห้อง และรูป', '#/admin/rooms'],
-    [isPromptpayId(po.promptpayId) || !!(po.bankInfo || '').trim(), 'ตั้งบัญชีรับเงิน', 'ใส่พร้อมเพย์หรือเลขบัญชี ลูกค้าจะโอนเงินเข้าบัญชีคุณโดยตรง', '#/admin/payout'],
-    [hs.some(h => (h.images || []).length > 1 && Object.keys(h.social || {}).length), 'ตกแต่งหน้ารีสอร์ท', 'ใส่รูปปก รูปเพิ่มเติม และลิงก์ Facebook / TikTok / LINE', '#/admin/shop'],
+    [rooms > 0, 'เพิ่มรีสอร์ทและห้องพัก', 'ใส่ชื่อห้อง ราคาต่อคืน จำนวนห้อง จำนวนคนพัก และรูปห้อง', '#/admin/rooms', hs.length ? 'ยังไม่มีห้องพักเลย' : 'ยังไม่มีรีสอร์ทในบัญชี'],
+    [hasPay, 'ตั้งบัญชีรับเงิน', 'ใส่พร้อมเพย์หรือเลขบัญชีธนาคาร ลูกค้าจะโอนเข้าบัญชีคุณโดยตรง', '#/admin/payout', 'ยังไม่ได้ใส่พร้อมเพย์หรือบัญชีธนาคาร ลูกค้าจะจองได้เฉพาะห้อง “ชำระที่ที่พัก”'],
+    [!!(bz.phone || '').trim() && !!(bz.line || '').trim(), 'ใส่เบอร์โทรและ LINE ติดต่อ', 'ลูกค้าจะเห็นในใบยืนยันการจอง เพื่อติดต่อคุณโดยตรง', '#/admin/payout', missing(!(bz.phone || '').trim() && 'ยังไม่มีเบอร์โทร', !(bz.line || '').trim() && 'ยังไม่มี LINE')],
+    [hs.some(h => (h.description || '').trim().length >= 30 && (h.highlights || []).length >= 1), 'เขียนคำอธิบายและจุดเด่น', 'บอกลูกค้าว่ารีสอร์ทดีอย่างไร อย่างน้อยคำอธิบาย 30 ตัวอักษร และจุดเด่น 1 ข้อ', '#/admin/shop', missing(!hs.some(h => (h.description || '').trim().length >= 30) && 'คำอธิบายสั้นเกินไปหรือยังไม่มี', !hs.some(h => (h.highlights || []).length) && 'ยังไม่มีจุดเด่น')],
+    [maxImg >= 4, 'ใส่รูปรีสอร์ทอย่างน้อย 4 รูป', 'รูปแรกคือภาพปก ควรมีรูปสระ ห้องพัก วิว และอาหาร', '#/admin/shop', `ตอนนี้มี ${maxImg} รูป ต้องเพิ่มอีก ${4 - maxImg} รูป`],
+    [hs.some(h => Object.keys(h.social || {}).length), 'ใส่ลิงก์ Facebook / TikTok / LINE', 'ให้ลูกค้ากดไปดูเพจหรือทักแชตได้ทันที', '#/admin/shop', 'ยังไม่ได้ใส่ลิงก์โซเชียลใดๆ'],
+    [hs.some(h => (h.houseRules || '').trim()), 'ตรวจและบันทึกกฎของรีสอร์ท', 'ลูกค้าต้องอ่านและยอมรับกฎนี้ตอนลงทะเบียนเช็กอิน กดบันทึกแม้ใช้ข้อความตั้งต้น', '#/admin/shop', 'ยังไม่ได้บันทึกกฎของรีสอร์ท'],
+    [+bz.targetMonthly > 0, 'ตั้งเป้ายอดขายต่อเดือน', 'ใช้ดูความคืบหน้าในหน้ายอดขายภาพรวม', '#/admin/payout', 'ยังไม่ได้ตั้งเป้า'],
   ];
-  const todo = steps.filter(s => !s[0]).length;
+  const extras = [
+    [DB.coupons().some(c => c.ownerId === u.id), 'สร้างโค้ดส่วนลดแรก', 'ช่วยกระตุ้นการจอง เช่น ลด 10% เมื่อจองล่วงหน้า', '#/admin/coupons'],
+    ...(DB.flags().icalSync ? [[false, 'ขายที่ Agoda / Booking.com ด้วย? ตั้งซิงก์ปฏิทิน', 'ลดห้องบนเว็บอัตโนมัติ ไม่ให้จองซ้ำ', '#/admin/channels']] : []),
+  ];
+  const todo = steps.filter(s => !s[0]).length, done = steps.length - todo;
   if (!todo) return '';
-  return `<section class="card checklist"><div class="card-h"><h3><i class="fa-solid fa-list-check"></i> เริ่มต้นใช้งาน — เหลืออีก ${todo} ขั้นตอน</h3><span class="small muted">${steps.length - todo}/${steps.length} เสร็จแล้ว</span></div>
-    ${steps.map(([ok, t, s, h], i) => `<a class="ck-step ${ok ? 'done' : ''}" href="${h}"><span class="ck-n">${ok ? '<i class="fa-solid fa-check"></i>' : i + 1}</span><div><b>${t}</b><small>${s}</small></div>${ok ? '' : '<i class="fa-solid fa-chevron-right muted"></i>'}</a>`).join('')}</section>`;
+  const first = steps.findIndex(s => !s[0]), h0 = hs[0];
+  return `<section class="card checklist"><div class="card-h"><h3><i class="fa-solid fa-list-check"></i> เริ่มต้นใช้งาน — เหลืออีก ${todo} ขั้นตอน</h3><span class="small muted">${done}/${steps.length} เสร็จแล้ว</span></div>
+    <div class="ck-bar"><i style="width:${Math.round(done / steps.length * 100)}%"></i></div>
+    ${steps.map(([ok, t, s, h, miss], i) => `<a class="ck-step ${ok ? 'done' : ''} ${i === first ? 'next' : ''}" href="${h}"><span class="ck-n">${ok ? '<i class="fa-solid fa-check"></i>' : i + 1}</span><div><b>${t}</b><small>${s}</small>${!ok && miss ? `<small class="ck-miss"><i class="fa-solid fa-circle-exclamation"></i> ยังขาด: ${miss}</small>` : ''}</div>${ok ? '' : i === first ? '<span class="ck-go">ทำขั้นนี้</span>' : '<i class="fa-solid fa-chevron-right muted"></i>'}</a>`).join('')}
+    <div class="ck-extra"><small class="muted">เสริม (ไม่บังคับ)</small>${extras.map(([ok, t, s, h]) => `<a class="ck-step sm ${ok ? 'done' : ''}" href="${h}"><span class="ck-n">${ok ? '<i class="fa-solid fa-check"></i>' : '<i class="fa-solid fa-plus"></i>'}</span><div><b>${t}</b><small>${s}</small></div><i class="fa-solid fa-chevron-right muted"></i></a>`).join('')}</div>
+    ${h0 ? `<div class="ck-foot"><a class="btn btn-outline btn-sm" href="${siteUrl('#/hotel/' + (h0.slug || h0.id))}" target="_blank" rel="noopener"><i class="fa-solid fa-eye"></i> ดูหน้ารีสอร์ทที่ลูกค้าเห็น</a></div>` : ''}</section>`;
 }
 
 // ================= 1) การจอง =================
@@ -325,4 +342,81 @@ function slideSlotModal(slot, done) {
   const commit = async value => { const r = await DB.saveSiteImages({ [slot.key]: value }); if (!r) return; DB.log('site.image', `${slot.label} → ${value ? 'สไลด์ ' + (value.list ? value.list.length : 1) + ' รูป' : 'คืนค่าเดิม'}`); closeModal(); applySiteIcons(); toast(value ? 'บันทึกสไลด์แล้ว' : 'คืนรูปเดิมแล้ว'); done?.(); };
   $('#ss-save', m).onclick = () => { const l = imgs.filter(Boolean); commit(!l.length ? null : l.length === 1 ? l[0] : { list: l, seconds: +$('#ss-sec', m).value }); };
   $('#ss-reset', m).onclick = () => commit(null);
+}
+
+// ================= จองจากช่องทางอื่น (Agoda / Booking.com / โทรศัพท์ ฯลฯ) =================
+// บันทึกการจองที่เกิดนอกระบบ → ลดห้องว่างบนเว็บทันที (ใช้ sd_block_rooms เดิม) · ยังไม่ดึงข้อมูลจาก OTA อัตโนมัติ
+function boChannels(main) {
+  const hotels = DB.hotels(true);
+  const f = { ch: '', st: 'active', hid: hotels[0]?.id || '' };
+  const chColor = c => ({ 'Agoda': '#c2410c', 'Booking.com': '#1d4ed8', 'Traveloka': '#0369a1', 'Trip.com': '#6d28d9', 'Airbnb': '#be123c' }[c] || '#475569');
+  main.innerHTML = pageHead('จองจากช่องทางอื่น', 'บันทึกการจองจาก Agoda / Booking.com / โทรศัพท์ เพื่อลดห้องว่างบนเว็บของเรา ไม่ให้ลูกค้าจองซ้ำ', '<button class="btn btn-primary" id="ch-add"><i class="fa-solid fa-plus"></i> บันทึกการจองใหม่</button>') + `
+    ${DB.flags().icalSync
+      ? '<div class="notice info"><i class="fa-solid fa-circle-info"></i><div>มี 2 วิธีลดห้อง: <b>ซิงก์อัตโนมัติ</b> วางลิงก์ปฏิทิน iCal จาก Agoda / Booking.com ด้านล่าง ระบบดึงทุก 20 นาที (ไม่ใช่เรียลไทม์ จึงอาจจองซ้อนได้ในช่วงรอ) หรือ <b>บันทึกเอง</b> ด้วยปุ่ม “บันทึกการจองใหม่”</div></div><section class="card" id="ch-feeds"></section>'
+      : '<div class="notice info"><i class="fa-solid fa-circle-info"></i><div>เมื่อมีลูกค้าจองจาก Agoda / Booking.com / โทรศัพท์ กด <b>“บันทึกการจองใหม่”</b> เพื่อลดห้องที่นี่ทันที และกด <b>“เปิดห้องคืน”</b> เมื่อลูกค้ายกเลิก (การซิงก์ปฏิทินอัตโนมัติยังปิดอยู่)</div></div>'}
+    <div id="ch-sum" class="tl-sum"></div>
+    <section class="card"><div class="ob-tool">
+      ${hotels.length > 1 ? `<select id="ch-h" class="sel">${hotels.map(h => `<option value="${h.id}">${esc(h.name)}</option>`).join('')}</select>` : ''}
+      <select id="ch-c" class="sel"><option value="">ทุกช่องทาง</option>${BLOCK_CHANNELS.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}</select>
+      <select id="ch-s" class="sel"><option value="active">ยังปิดห้องอยู่</option><option value="released">เปิดห้องคืนแล้ว</option><option value="">ทั้งหมด</option></select>
+    </div><div id="ch-list"></div></section>`;
+
+  const ICAL_CH = ['Agoda', 'Booking.com', 'Airbnb', 'Traveloka', 'Trip.com'];
+  const drawFeeds = async () => {
+    const box = $('#ch-feeds'); if (!box) return;
+    const h = DB.hotel(f.hid); if (!h) { box.innerHTML = ''; return; }
+    const res = await supa.from('sd_ical_feeds').select('*').eq('hotel_id', h.id).order('created_at');
+    const feeds = res.data || [], roomName = id => (h.rooms.find(r => r.id === id) || {}).name || '(ห้องถูกลบ)';
+    box.innerHTML = `<div class="card-h"><h3><i class="fa-solid fa-arrows-rotate"></i> ซิงก์อัตโนมัติ (iCal)</h3><span class="small muted">ดึงทุก 20 นาที · ใช้ได้เมื่อ Agoda / Booking.com ให้ลิงก์ปฏิทิน</span></div>
+      ${feeds.length ? `<div class="table-scroll"><table class="tbl"><thead><tr><th>ห้อง</th><th>ช่องทาง</th><th>สถานะ</th><th></th></tr></thead><tbody>${feeds.map(x => `<tr><td>${esc(roomName(x.room_id))}</td><td>${esc(x.channel)}</td>
+        <td class="small">${x.last_status === 'ok' ? `<span class="pill ok">ปกติ</span> ซิงก์ล่าสุด ${fmtDateTime(x.last_sync_at)} · ${x.last_count} รายการ` : x.last_status === 'error' ? `<span class="pill bad">ผิดพลาด</span> <span class="red">${esc(x.last_error || '')}</span>` : '<span class="muted">ยังไม่เคยซิงก์</span>'}</td>
+        <td style="text-align:right;white-space:nowrap"><button class="btn btn-sm btn-outline" data-fs="${x.id}"><i class="fa-solid fa-rotate"></i> ซิงก์ตอนนี้</button> <button class="btn btn-sm btn-ghost red" data-fd="${x.id}" title="ลบ"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('')}</tbody></table></div>` : '<p class="small muted" style="padding:0 20px">ยังไม่มีลิงก์ iCal — เพิ่มด้านล่าง ลิงก์ 1 อันต่อ 1 ประเภทห้อง</p>'}
+      <form id="fd-f" class="ob-tool" style="padding:12px 20px;gap:10px;flex-wrap:wrap" novalidate>
+        <select name="room" class="sel">${h.rooms.map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join('')}</select>
+        <select name="channel" class="sel">${ICAL_CH.map(c => `<option>${esc(c)}</option>`).join('')}</select>
+        <input name="url" class="sel" placeholder="วางลิงก์ iCal (https://…/….ics)" style="flex:1;min-width:260px">
+        <button class="btn btn-primary" id="fd-add"><i class="fa-solid fa-plus"></i> เพิ่มและซิงก์</button></form>
+      <div class="red small" id="fd-err" style="padding:0 20px 12px"></div>`;
+    const sync = async id => { toast('กำลังซิงก์...', 'info'); const r = await supa.functions.invoke('sd-ical-sync', { body: { feedId: id } }); if (r.error) toast('ซิงก์ไม่สำเร็จ: ' + r.error.message, 'err'); else { const x = (r.data?.results || [])[0] || {}; toast(x.ok ? `ซิงก์แล้ว: เพิ่ม ${x.added ?? 0} · เปิดคืน ${x.released ?? 0}` : 'ซิงก์ไม่สำเร็จ: ' + (x.error || ''), x.ok ? 'ok' : 'err'); } await DB.load(); draw(); drawFeeds(); };
+    $$('[data-fs]', box).forEach(b => b.onclick = () => sync(b.dataset.fs));
+    $$('[data-fd]', box).forEach(b => b.onclick = async () => { if (!(await confirmBox('ลบลิงก์นี้? รายการที่ซิงก์เข้ามาแล้วจะยังปิดห้องอยู่จนกว่าจะเปิดห้องคืนเอง', 'ลบ'))) return; await supa.from('sd_ical_feeds').delete().eq('id', b.dataset.fd); drawFeeds(); });
+    $('#fd-f', box).onsubmit = async e => {
+      e.preventDefault(); const v = Object.fromEntries(new FormData(e.target)), err = $('#fd-err', box); err.textContent = '';
+      const u = (v.url || '').trim();
+      if (!/^https:\/\//i.test(u)) return err.textContent = 'ลิงก์ต้องขึ้นต้นด้วย https://';
+      const ins = await supa.from('sd_ical_feeds').insert({ hotel_id: h.id, room_id: v.room, channel: v.channel, url: u }).select().single();
+      if (ins.error) return err.textContent = 'บันทึกไม่สำเร็จ: ' + ins.error.message;
+      DB.log('ical.add', `${h.name} · ${v.channel}`); sync(ins.data.id);
+    };
+  };
+  const draw = () => {
+    const today = todayISO();
+    const all = DB.bookings().filter(b => b.source === 'external' && (!f.hid || b.hotelId === f.hid));
+    const act = all.filter(b => b.status !== 'cancelled'), soon = act.filter(b => b.checkIn >= today && b.checkIn <= addDays(today, 7));
+    const cnt = {}; act.forEach(b => { const c = b.channel || 'ปิดห้อง'; cnt[c] = (cnt[c] || 0) + 1; });
+    const top = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0];
+    $('#ch-sum').innerHTML = [['fa-lock', 'info', 'รายการที่ปิดห้องอยู่', `${act.length} รายการ`], ['fa-calendar-day', soon.length ? 'warn' : 'ok', 'เข้าพักใน 7 วัน', `${soon.length} รายการ`], ['fa-trophy', 'ok', 'ช่องทางที่จองมากสุด', top ? `${esc(top[0])} (${top[1]})` : '—'], ['fa-lock-open', 'ok', 'เปิดห้องคืนแล้ว', `${all.length - act.length} รายการ`]]
+      .map(([ic, c, l, v]) => `<div class="tl-tile ${c}"><i class="fa-solid ${ic}"></i><div><small>${l}</small><b>${v}</b></div></div>`).join('');
+    const list = all.filter(b => (!f.ch || (b.channel || 'ปิดห้อง') === f.ch) && (!f.st || (f.st === 'active') === (b.status !== 'cancelled'))).sort((a, b) => b.checkIn.localeCompare(a.checkIn));
+    $('#ch-list').innerHTML = !list.length ? '<div class="bo-empty sm"><i class="fa-solid fa-inbox"></i><p class="muted">ยังไม่มีรายการ — กด “บันทึกการจองใหม่” เมื่อมีลูกค้าจองจากช่องทางอื่น</p></div>' :
+      `<div class="table-scroll"><table class="tbl"><thead><tr><th>ช่องทาง</th><th>ลูกค้า / อ้างอิง</th><th>ห้อง</th><th>วันที่พัก</th><th>สถานะ</th><th></th></tr></thead><tbody>${list.map((b, i) => {
+        const on = b.status !== 'cancelled', c = b.channel || 'ปิดห้อง';
+        return `<tr><td><span class="pill" style="background:${chColor(c)}1a;color:${chColor(c)};border:1px solid ${chColor(c)}55">${esc(c)}</span></td>
+        <td><b>${esc(guestName(b))}</b>${b.guest.note ? `<div class="small muted">${esc(b.guest.note)}</div>` : ''}${b.auto ? '<div class="small muted"><i class="fa-solid fa-arrows-rotate"></i> ซิงก์อัตโนมัติ</div>' : ''}</td>
+        <td>${esc(b.roomName)} × ${b.qty}</td><td class="small">${fmtDate(b.checkIn, false)} – ${fmtDate(b.checkOut, false)}<div class="muted">${b.nights} คืน</div></td>
+        <td>${on ? '<span class="pill warn">ปิดห้องอยู่</span>' : '<span class="pill ok">เปิดคืนแล้ว</span>'}${on && b.conflict ? '<div><span class="pill bad">จองซ้อนกับรายการอื่น</span></div>' : ''}</td>
+        <td style="text-align:right">${on && b.checkOut >= today ? `<button class="btn btn-sm btn-outline" data-rel="${i}"><i class="fa-solid fa-lock-open"></i> เปิดห้องคืน</button>` : ''}</td></tr>`;
+      }).join('')}</tbody></table></div>`;
+    $$('[data-rel]', main).forEach(btn => btn.onclick = async () => {
+      const b = list[+btn.dataset.rel];
+      if (!(await confirmBox(`เปิดห้องคืน <b>${esc(b.roomName)} × ${b.qty}</b> (${fmtDate(b.checkIn, false)} – ${fmtDate(b.checkOut, false)}) จาก ${esc(b.channel || 'ปิดห้อง')}? ลูกค้าบนเว็บจะจองห้องนี้ได้อีกครั้ง`, 'เปิดห้องคืน'))) return;
+      DB.updateBooking(b.id, { status: 'cancelled', cancelledBy: 'เจ้าของ (เปิดห้องคืน)', cancelledAt: new Date().toISOString() });
+      DB.log('booking.release', `${b.id} · ${b.roomName} × ${b.qty} · ${b.checkIn} → ${b.checkOut}`); toast('เปิดห้องคืนแล้ว'); draw();
+    });
+  };
+  $('#ch-h')?.addEventListener('change', e => { f.hid = e.target.value; draw(); if (DB.flags().icalSync) drawFeeds(); });
+  $('#ch-c').onchange = e => { f.ch = e.target.value; draw(); };
+  $('#ch-s').onchange = e => { f.st = e.target.value; draw(); };
+  $('#ch-add').onclick = () => blockRoomsModal(DB.hotel(f.hid), { channel: 'Agoda' }, draw);
+  draw(); if (DB.flags().icalSync) drawFeeds();
 }
