@@ -609,7 +609,7 @@ function boPayout(main) {
         ${fg('promptpayId', 'หมายเลขพร้อมเพย์ (เบอร์มือถือ 10 หลัก หรือเลข 13 หลัก)', p.promptpayId, 'inputmode="numeric" maxlength="13" placeholder="0812345678"', true)}
         ${fg('promptpayName', 'ชื่อบัญชีพร้อมเพย์ (ให้ลูกค้าตรวจก่อนโอน)', p.promptpayName, 'maxlength="80"', true)}
         <div class="fg full"><label>บัญชีธนาคาร (เว้นว่าง = ไม่รับโอนเข้าบัญชีธนาคาร)</label><textarea name="bankInfo" rows="3" maxlength="300" placeholder="ธนาคาร... เลขที่บัญชี... ชื่อบัญชี...">${esc(p.bankInfo || '')}</textarea></div></div>
-        <div class="row" style="gap:16px;margin-top:12px;align-items:center"><div class="pp-qr" id="pp-prev" style="width:136px;height:136px"></div><div class="small muted">ตัวอย่าง QR จาก promptpay.io — สแกนด้วยแอปธนาคารเพื่อตรวจว่าชื่อบัญชีถูกต้อง<br>ถ้าไม่ตั้งค่าบัญชีใดเลย ลูกค้าจะจองได้เฉพาะห้องที่ "ชำระที่ที่พัก"</div></div></section>
+</section>
       <section class="card"><div class="card-h"><h3><i class="fa-solid fa-store"></i> ข้อมูลรีสอร์ท (แสดงให้ลูกค้า)</h3></div><div class="form-grid">
         ${fg('resortName', 'ชื่อรีสอร์ท / ชื่อที่แสดง', b.resortName, 'maxlength="100"', true)}
         ${fg('phone', 'เบอร์ติดต่อ', b.phone, 'type="tel" maxlength="20"')}${fg('line', 'LINE', b.line, 'maxlength="60"')}
@@ -617,13 +617,6 @@ function boPayout(main) {
         <p class="small muted" style="margin-top:12px">ลูกค้าเห็นชื่อ เบอร์ และ LINE นี้ในใบยืนยันการจอง เพื่อติดต่อคุณโดยตรง</p></section>
     </div><div class="save-bar"><button class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> บันทึก</button></div></form>`;
   const f = $('#po-f');
-  const prev = () => {
-    const id = f.elements.promptpayId.value.replace(/\D/g, ''), box = $('#pp-prev');
-    if (box.dataset.id === id) return;
-    box.dataset.id = id;
-    box.innerHTML = isPromptpayId(id) ? `<img src="${promptpayQr(id)}" alt="QR พร้อมเพย์" style="width:120px;height:120px">` : '<span class="small muted" style="line-height:1.4;display:block;padding:8px">ใส่หมายเลขพร้อมเพย์เพื่อดูตัวอย่าง</span>';
-  };
-  f.oninput = prev; prev();
   f.onsubmit = e => {
     e.preventDefault();
     const v = Object.fromEntries(new FormData(f));
