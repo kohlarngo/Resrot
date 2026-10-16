@@ -143,6 +143,7 @@ function pageAdmin(app, params, section) {
   const group = nav.find(g => g.items.includes(item))?.g || 'บัญชี';
   const r = ROLES[u.role];
   const alerts = boAlerts();
+  const sideTop = $('#bo-side')?.scrollTop || 0; // จำตำแหน่งเลื่อนของเมนูด้านข้าง
   app.innerHTML = `<div class="bo">
     <aside class="bo-side" id="bo-side">
       <a href="#/admin" class="bo-brand"><span class="bo-logo"><img src="${esc(siteImgId('icon', 'assets/icon-192.png'))}" alt=""></span><div><b>${esc(u.role === 'owner' ? (u.biz?.resortName || u.name) : DB.settings().bizName)}</b><small>${PORTAL_INFO[u.role].title} · v${APP_VERSION}</small></div></a>
@@ -164,6 +165,7 @@ function pageAdmin(app, params, section) {
       <main class="bo-main" id="bo-main"></main>
     </div></div>`;
   const main = $('#bo-main');
+  const side = $('#bo-side'); if (side && sideTop) side.scrollTop = sideTop;
   if (item[3] && !can(item[3])) main.innerHTML = `<div class="bo-empty"><i class="fa-solid fa-lock"></i><h3>ไม่มีสิทธิ์เข้าถึงหน้านี้</h3><p class="muted">บทบาท "${r.label}" ไม่มีสิทธิ์ "${PERMS[item[3]]}"</p><a class="btn btn-primary" href="#/admin">กลับหน้าหลัก</a></div>`;
   else item[4]()(main, params);
   bindShell(alerts);
