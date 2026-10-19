@@ -446,11 +446,11 @@ function pageHotel(app, params, id) {
   <div class="container">
     <div class="breadcrumb"><a href="#/">หน้าแรก</a> › <a href="#/search?q=${encodeURIComponent(h.city)}">${esc(h.city)}</a> › ${esc(h.name)}</div>
     ${slideOn
-      ? `<div class="gallery slider" id="gallery" role="region" aria-roledescription="carousel">${h.images.map((im, i) => `<img class="sl-slide ${i === 0 ? 'on' : ''}" src="${imgUrl(im, 1400)}" data-i="${i}" ${i ? 'loading="lazy"' : ''} onerror="${fallback(h.id + i)}" alt="">`).join('')}
+      ? `<div class="gallery slider" id="gallery" role="region" aria-roledescription="carousel"><button class="gal-back" aria-label="ย้อนกลับ" onclick="history.length>1?history.back():(location.hash='#/search')"><i class="fa-solid fa-chevron-left"></i></button>${h.images.map((im, i) => `<img class="sl-slide ${i === 0 ? 'on' : ''}" src="${imgUrl(im, 1400)}" data-i="${i}" ${i ? 'loading="lazy"' : ''} onerror="${fallback(h.id + i)}" alt="">`).join('')}
         <button class="sl-nav prev" aria-label="รูปก่อนหน้า"><i class="fa-solid fa-chevron-left"></i></button><button class="sl-nav next" aria-label="รูปถัดไป"><i class="fa-solid fa-chevron-right"></i></button>
         <div class="sl-dots">${h.images.map((_, i) => `<button class="sl-dot ${i === 0 ? 'on' : ''}" data-d="${i}" aria-label="รูปที่ ${i + 1}"></button>`).join('')}</div>
         <button class="btn btn-sm more" style="background:#fff" data-i="0"><i class="fa-regular fa-images"></i> ดูรูปทั้งหมด (${h.images.length + h.rooms.length})</button></div>`
-      : `<div class="gallery" id="gallery">${h.images.slice(0, 5).map((im, i) => `<img src="${imgUrl(im, i ? 600 : 1200)}" data-i="${i}" onerror="${fallback(h.id + i)}" alt="">`).join('')}
+      : `<div class="gallery" id="gallery"><button class="gal-back" aria-label="ย้อนกลับ" onclick="history.length>1?history.back():(location.hash='#/search')"><i class="fa-solid fa-chevron-left"></i></button>${h.images.slice(0, 5).map((im, i) => `<img src="${imgUrl(im, i ? 600 : 1200)}" data-i="${i}" onerror="${fallback(h.id + i)}" alt="">`).join('')}
       <button class="btn btn-sm more" style="background:#fff" data-i="0"><i class="fa-regular fa-images"></i> ดูรูปทั้งหมด (${h.images.length + h.rooms.length})</button></div>`}
   </div>
   <div class="d-tabs"><div class="container">
