@@ -3,6 +3,16 @@
 // การ์ดสรุป → ตัวกรอง → รายการ · ทุกห้อง/ทุกรีสอร์ทมีปุ่ม "เปลี่ยนรูป" ที่อัปโหลดจากเครื่องได้ทันที
 // ใช้ฟังก์ชันกลางจาก admin.js (pageHead, kpi, bkAction, bindBk, hotelForm, sharePromo ฯลฯ)
 
+// เลื่อนไปที่ช่อง + ไฮไลต์ + โฟกัส (ใช้กับลิงก์จากเช็กลิสต์ "เริ่มต้นใช้งาน")
+function boFocus(root, sel) {
+  const el = (root || document).querySelector(sel); if (!el) return false;
+  el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  const box = el.closest('.fg') || el; box.classList.add('bo-flash'); setTimeout(() => box.classList.remove('bo-flash'), 3500);
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) setTimeout(() => el.focus({ preventScroll: true }), 350);
+  return true;
+}
+const boClearParams = () => { try { history.replaceState(null, '', location.pathname + location.search + location.hash.split('?')[0]); } catch {} };
+
 // ---------- ขั้นตอนเริ่มต้น (แสดงจนกว่าจะทำครบ) ----------
 // ขั้นที่ต้องทำก่อนเปิดขาย: แต่ละขั้นบอกชัดว่า "ยังขาดอะไร" · ขั้นเสริม (ไม่นับคะแนน) แสดงท้ายการ์ด
 function ownerSetupCard() {
@@ -11,16 +21,16 @@ function ownerSetupCard() {
   const hasPay = isPromptpayId(po.promptpayId) || !!(po.bankInfo || '').trim();
   const missing = (...a) => a.filter(Boolean).join(' · ');
   const steps = [
-    [rooms > 0, 'เพิ่มรีสอร์ทและห้องพัก', 'ใส่ชื่อห้อง ราคาต่อคืน จำนวนห้อง จำนวนคนพัก และรูปห้อง', '#/admin/rooms', hs.length ? 'ยังไม่มีห้องพักเลย' : 'ยังไม่มีรีสอร์ทในบัญชี'],
-    [hasPay, 'ตั้งบัญชีรับเงิน', 'ใส่พร้อมเพย์หรือเลขบัญชีธนาคาร ลูกค้าจะโอนเข้าบัญชีคุณโดยตรง', '#/admin/payout', 'ยังไม่ได้ใส่พร้อมเพย์หรือบัญชีธนาคาร ลูกค้าจะจองได้เฉพาะห้อง “ชำระที่ที่พัก”'],
-    [!!(bz.phone || '').trim() && !!(bz.line || '').trim(), 'ใส่เบอร์โทรและ LINE ติดต่อ', 'ลูกค้าจะเห็นในใบยืนยันการจอง เพื่อติดต่อคุณโดยตรง', '#/admin/payout', missing(!(bz.phone || '').trim() && 'ยังไม่มีเบอร์โทร', !(bz.line || '').trim() && 'ยังไม่มี LINE')],
-    [hs.some(h => (h.description || '').trim().length >= 30 && (h.highlights || []).length >= 1), 'เขียนคำอธิบายและจุดเด่น', 'บอกลูกค้าว่ารีสอร์ทดีอย่างไร อย่างน้อยคำอธิบาย 30 ตัวอักษร และจุดเด่น 1 ข้อ', '#/admin/shop', missing(!hs.some(h => (h.description || '').trim().length >= 30) && 'คำอธิบายสั้นเกินไปหรือยังไม่มี', !hs.some(h => (h.highlights || []).length) && 'ยังไม่มีจุดเด่น')],
-    [maxImg >= 4, 'ใส่รูปรีสอร์ทอย่างน้อย 4 รูป', 'รูปแรกคือภาพปก ควรมีรูปสระ ห้องพัก วิว และอาหาร', '#/admin/shop', `ตอนนี้มี ${maxImg} รูป ต้องเพิ่มอีก ${4 - maxImg} รูป`],
-    [hs.some(h => Object.keys(h.social || {}).length), 'ใส่ลิงก์ Facebook / TikTok / LINE', 'ให้ลูกค้ากดไปดูเพจหรือทักแชตได้ทันที', '#/admin/shop', 'ยังไม่ได้ใส่ลิงก์โซเชียลใดๆ'],
-    [hs.some(h => (h.houseRules || '').trim()), 'ตรวจและบันทึกกฎของรีสอร์ท', 'ลูกค้าต้องอ่านและยอมรับกฎนี้ตอนลงทะเบียนเช็กอิน กดบันทึกแม้ใช้ข้อความตั้งต้น', '#/admin/shop', 'ยังไม่ได้บันทึกกฎของรีสอร์ท'],
-    [+bz.targetMonthly > 0, 'ตั้งเป้ายอดขายต่อเดือน', 'ใช้ดูความคืบหน้าในหน้ายอดขายภาพรวม', '#/admin/payout', 'ยังไม่ได้ตั้งเป้า'],
+    [rooms > 0, 'เพิ่มรีสอร์ทและห้องพัก', 'ใส่ชื่อห้อง ราคาต่อคืน จำนวนห้อง จำนวนคนพัก และรูปห้อง', '#/admin/rooms?focus=add', hs.length ? 'ยังไม่มีห้องพักเลย' : 'ยังไม่มีรีสอร์ทในบัญชี'],
+    [hasPay, 'ตั้งบัญชีรับเงิน', 'ใส่พร้อมเพย์หรือเลขบัญชีธนาคาร ลูกค้าจะโอนเข้าบัญชีคุณโดยตรง', '#/admin/payout?focus=promptpayId', 'ยังไม่ได้ใส่พร้อมเพย์หรือบัญชีธนาคาร ลูกค้าจะจองได้เฉพาะห้อง “ชำระที่ที่พัก”'],
+    [!!(bz.phone || '').trim() && !!(bz.line || '').trim(), 'ใส่เบอร์โทรและ LINE ติดต่อ', 'ลูกค้าจะเห็นในใบยืนยันการจอง เพื่อติดต่อคุณโดยตรง', '#/admin/payout?focus=' + ((bz.phone || '').trim() ? 'line' : 'phone'), missing(!(bz.phone || '').trim() && 'ยังไม่มีเบอร์โทร', !(bz.line || '').trim() && 'ยังไม่มี LINE')],
+    [hs.some(h => (h.description || '').trim().length >= 30 && (h.highlights || []).length >= 1), 'เขียนคำอธิบายและจุดเด่น', 'บอกลูกค้าว่ารีสอร์ทดีอย่างไร อย่างน้อยคำอธิบาย 30 ตัวอักษร และจุดเด่น 1 ข้อ', '#/admin/shop?deco=' + (hs.some(h => (h.description || '').trim().length >= 30) ? 'highlights' : 'description'), missing(!hs.some(h => (h.description || '').trim().length >= 30) && 'คำอธิบายสั้นเกินไปหรือยังไม่มี', !hs.some(h => (h.highlights || []).length) && 'ยังไม่มีจุดเด่น')],
+    [maxImg >= 4, 'ใส่รูปรีสอร์ทอย่างน้อย 4 รูป', 'รูปแรกคือภาพปก ควรมีรูปสระ ห้องพัก วิว และอาหาร', '#/admin/shop?deco=images', `ตอนนี้มี ${maxImg} รูป ต้องเพิ่มอีก ${4 - maxImg} รูป`],
+    [hs.some(h => Object.keys(h.social || {}).length), 'ใส่ลิงก์ Facebook / TikTok / LINE', 'ให้ลูกค้ากดไปดูเพจหรือทักแชตได้ทันที', '#/admin/shop?deco=social', 'ยังไม่ได้ใส่ลิงก์โซเชียลใดๆ'],
+    [hs.some(h => (h.houseRules || '').trim()), 'ตรวจและบันทึกกฎของรีสอร์ท', 'ลูกค้าต้องอ่านและยอมรับกฎนี้ตอนลงทะเบียนเช็กอิน กดบันทึกแม้ใช้ข้อความตั้งต้น', '#/admin/shop?deco=houseRules', 'ยังไม่ได้บันทึกกฎของรีสอร์ท'],
   ];
   const extras = [
+    [+bz.targetMonthly > 0, 'ตั้งเป้ายอดขายต่อเดือน', 'ใส่หรือไม่ใส่ก็ได้ — ใช้ดูความคืบหน้าในหน้ายอดขายภาพรวม', '#/admin/payout?focus=targetMonthly'],
     [DB.coupons().some(c => c.ownerId === u.id), 'สร้างโค้ดส่วนลดแรก', 'ช่วยกระตุ้นการจอง เช่น ลด 10% เมื่อจองล่วงหน้า', '#/admin/coupons'],
     ...(DB.flags().icalSync ? [[false, 'ขายที่ Agoda / Booking.com ด้วย? ตั้งซิงก์ปฏิทิน', 'ลดห้องบนเว็บอัตโนมัติ ไม่ให้จองซ้ำ', '#/admin/channels']] : []),
   ];
@@ -111,7 +121,7 @@ function imgManager(box, imgs, { min = 1 } = {}) {
   draw();
 }
 // ================= 2) ห้องพัก =================
-function boRoomsPage(main) {
+function boRoomsPage(main, params) {
   const hotels = DB.hotels(true);
   const net = r => Math.round(r.price * (1 - (r.discount || 0) / 100));
   const empty = '<div class="bo-empty sm"><i class="fa-solid fa-bed"></i><p class="muted">ยังไม่มีห้องพัก — กด "+ เพิ่มห้องพัก"</p></div>';
@@ -124,6 +134,7 @@ function boRoomsPage(main) {
       <div class="rm-grid">${h.rooms.map(r => card(h, r)).join('') || empty}</div></section>`).join('')
     : '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><h3>ยังไม่มีรีสอร์ท</h3><p class="muted">เพิ่มข้อมูลรีสอร์ทก่อน แล้วค่อยเพิ่มห้องพัก</p><a class="btn btn-primary" href="#/admin/shop">ไปหน้ารีสอร์ท</a></div></section>');
   const redraw = () => boRoomsPage(main);
+  if (params?.get('focus') === 'add') { boClearParams(); setTimeout(() => $('[data-radd]', main)?.click(), 250); }
   const clone = id => JSON.parse(JSON.stringify(DB.hotel(id)));
   $$('[data-radd]', main).forEach(b => b.onclick = () => roomModal(clone(b.dataset.radd), null, redraw));
   $$('[data-redit]', main).forEach(b => b.onclick = () => { const [hid, rid] = b.dataset.redit.split('|'); const h = clone(hid); roomModal(h, h.rooms.find(r => r.id === rid), redraw); });
@@ -182,7 +193,7 @@ function roomModal(h, r, done) {
 }
 
 // ================= 3) หน้ารีสอร์ท (ตกแต่งหน้าที่ลูกค้าเห็น) =================
-function boShopPage(main) {
+function boShopPage(main, params) {
   const hotels = DB.hotels(true);
   main.innerHTML = pageHead('หน้ารีสอร์ท', 'ตกแต่งหน้ารีสอร์ทที่ลูกค้าเห็น — ภาพปก รูป คำอธิบาย และลิงก์ Facebook / TikTok / LINE', hotels.length ? '' : '<button class="btn btn-primary" id="sh-new"><i class="fa-solid fa-plus"></i> เพิ่มรีสอร์ทของคุณ</button>') + (hotels.length ? hotels.map(h => {
     const soc = Object.entries(SOCIALS).filter(([k]) => h.social?.[k]);
@@ -199,6 +210,15 @@ function boShopPage(main) {
           <button class="btn btn-ghost" data-edit="${h.id}"><i class="fa-solid fa-gear"></i> ตั้งค่าเพิ่มเติม (แผนที่ สิ่งอำนวยความสะดวก)</button></div></div></section>`;
   }).join('') : '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><h3>ยังไม่มีรีสอร์ท</h3><p class="muted">เพิ่มข้อมูลรีสอร์ท รูป ห้องพัก และราคา แล้วลูกค้าจะจองได้ทันที</p></div></section>');
   const redraw = () => boShopPage(main);
+  const deco = params?.get('deco');
+  if (deco && hotels[0]) {
+    boClearParams();
+    setTimeout(() => {
+      shopModal(JSON.parse(JSON.stringify(DB.hotel(hotels[0].id))), redraw);
+      const sel = { description: '#sh-f [name=description]', highlights: '#sh-f [name=highlights]', houseRules: '#sh-f [name=houseRules]', images: '#sh-imgs', social: '#sh-f [name^=soc_]' }[deco];
+      if (sel) setTimeout(() => boFocus($('#modal'), sel.replace('#sh-f ', '').replace(/^#sh-imgs$/, '#sh-imgs')) || boFocus(document, sel), 300);
+    }, 250);
+  }
   $('#sh-new', main)?.addEventListener('click', () => hotelForm(null, redraw));
   $$('[data-deco]', main).forEach(b => b.onclick = () => shopModal(JSON.parse(JSON.stringify(DB.hotel(b.dataset.deco))), redraw));
   $$('[data-edit]', main).forEach(b => b.onclick = () => hotelForm(DB.hotel(b.dataset.edit), redraw));

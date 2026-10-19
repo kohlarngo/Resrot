@@ -5,7 +5,8 @@
 const SUPABASE_URL = 'https://whtomiamqwhhdrllibix.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_zNqyiYcujJvjcTKthvo_Kw_EuGWsKCL'; // publishable key — เปิดเผยได้ ความปลอดภัยอยู่ที่ RLS
 // PKCE: ล็อกอินด้วย Google / Facebook กลับมาเป็น ?code=... (ไม่ใช้ #access_token เพราะหน้าเว็บใช้ hash เป็นเส้นทาง)
-const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { storageKey: /^(owner|admin|dev)$/.test(window.PORTAL) ? 'sd_auth_' + window.PORTAL : 'sd_auth', flowType: 'pkce' } });
+// owner / admin แยก session คนละคีย์ (เข้าพร้อมกันได้) · dev ใช้คีย์เดียวกับหน้าเว็บลูกค้า เพื่อให้ "แก้ไขหน้าเว็บ" (โหมดแก้ไขบน index.html) เห็นว่าล็อกอินเป็นนักพัฒนาอยู่
+const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { storageKey: /^(owner|admin)$/.test(window.PORTAL) ? 'sd_auth_' + window.PORTAL : 'sd_auth', flowType: 'pkce' } });
 
 // ค่าที่เก็บเฉพาะในเบราว์เซอร์นี้ (การค้นหาล่าสุด รายการโปรด การจองที่ทำแบบไม่ล็อกอิน)
 const LS = {
@@ -53,9 +54,9 @@ const toReview = r => ({ id: r.id, bookingId: r.booking_id, hotelId: r.hotel_id,
 const toCoupon = c => ({ code: c.code, type: c.type, value: +c.value, min: +c.min_amount, desc: c.description, active: c.active, ownerId: c.owner_id, image: c.image || '', maxUses: c.max_uses ?? null, hasMax: 'max_uses' in c });
 const fromCoupon = c => ({ code: c.code, type: c.type, value: +c.value, min_amount: +c.min || 0, description: c.desc || '', active: !!c.active, owner_id: c.ownerId || null, ...(c.image ? { image: c.image } : {}), ...(c.maxUses || c.hasMax ? { max_uses: c.maxUses || null } : {}) });
 const toAd = a => ({ id: a.id, kind: a.kind, advertiser: a.advertiser, hotelId: a.hotel_id || '', title: a.title, body: a.body, image: a.image, link: a.link, phone: a.phone, line: a.line,
-  start: a.start_date, end: a.end_date, active: a.active, fee: +a.fee || 0, paid: a.paid, note: a.note, views: a.views, clicks: a.clicks });
+  start: a.start_date, end: a.end_date, active: a.active, fee: +a.fee || 0, paid: a.paid, note: a.note, views: a.views, clicks: a.clicks, fit: a.fit || {} });
 const fromAd = a => ({ kind: a.kind, advertiser: a.advertiser, hotel_id: a.kind === 'featured' ? a.hotelId : null, title: a.title, body: a.body, image: a.image, link: a.link, phone: a.phone, line: a.line,
-  start_date: a.start, end_date: a.end, active: !!a.active, fee: +a.fee || 0, paid: !!a.paid, note: a.note });
+  start_date: a.start, end_date: a.end, active: !!a.active, fee: +a.fee || 0, paid: !!a.paid, note: a.note, fit: a.fit || {} });
 const byNaturalId = (a, b) => a.id.localeCompare(b.id, 'en', { numeric: true });
 
 const DB = {

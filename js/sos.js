@@ -64,6 +64,9 @@ function openSos(serviceId) {
       <div class="fg"><label>จำนวนผู้ประสบเหตุ</label><select id="sos-people">${[1, 2, 3, 4, 5].map(n => `<option>${n}</option>`).join('')}<option value="มากกว่า 5">มากกว่า 5</option></select></div>
       <div class="fg"><label>จุดสังเกต</label><input id="sos-mark" placeholder="เช่น หน้าร้าน..., ปลายหาดแสม"></div>
       <div class="fg full"><label>รายละเอียดเหตุการณ์</label><textarea id="sos-note" rows="2" placeholder="เล่าสั้นๆ ว่าเกิดอะไรขึ้น"></textarea></div>
+      <div class="fg full"><label>แนบรูปที่เกิดเหตุ <span class="small muted" style="font-weight:400">(ไม่บังคับ · สูงสุด 3 รูป — ช่วยให้เจ้าหน้าที่เตรียมอุปกรณ์ไปช่วยเหลือได้ถูกต้อง)</span></label>
+        <div class="sos-photos" id="sos-photos"></div>
+        <input type="file" id="sos-file" accept="image/*" multiple hidden></div>
     </div>
 
     <h3 class="sos-step" id="sos-step4"><span>4</span> ส่งคำขอความช่วยเหลือ</h3>
@@ -82,6 +85,7 @@ function openSos(serviceId) {
       $('#sos-mark', m).value.trim() ? `จุดสังเกต: ${$('#sos-mark', m).value.trim()}` : '',
       $('#sos-note', m).value.trim() ? `รายละเอียด: ${$('#sos-note', m).value.trim()}` : '',
       `ผู้แจ้ง: ${$('#sos-name', m).value.trim() || '-'} โทร ${$('#sos-phone', m).value.trim() || '-'}`,
+      photos.length ? `แนบรูป ${photos.length} รูป (ดูในข้อความที่ส่ง / ระบบแอดมิน)` : '',
     ];
     let text = lines.filter(Boolean).join('\n');
     // ชาวต่างชาติ: ภาษาไทยก่อนเสมอ (เผื่อส่งต่อหน่วยงานไทย) แล้วต่อด้วยภาษาอังกฤษสำหรับตำรวจท่องเที่ยว
@@ -102,8 +106,33 @@ function openSos(serviceId) {
   };
   const record = channel => {
     DB.addSos({ service: st.service, incident: st.incident, lat: st.lat, lng: st.lng, acc: st.acc,
-      name: $('#sos-name', m).value.trim(), phone: $('#sos-phone', m).value.trim(), people: $('#sos-people', m).value, mark: $('#sos-mark', m).value.trim(), note: $('#sos-note', m).value.trim(), channel });
+      name: $('#sos-name', m).value.trim(), phone: $('#sos-phone', m).value.trim(), people: $('#sos-people', m).value, mark: $('#sos-mark', m).value.trim(), note: $('#sos-note', m).value.trim(), photos: photos.map(p => p.path), channel });
   };
+
+  // ---- แนบรูป: อัปโหลดทันทีที่เลือก ไปที่ bucket sd-sos/<รหัสรายงาน>/<ลำดับ> (ผู้แจ้งไม่ต้องล็อกอิน) ----
+  const rid = (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/[x]/g, () => ((Math.random() * 16) | 0).toString(16)));
+  const photos = []; // { path, url (blob preview), blob }
+  function drawPhotos() {
+    $('#sos-photos', m).innerHTML = photos.map((p, i) => `<span class="sos-ph"><img src="${p.url}" alt="รูปที่ ${i + 1}"><button type="button" data-phx="${i}" aria-label="ลบรูป">×</button></span>`).join('')
+      + (photos.length < 3 ? `<button type="button" class="sos-ph-add" id="sos-ph-add"><i class="fa-solid fa-camera"></i><span>เพิ่มรูป</span></button>` : '');
+    $('#sos-ph-add', m)?.addEventListener('click', () => $('#sos-file', m).click());
+    $$('[data-phx]', m).forEach(b => b.onclick = () => { const p = photos.splice(+b.dataset.phx, 1)[0]; URL.revokeObjectURL(p.url); drawPhotos(); if (typeof drawActions === 'function') drawActions(); });
+  }
+  $('#sos-file', m).onchange = async e => {
+    const files = [...e.target.files].slice(0, 3 - photos.length); e.target.value = '';
+    for (const f of files) {
+      if (!/^image\//.test(f.type)) continue;
+      try {
+        const blob = await resizeImage(f, 1280), n = [1, 2, 3].find(k => !photos.some(p => p.path.endsWith('/' + k + '.jpg')));
+        const path = `${rid}/${n}.jpg`;
+        const { error } = await supa.storage.from('sd-sos').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+        if (error) { toast('ส่งรูปไม่สำเร็จ: ' + error.message, 'err'); continue; }
+        photos.push({ path, url: URL.createObjectURL(blob), blob });
+      } catch (err) { toast('ใช้รูปนี้ไม่ได้: ' + err.message, 'err'); }
+    }
+    drawPhotos(); drawActions();
+  };
+  drawPhotos();
 
   function drawQuick() {
     $('#sos-quick', m).innerHTML = sosOrdered().map(c => `<button type="button" class="sos-call ${c.id === st.service ? 'active' : ''}" data-svc="${c.id}"><i class="fa-solid ${c.icon}"></i><span>${esc(c.name)}</span><b>${esc(c.hotline)}</b></button>`).join('');
@@ -130,7 +159,11 @@ function openSos(serviceId) {
     $$('[data-rec]', m).forEach(a => a.addEventListener('click', () => { record(a.dataset.rec); toast('กำลังเปิดแอปโทรศัพท์...'); }));
     $('#sos-share', m).onclick = async () => {
       record('share');
-      if (navigator.share) { try { await navigator.share({ title: 'แจ้งเหตุฉุกเฉิน เกาะล้าน', text: message() }); } catch {} }
+      if (navigator.share) {
+        const files = photos.map((p, i) => new File([p.blob], `sos-${i + 1}.jpg`, { type: 'image/jpeg' }));
+        const withFiles = files.length && navigator.canShare?.({ files });
+        try { await navigator.share(withFiles ? { title: 'แจ้งเหตุฉุกเฉิน เกาะล้าน', text: message(), files } : { title: 'แจ้งเหตุฉุกเฉิน เกาะล้าน', text: message() }); } catch {}
+      }
       else { copyText(message()); toast('คัดลอกข้อความแล้ว — วางในแชทเพื่อส่งได้เลย'); }
     };
     $('#sos-copy', m).onclick = () => { copyText(message()); toast('คัดลอกข้อความแจ้งเหตุแล้ว'); };
@@ -199,29 +232,46 @@ function admSos(main) {
     ${list.length ? `<div class="table-wrap"><table class="tbl"><thead><tr><th>เวลา</th><th>เหตุ</th><th>ส่งถึง / ช่องทาง</th><th>ผู้แจ้ง</th><th>พิกัด</th><th>สถานะ</th></tr></thead><tbody>
       ${list.map(r => { const inc = SOS_INCIDENTS.find(x => x.id === r.incident); const c = contacts.find(x => x.id === r.service); return `<tr>
         <td class="small">${fmtDateTime(r.at)}</td>
-        <td>${inc ? `<i class="fa-solid ${inc.icon} red"></i> ${inc.label}` : '-'}${r.note ? `<div class="small muted">${esc(r.note)}</div>` : ''}${r.mark ? `<div class="small muted">จุดสังเกต: ${esc(r.mark)}</div>` : ''}</td>
+        <td>${inc ? `<i class="fa-solid ${inc.icon} red"></i> ${inc.label}` : '-'}${r.note ? `<div class="small muted">${esc(r.note)}</div>` : ''}${r.mark ? `<div class="small muted">จุดสังเกต: ${esc(r.mark)}</div>` : ''}${(r.photos || []).length ? `<div class="sos-adm-ph">${r.photos.map(ph => `<a data-sosph="${esc(ph)}" target="_blank" rel="noopener"><i class="fa-solid fa-spinner fa-spin"></i></a>`).join('')}</div>` : ''}</td>
         <td class="small">${esc(c?.name || r.service)}<br>${esc(r.channel)}</td>
         <td class="small">${esc(r.name || '-')}<br>${r.phone ? `<a href="tel:${esc(r.phone)}">${esc(r.phone)}</a>` : ''} · ${esc(r.people)} คน</td>
         <td class="small">${r.lat != null ? `<a href="${mapsLink(r.lat, r.lng)}" target="_blank" rel="noopener">${r.lat.toFixed(5)}, ${r.lng.toFixed(5)}</a>` : '-'}</td>
         <td><select data-sst="${esc(r.id)}">${Object.entries(ST).map(([k, [l]]) => `<option value="${k}" ${r.status === k ? 'selected' : ''}>${l}</option>`).join('')}</select></td></tr>`; }).join('')}
     </tbody></table></div>` : '<div class="empty"><i class="fa-solid fa-bell-slash"></i><p class="muted">ยังไม่มีการแจ้งเหตุ</p></div>'}
     <h3 style="margin-top:28px">เบอร์ติดต่อฉุกเฉิน</h3>
-    <p class="small muted">เบอร์ในพื้นที่รวบรวมจากแหล่งข้อมูลสาธารณะ — <b>ควรโทรตรวจสอบก่อนเปิดใช้งานจริง</b> แล้วแก้ไขได้ที่นี่</p>
-    <form id="sos-cf" class="table-wrap"><table class="tbl"><thead><tr><th>บริการ</th><th>สายด่วน</th><th>เบอร์ในพื้นที่</th><th>ชื่อหน่วยงานในพื้นที่</th></tr></thead><tbody>
-      ${contacts.map((c, i) => `<tr><td><i class="fa-solid ${c.icon} red"></i> <input data-ci="${i}" data-k="name" value="${esc(c.name)}" style="width:170px"></td>
-        <td><input data-ci="${i}" data-k="hotline" value="${esc(c.hotline)}" style="width:80px"></td>
-        <td><input data-ci="${i}" data-k="local" value="${esc(c.local)}" style="width:130px" placeholder="08XXXXXXXX"></td>
-        <td><input data-ci="${i}" data-k="localName" value="${esc(c.localName)}" style="width:220px"></td></tr>`).join('')}
-    </tbody></table>
-    <div class="row" style="padding:12px 14px"><button class="btn btn-primary">บันทึกเบอร์</button><button type="button" class="btn btn-ghost" id="sos-reset">คืนค่าเริ่มต้น</button></div></form>`;
+    <p class="small muted">เบอร์ในพื้นที่รวบรวมจากแหล่งข้อมูลสาธารณะ — <b>ควรโทรตรวจสอบก่อนเปิดใช้งานจริง</b> แก้ไขได้ที่นี่ และ <b>กด “เพิ่มเบอร์ใหม่”</b> เพื่อเพิ่มหน่วยงานอื่น (เช่น คลินิก ท่าเรือ ผู้ใหญ่บ้าน) เบอร์ใหม่จะแสดงที่ท้ายเว็บและในหน้าแจ้งเหตุ</p>
+    <form id="sos-cf" class="table-wrap"></form>`;
+  $$('[data-sosph]', main).forEach(async a => {
+    const { data } = await supa.storage.from('sd-sos').createSignedUrl(a.dataset.sosph, 600);
+    if (data?.signedUrl) { a.href = data.signedUrl; a.innerHTML = `<img src="${data.signedUrl}" alt="รูปแนบการแจ้งเหตุ">`; } else a.textContent = 'ดูรูปไม่ได้';
+  });
   $$('[data-sst]', main).forEach(s => s.onchange = () => { DB.setSosStatus(s.dataset.sst, s.value); DB.log('sos.status', `${s.dataset.sst} → ${ST[s.value][0]}`); toast('อัปเดตสถานะแล้ว'); });
-  $$('#sos-cf input', main).forEach(i => i.style.cssText += ';padding:6px 8px;border:1px solid var(--border);border-radius:6px');
+  // เบอร์ติดต่อฉุกเฉิน: แก้ไข / เพิ่ม / ลบ (4 รายการหลักลบไม่ได้ เพราะประเภทเหตุอ้างอิงอยู่) — กด "บันทึกเบอร์" จึงจะมีผล
+  const CORE = DEFAULT_SOS_CONTACTS.map(c => c.id);
+  const ICONS = [['fa-phone', 'โทรศัพท์'], ['fa-hospital', 'โรงพยาบาล / คลินิก'], ['fa-ship', 'ท่าเรือ / เรือ'], ['fa-fire-extinguisher', 'ดับเพลิง'], ['fa-bolt', 'ไฟฟ้า'], ['fa-droplet', 'ประปา'], ['fa-building-shield', 'หน่วยงานรัฐ'], ['fa-people-roof', 'ผู้ใหญ่บ้าน / ชุมชน'], ['fa-circle-info', 'อื่นๆ']];
+  let draft = contacts.map(c => ({ ...c }));
+  const drawContacts = () => {
+    $('#sos-cf', main).innerHTML = `<table class="tbl"><thead><tr><th>บริการ</th><th>สายด่วน</th><th>เบอร์ในพื้นที่</th><th>ชื่อหน่วยงานในพื้นที่</th><th></th></tr></thead><tbody>
+      ${draft.map((c, i) => { const core = CORE.includes(c.id); return `<tr><td><i class="fa-solid ${esc(c.icon)} red"></i> <input data-ci="${i}" data-k="name" value="${esc(c.name)}" style="width:170px" placeholder="ชื่อบริการ">
+          ${core ? '' : `<select data-ci="${i}" data-k="icon" style="margin-top:4px">${ICONS.map(([k, l]) => `<option value="${k}" ${c.icon === k ? 'selected' : ''}>${l}</option>`).join('')}</select>`}</td>
+        <td><input data-ci="${i}" data-k="hotline" value="${esc(c.hotline)}" style="width:80px" placeholder="เช่น 1669"></td>
+        <td><input data-ci="${i}" data-k="local" value="${esc(c.local)}" style="width:130px" placeholder="08XXXXXXXX"></td>
+        <td><input data-ci="${i}" data-k="localName" value="${esc(c.localName)}" style="width:220px"></td>
+        <td>${core ? '<span class="small muted">หลัก</span>' : `<button type="button" class="btn btn-sm btn-ghost red" data-cdel="${i}" title="ลบเบอร์นี้"><i class="fa-solid fa-trash"></i></button>`}</td></tr>`; }).join('')}
+    </tbody></table>
+    <div class="row" style="padding:12px 14px;flex-wrap:wrap;gap:8px"><button class="btn btn-primary">บันทึกเบอร์</button><button type="button" class="btn btn-outline" id="sos-add"><i class="fa-solid fa-plus"></i> เพิ่มเบอร์ใหม่</button><button type="button" class="btn btn-ghost" id="sos-reset">คืนค่าเริ่มต้น</button></div>`;
+    $$('#sos-cf input', main).forEach(i => i.style.cssText += ';padding:6px 8px;border:1px solid var(--border);border-radius:6px');
+    $$('[data-ci]', main).forEach(i => { const upd = () => { draft[+i.dataset.ci][i.dataset.k] = i.value; }; i.oninput = upd; i.onchange = upd; });
+    $$('[data-cdel]', main).forEach(b => b.onclick = () => { draft.splice(+b.dataset.cdel, 1); drawContacts(); });
+    $('#sos-add', main).onclick = () => { draft.push({ id: 'x' + Date.now().toString(36), icon: 'fa-phone', name: '', hotline: '', local: '', localName: '' }); drawContacts(); $$('[data-k=name]', main).at(-1)?.focus(); };
+    $('#sos-reset', main).onclick = async () => { if (!(await confirmBox('คืนค่าเริ่มต้น? เบอร์ที่เพิ่มเองและที่แก้ไขไว้จะหายไป', 'คืนค่าเริ่มต้น'))) return; DB.saveSosContacts(null); toast('คืนค่าเริ่มต้นแล้ว'); render(); };
+  };
+  drawContacts();
   $('#sos-cf', main).onsubmit = e => {
     e.preventDefault();
-    const next = contacts.map(c => ({ ...c }));
-    $$('[data-ci]', main).forEach(i => { next[+i.dataset.ci][i.dataset.k] = i.dataset.k === 'local' || i.dataset.k === 'hotline' ? i.value.replace(/[^\d]/g, '') : i.value.trim(); });
+    const next = draft.map(c => ({ ...c, name: (c.name || '').trim(), hotline: String(c.hotline || '').replace(/[^\d]/g, ''), local: String(c.local || '').replace(/[^\d]/g, ''), localName: (c.localName || '').trim() }));
+    if (next.some(c => !c.name)) return toast('ทุกรายการต้องมีชื่อบริการ', 'err');
     if (next.some(c => !c.hotline)) return toast('สายด่วนต้องไม่ว่าง', 'err');
-    DB.saveSosContacts(next); DB.log('sos.contacts', 'แก้ไขเบอร์ติดต่อฉุกเฉิน'); toast('บันทึกเบอร์ติดต่อแล้ว'); render();
+    DB.saveSosContacts(next); DB.log('sos.contacts', `แก้ไขเบอร์ติดต่อฉุกเฉิน (${next.length} รายการ)`); toast('บันทึกเบอร์ติดต่อแล้ว'); render();
   };
-  $('#sos-reset', main).onclick = () => { DB.saveSosContacts(null); toast('คืนค่าเริ่มต้นแล้ว'); render(); };
 }

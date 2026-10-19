@@ -602,7 +602,7 @@ function boApprovals(main) {
 }
 
 // ================= เจ้าของรีสอร์ท: บัญชีรับเงิน & ข้อมูลรีสอร์ท =================
-function boPayout(main) {
+function boPayout(main, params) {
   const u = DB.currentUser(), b = u.biz || {}, p = u.payout || {};
   const fg = (k, l, v, attrs = '', full = false) => `<div class="fg ${full ? 'full' : ''}"><label>${l}</label><input name="${k}" value="${esc(v ?? '')}" ${attrs}></div>`;
   main.innerHTML = pageHead('บัญชีรับเงิน', 'ลูกค้าโอนเงินเข้าบัญชีของคุณโดยตรง — แพลตฟอร์มไม่ได้ถือเงินแทน') + `
@@ -619,6 +619,7 @@ function boPayout(main) {
         <p class="small muted" style="margin-top:12px">ลูกค้าเห็นชื่อ เบอร์ และ LINE นี้ในใบยืนยันการจอง เพื่อติดต่อคุณโดยตรง</p></section>
     </div><div class="save-bar"><button class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> บันทึก</button></div></form>`;
   const f = $('#po-f');
+  const fo = params?.get('focus'); if (fo) { boClearParams(); setTimeout(() => boFocus(f, `[name="${fo}"]`), 250); }
   f.onsubmit = e => {
     e.preventDefault();
     const v = Object.fromEntries(new FormData(f));
@@ -1621,7 +1622,7 @@ function admCoupons(main) {
 
 // ================= Ads (โฆษณา) =================
 // ราคาที่ตกลงกับผู้ลงโฆษณาเป็นข้อมูลภายใน (ไม่แสดงบนเว็บ) — ระบบแค่บันทึกยอด/สถานะรับเงิน และนับการแสดงผล/คลิก
-const AD_KINDS = { banner: ['fa-panorama', 'แบนเนอร์หน้าแรก', 'แสดงใต้ช่องค้นหาหน้าแรก (รูปแนวนอน แนะนำ 1400×400)'], featured: ['fa-award', 'รีสอร์ทแนะนำ', 'รีสอร์ทขึ้นอันดับบนสุดของผลค้นหา + ส่วน "รีสอร์ทแนะนำ" หน้าแรก'], popup: ['fa-window-restore', 'ป๊อปอัพหน้าแรก', 'เด้งขึ้นกลางจอเมื่อลูกค้าเปิดเว็บ มีปุ่มปิด (แสดงครั้งเดียวต่อการเปิดเว็บแต่ละครั้ง)'], card: ['fa-rectangle-ad', 'การ์ดโฆษณา', 'แทรกในรายการผลค้นหาและข้างหน้ารายละเอียดที่พัก (ธุรกิจภายนอกหรือรีสอร์ท)'] };
+const AD_KINDS = { banner: ['fa-panorama', 'แบนเนอร์หน้าแรก', 'แสดงใต้ช่องค้นหาหน้าแรก (รูปแนวนอน แนะนำ 1400×400)'], featured: ['fa-award', 'รีสอร์ทแนะนำ', 'รีสอร์ทขึ้นอันดับบนสุดของผลค้นหา + ส่วน "รีสอร์ทแนะนำ" หน้าแรก'], side_left: ['fa-angles-left', 'แบนเนอร์ลอยข้างซ้าย', 'ลอยติดขอบจอด้านซ้ายทุกหน้า มีปุ่มปิดด้านล่าง (แนะนำรูปแนวตั้ง 240×600)'], side_right: ['fa-angles-right', 'แบนเนอร์ลอยข้างขวา', 'ลอยติดขอบจอด้านขวาทุกหน้า มีปุ่มปิดด้านล่าง (แนะนำรูปแนวตั้ง 240×600)'], bottom_bar: ['fa-window-minimize', 'แถบโฆษณาติดขอบล่างจอ', 'แถบแนวนอนเกาะขอบล่างจอตลอดเมื่อเลื่อนหน้า มีปุ่มปิดสีแดง (แนะนำรูป 970×90)'], popup: ['fa-window-restore', 'ป๊อปอัพหน้าแรก', 'เด้งขึ้นกลางจอเมื่อลูกค้าเปิดเว็บ มีปุ่มปิด (แสดงครั้งเดียวต่อการเปิดเว็บแต่ละครั้ง)'], card: ['fa-rectangle-ad', 'การ์ดโฆษณา', 'แสดงที่หน้าแรก (ใต้ "รีสอร์ทแนะนำ") และแทรกในผลค้นหา (ธุรกิจภายนอกหรือรีสอร์ท)'] };
 function adStatus(a) {
   const t = todayISO();
   if (!a.active) return ['ปิดอยู่', ''];
@@ -1637,7 +1638,7 @@ function admAds(main) {
     ${list.map((a, i) => { const [st, cls] = adStatus(a), h = a.hotelId && DB.hotel(a.hotelId); return `<tr>
       <td>${a.image ? `<img src="${esc(a.image)}" alt="" style="width:72px;height:44px;object-fit:cover;border-radius:6px">` : '<span class="muted small">—</span>'}</td>
       <td><b>${esc(a.advertiser || a.title || '-')}</b><div class="small muted">${esc(a.title)}${h ? ` · ${esc(h.name)}` : ''}</div></td>
-      <td class="small"><i class="fa-solid ${AD_KINDS[a.kind][0]}"></i> ${AD_KINDS[a.kind][1]}</td>
+      <td class="small"><i class="fa-solid ${AD_KINDS[a.kind][0]}"></i> ${AD_KINDS[a.kind][1]}<div><a href="${siteUrl(a.kind === 'card' ? '#/search' : '#/')}" target="_blank" rel="noopener" class="small">ดูบนเว็บ <i class="fa-solid fa-arrow-up-right-from-square"></i></a></div></td>
       <td class="small">${fmtDate(a.start, false)} – ${fmtDate(a.end, false)}</td>
       <td><span class="pill ${cls}">${st}</span></td>
       <td class="small">${a.views.toLocaleString()} / ${a.clicks.toLocaleString()}<div class="muted">${a.views ? (a.clicks / a.views * 100).toFixed(1) + '% คลิก' : '-'}</div></td>
@@ -1651,6 +1652,39 @@ function admAds(main) {
   $$('[data-adel]', main).forEach(b => b.onclick = async () => { const a = list[+b.dataset.adel]; if (!(await confirmBox(`ลบโฆษณา <b>${esc(a.advertiser || a.title)}</b>? สถิติแสดง/คลิกจะหายไปด้วย`, 'ลบ'))) return; await DB.deleteAd(a.id); DB.log('ad.delete', a.advertiser || a.title); toast('ลบโฆษณาแล้ว'); admAds(main); });
   $('#ad-add').onclick = () => adForm(main, null);
 }
+// ดูตัวอย่างโฆษณาบน "หน้าแรกจริง" (ยังไม่บันทึก): เปิดหน้าเว็บลูกค้าในกรอบ (คอมพิวเตอร์ / มือถือ) แล้วใส่โฆษณาร่างเข้าไปแทนโฆษณาชนิดเดียวกัน
+function adHomePreview(draft) {
+  document.getElementById('adp')?.remove();
+  const ov = document.createElement('div'); ov.id = 'adp';
+  ov.innerHTML = `<div class="adp-bar"><b><i class="fa-regular fa-eye"></i> ตัวอย่างหน้าแรก <span class="small" style="font-weight:400;opacity:.8">· ยังไม่บันทึก · ไม่นับสถิติ</span></b>
+    <div class="row" style="gap:8px"><button type="button" class="adp-b on" data-dev="d"><i class="fa-solid fa-desktop"></i> คอมพิวเตอร์</button><button type="button" class="adp-b" data-dev="m"><i class="fa-solid fa-mobile-screen"></i> มือถือ</button>
+      <button type="button" class="adp-b adp-x" id="adp-close"><i class="fa-solid fa-xmark"></i> ปิดตัวอย่าง</button></div></div>
+    <div class="adp-stage" id="adp-stage"><div id="adp-wrap"><iframe id="adp-f" title="ตัวอย่างหน้าแรก" src="index.html#/"></iframe></div></div>`;
+  document.body.appendChild(ov);
+  const ifr = $('#adp-f', ov), stage = $('#adp-stage', ov), wrap = $('#adp-wrap', ov);
+  let dev = 'd';
+  const layout = () => {
+    const W = dev === 'd' ? 1440 : 390, H = dev === 'd' ? 900 : 800, sw = stage.clientWidth - 24, sh = stage.clientHeight - 24;
+    const k = Math.min(1, sw / W, sh / H);
+    wrap.style.width = Math.round(W * k) + 'px'; wrap.style.height = Math.round(H * k) + 'px';
+    Object.assign(ifr.style, { width: W + 'px', height: H + 'px', transform: `scale(${k})`, transformOrigin: '0 0' });
+  };
+  const inject = () => {
+    const w = ifr.contentWindow;
+    try {
+      // CACHE เป็น const ระดับบนสุดของหน้าลูกค้า (ไม่ใช่คุณสมบัติของ window) จึงสั่งผ่าน eval ในกรอบนั้น
+      w.eval(`(d => { sessionStorage.removeItem('sd_ad_pop'); sessionStorage.removeItem('sd_ad_side'); CACHE.pubAds = CACHE.pubAds.filter(x => x.kind !== d.kind); CACHE.pubAds.push(d); document.querySelector('.ad-pop')?.remove(); render(); })(${JSON.stringify(draft)})`);
+      const target = { banner: '.ad-banner', card: '.ad-home-cards', featured: '.ad-badge' }[draft.kind];
+      if (target) setTimeout(() => w.document.querySelector(target)?.scrollIntoView({ block: 'center' }), 500);
+    } catch (e) { toast('เปิดตัวอย่างไม่ได้: ' + e.message, 'err'); }
+  };
+  let tries = 0;
+  ifr.onload = () => { const t = setInterval(() => { tries++; let ok = false; try { ok = ifr.contentWindow.eval("typeof CACHE !== 'undefined' && CACHE.loaded && typeof render === 'function'"); } catch {} if (ok || tries > 80) { clearInterval(t); if (ok) setTimeout(inject, 400); } }, 250); };
+  $$('[data-dev]', ov).forEach(b => b.onclick = () => { dev = b.dataset.dev; $$('[data-dev]', ov).forEach(x => x.classList.toggle('on', x === b)); layout(); inject(); });
+  $('#adp-close', ov).onclick = () => ov.remove();
+  window.addEventListener('resize', layout); layout();
+  const esc = e => { if (e.key === 'Escape') { ov.remove(); document.removeEventListener('keydown', esc); } }; document.addEventListener('keydown', esc);
+}
 function adForm(main, ad) {
   const a = ad || { kind: 'banner', advertiser: '', hotelId: '', title: '', body: '', image: '', link: '', phone: '', line: '', start: todayISO(), end: isoOf(new Date(Date.now() + 30 * 864e5)), active: true, fee: 0, paid: false, note: '' };
   const m = openModal(`<h2>${ad ? 'แก้ไข' : 'เพิ่ม'}โฆษณา</h2><form id="adf" class="form-grid" style="margin-top:14px" novalidate>
@@ -1660,22 +1694,35 @@ function adForm(main, ad) {
     <div class="fg full" id="ad-txt"><label>หัวข้อ</label><input name="title" value="${esc(a.title)}" maxlength="80"></div>
     <div class="fg full" id="ad-body"><label>ข้อความสั้นๆ</label><textarea name="body" rows="2" maxlength="200">${esc(a.body)}</textarea></div>
     <div class="fg full" id="ad-img"><label>รูปโฆษณา</label><div class="row" style="gap:10px;align-items:center"><div id="adf-prev" style="width:120px;height:64px;border-radius:8px;background:#f1f3f6;display:grid;place-items:center;overflow:hidden" class="muted small">ไม่มีรูป</div><button type="button" class="btn btn-outline btn-sm" id="adf-img"><i class="fa-regular fa-image"></i> เลือกรูป</button><button type="button" class="btn btn-ghost btn-sm red" id="adf-imgx" style="display:none">ลบรูป</button></div><input type="hidden" name="image" value="${esc(a.image)}"></div>
+    <div class="fg full" id="ad-pos"><label>ตำแหน่งป๊อปอัพ</label><select name="popPos"><option value="center" ${(a.fit?.pos || 'center') === 'center' ? 'selected' : ''}>กลางจอ (มีฉากหลังมืด ลูกค้าต้องกดปิด)</option><option value="left" ${a.fit?.pos === 'left' ? 'selected' : ''}>ลอยมุมล่างซ้าย (ไม่บังหน้าเว็บ)</option><option value="right" ${a.fit?.pos === 'right' ? 'selected' : ''}>ลอยมุมล่างขวา (ไม่บังหน้าเว็บ)</option></select></div>
+    <div class="fg full" id="ad-fit"><label>ปรับขนาดรูป <span class="small muted" style="font-weight:400">(ดูผลในตัวอย่างด้านล่างทันที)</span></label>
+      <div class="ad-fit">
+        <label class="small">การแสดงรูป<select name="fitMode"><option value="cover" ${(a.fit?.mode || 'cover') === 'cover' ? 'selected' : ''}>เต็มกรอบ (ตัดส่วนที่เกิน)</option><option value="contain" ${a.fit?.mode === 'contain' ? 'selected' : ''}>แสดงทั้งรูป (เว้นขอบ)</option></select></label>
+        <label class="small">ซูมเข้า <b id="fz-v"></b><input type="range" name="fitZoom" min="100" max="250" step="5" value="${Math.round((a.fit?.zoom || 1) * 100)}"></label>
+        <label class="small">เลื่อนซ้าย–ขวา<input type="range" name="fitX" min="0" max="100" value="${a.fit?.x ?? 50}"></label>
+        <label class="small">เลื่อนขึ้น–ลง<input type="range" name="fitY" min="0" max="100" value="${a.fit?.y ?? 50}"></label>
+        <button type="button" class="btn btn-ghost btn-sm" id="fit-reset"><i class="fa-solid fa-rotate-left"></i> รีเซ็ตรูป</button></div></div>
+    <div class="fg full" id="ad-livebox"><label>ตัวอย่างที่ลูกค้าจะเห็นบนเว็บ <button type="button" class="btn btn-primary btn-sm" id="ad-home-prev" style="margin-left:8px"><i class="fa-regular fa-eye"></i> ดูตัวอย่างบนหน้าแรกจริง</button></label><div id="ad-live" style="background:#f6f8fb;border:1px dashed #cfd6e0;border-radius:12px;padding:12px"></div><div class="small muted" style="margin-top:4px" id="ad-where"></div></div>
     <div class="fg full" id="ad-link"><label>ลิงก์เมื่อกด (https://...) — เว้นว่างได้ถ้าใส่เบอร์โทร/LINE</label><input name="link" value="${esc(a.link)}" placeholder="https://facebook.com/ชื่อเพจ"></div>
     <div class="fg" id="ad-phone"><label>เบอร์โทร</label><input name="phone" value="${esc(a.phone)}" maxlength="30"></div><div class="fg" id="ad-line"><label>LINE ID</label><input name="line" value="${esc(a.line)}" maxlength="60" placeholder="@ไลน์ไอดี"></div>
     <div class="fg"><label>เริ่มแสดง</label><input name="start" type="date" value="${a.start}"></div><div class="fg"><label>แสดงถึงวันที่</label><input name="end" type="date" value="${a.end}"></div>
     <div class="fg"><label>ค่าโฆษณาที่ตกลง (฿) — ข้อมูลภายใน</label><input name="fee" type="number" min="0" value="${a.fee || ''}"></div>
     <div class="fg"><label>&nbsp;</label><label class="small"><input type="checkbox" name="paid" ${a.paid ? 'checked' : ''}> รับเงินแล้ว</label></div>
     <div class="fg full"><label>บันทึกภายใน (ไม่แสดงบนเว็บ)</label><input name="note" value="${esc(a.note)}" maxlength="200" placeholder="เช่น ติดต่อคุณ... โอนเข้าบัญชี..."></div>
-    <div class="fg full"><label>ตัวอย่างที่ลูกค้าจะเห็นบนเว็บ</label><div id="ad-live" style="background:#f6f8fb;border:1px dashed #cfd6e0;border-radius:12px;padding:12px"></div><div class="small muted" style="margin-top:4px" id="ad-where"></div></div>
     <div class="full"><button class="btn btn-primary btn-block">บันทึก</button></div></form>`);
   const f = $('#adf', m);
-  const AD_WHERE = { banner: 'แสดงที่หน้าแรก ใต้ช่องค้นหา', popup: 'เด้งเป็นป๊อปอัพกลางจอที่หน้าแรกเมื่อลูกค้าเปิดเว็บ มีปุ่มปิด', card: 'แสดงแทรกในผลค้นหา (ทุก 6 รายการ เมื่อมีผลอย่างน้อย 3 รายการ) และท้ายหน้ารายละเอียดรีสอร์ท — ไม่ขึ้นหน้าแรก', featured: 'รีสอร์ทขึ้นอันดับบนสุดของผลค้นหา และอยู่ในส่วน "รีสอร์ทแนะนำ" หน้าแรก' };
+  const SIDE_WHERE = 'ลอยติดขอบจอทุกหน้า: จอใหญ่ (≥1400px) เป็นแถบแนวตั้งกลางขอบจอ · จอเล็ก/มือถือเป็นการ์ดเล็กมุมล่าง · ลูกค้ากด “ปิด” ด้านล่างได้ (ไม่แสดงอีกจนกว่าจะเปิดเว็บใหม่)';
+  const AD_WHERE = { bottom_bar: 'เกาะขอบล่างของจอทุกหน้า เลื่อนหน้าไปไหนก็ลอยตาม มีปุ่มกดปิดสีแดงที่มุมบนขวาของแถบ (ไม่แสดงอีกจนกว่าจะเปิดเว็บใหม่) · จอเล็กจะย่อความสูงให้พอดี', side_left: SIDE_WHERE, side_right: SIDE_WHERE, banner: 'แสดงที่หน้าแรก ใต้ช่องค้นหา', popup: 'เด้งเป็นป๊อปอัพกลางจอที่หน้าแรกเมื่อลูกค้าเปิดเว็บ มีปุ่มปิด', card: 'แสดงที่หน้าแรก (ใต้ “รีสอร์ทแนะนำ”) แทรกในผลค้นหา (ทุก 6 รายการ เมื่อมีผลอย่างน้อย 3 รายการ)', featured: 'รีสอร์ทขึ้นอันดับบนสุดของผลค้นหา และอยู่ในส่วน "รีสอร์ทแนะนำ" หน้าแรก' };
+  const fitOf = v => ({ mode: v.fitMode === 'contain' ? 'contain' : 'cover', zoom: Math.max(1, Math.min(3, (+v.fitZoom || 100) / 100)), x: +v.fitX, y: +v.fitY });
   const preview = () => { try {
     const v = Object.fromEntries(new FormData(f)), k = v.kind, box = $('#ad-live', m);
     $('#ad-where', m).textContent = AD_WHERE[k] + ' · ต้องเปิดสวิตช์ และอยู่ในช่วงวันที่แสดง';
-    const x = { id: 'preview', kind: k, advertiser: v.advertiser, hotelId: v.hotelId, title: v.title, body: v.body, image: v.image, link: '', phone: v.phone, line: v.line };
-    if (k === 'banner') box.innerHTML = `<div class="ad-banner"><div class="ad-slide on" style="background-image:url('${esc(x.image)}')"><span class="ad-tag">โฆษณา</span>${x.title || x.body ? `<div class="ad-cap"><b>${esc(x.title)}</b>${x.body ? `<span>${esc(x.body)}</span>` : ''}</div>` : ''}</div></div>`;
-    else if (k === 'popup') box.innerHTML = `<div style="pointer-events:none">${adPopupHtml({ ...x, id: '' }, true)}</div>`;
+    const x = { id: 'preview', kind: k, advertiser: v.advertiser, hotelId: v.hotelId, title: v.title, body: v.body, image: v.image, link: '', phone: v.phone, line: v.line, fit: fitOf(v) };
+    $('#fz-v', m).textContent = Math.round((+v.fitZoom || 100)) + '%';
+    if (k === 'banner') box.innerHTML = x.image ? `<div class="small muted" style="margin-bottom:4px">บนคอมพิวเตอร์ (กว้างประมาณ 1168×200 พิกเซล)</div><div class="ad-banner" style="pointer-events:none">${adBannerSlide(x, true, 'height:auto;aspect-ratio:1168/200')}</div><div class="small muted" style="margin:12px 0 4px">บนมือถือ</div><div class="ad-banner" style="pointer-events:none;max-width:340px">${adBannerSlide(x, true, 'height:150px')}</div><div class="small muted" style="margin-top:6px">แนะนำรูปขนาด 1400×400 พิกเซล</div>` : '<span class="muted small">เลือกรูปเพื่อดูตัวอย่าง</span>';
+    else if (k === 'side_left' || k === 'side_right') box.innerHTML = x.image ? `<div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;pointer-events:none"><div><div class="small muted" style="margin-bottom:4px">จอใหญ่ (≥1400px)</div>${adSideHtml(x, k === 'side_left' ? 'L' : 'R', true, 'desk')}</div><div><div class="small muted" style="margin-bottom:4px">มือถือ / จอเล็ก</div>${adSideHtml(x, k === 'side_left' ? 'L' : 'R', true)}</div></div>` : '<span class="muted small">เลือกรูปเพื่อดูตัวอย่าง</span>';
+    else if (k === 'bottom_bar') box.innerHTML = x.image ? `<div style="pointer-events:none"><div class="small muted" style="margin-bottom:4px">บนคอมพิวเตอร์ (แนะนำรูป 970×90 พิกเซล)</div>${adBottomHtml(x, true, 'desk')}<div class="small muted" style="margin:14px 0 4px">บนมือถือ</div><div style="max-width:340px">${adBottomHtml(x, true)}</div></div>` : '<span class="muted small">เลือกรูปเพื่อดูตัวอย่าง</span>';
+    else if (k === 'popup') box.innerHTML = `<div class="small muted" style="margin-bottom:4px">${v.popPos === 'left' ? 'จะลอยที่มุมล่างซ้ายของจอ' : v.popPos === 'right' ? 'จะลอยที่มุมล่างขวาของจอ' : 'จะเด้งกลางจอ มีฉากหลังมืด'}</div><div style="pointer-events:none;${v.popPos === 'left' || v.popPos === 'right' ? 'max-width:300px' : ''}">${adPopupHtml({ ...x, id: '' }, true)}</div>`;
     else if (k === 'card') box.innerHTML = adCard({ ...x, id: '' }, false).replace(/^<a /, '<a style="pointer-events:none" ');
     else { const h = DB.hotel(x.hotelId); box.innerHTML = h ? `<div style="pointer-events:none">${featuredBadgePreview(h)}</div>` : '<span class="muted small">เลือกรีสอร์ทเพื่อดูตัวอย่าง</span>'; }
   } catch (e) { $('#ad-live', m).textContent = 'ดูตัวอย่างไม่ได้: ' + e.message; } };
@@ -1683,26 +1730,39 @@ function adForm(main, ad) {
   f.addEventListener('input', preview); f.addEventListener('change', preview);
   const sync = () => { const k = f.elements.kind.value; $('#ad-kh', m).textContent = AD_KINDS[k][2];
     $('#ad-hotel', m).style.display = k === 'featured' ? '' : 'none';
+    $('#ad-fit', m).style.display = k === 'featured' || k === 'popup' ? 'none' : '';
+    $('#ad-pos', m).style.display = k === 'popup' ? '' : 'none';
+    if (k.startsWith('side_') && !ad && !f.elements.fitMode.dataset.touched) f.elements.fitMode.value = 'contain'; // แบนเนอร์ข้างจอ: ค่าตั้งต้นแสดงทั้งรูป
+    if (k.startsWith('side_') || k === 'bottom_bar') ['#ad-txt', '#ad-body'].forEach(x => $(x, m).style.display = 'none');
     ['#ad-txt', '#ad-body', '#ad-img', '#ad-link', '#ad-phone', '#ad-line'].forEach(x => $(x, m).style.display = k === 'featured' ? 'none' : ''); };
+  f.elements.fitMode.addEventListener('change', () => { f.elements.fitMode.dataset.touched = 1; });
   f.elements.kind.onchange = () => { sync(); preview(); }; sync();
   const setImg = u => { f.elements.image.value = u || ''; setTimeout(preview); $('#adf-prev', m).innerHTML = u ? `<img src="${esc(u)}" alt="" style="width:100%;height:100%;object-fit:cover">` : 'ไม่มีรูป'; $('#adf-imgx', m).style.display = u ? '' : 'none'; };
   setImg(a.image); preview();
   $('#adf-img', m).onclick = async () => { try { toast('เลือกรูปจากเครื่อง...', 'info'); const u = await pickAndUploadImage(1600); if (u) setImg(u); } catch (e) { toast('อัปโหลดรูปไม่สำเร็จ: ' + e.message, 'err'); } };
   $('#adf-imgx', m).onclick = () => setImg('');
+  $('#ad-home-prev', m).onclick = () => {
+    const v = Object.fromEntries(new FormData(f)), k = v.kind;
+    if (k === 'featured' && !v.hotelId) return toast('เลือกรีสอร์ทที่ต้องการดันก่อน', 'err');
+    if (k !== 'featured' && !v.image) return toast('เลือกรูปก่อน แล้วค่อยดูตัวอย่างบนหน้าแรก', 'err');
+    adHomePreview({ id: 'preview-draft', kind: k, advertiser: v.advertiser, hotelId: k === 'featured' ? v.hotelId : '', title: v.title, body: v.body, image: v.image, link: '', phone: v.phone, line: v.line,
+      fit: k === 'popup' ? { pos: v.popPos || 'center' } : fitOf(v) });
+  };
+  $('#fit-reset', m).onclick = () => { f.elements.fitMode.value = 'cover'; f.elements.fitZoom.value = 100; f.elements.fitX.value = 50; f.elements.fitY.value = 50; preview(); };
   f.onsubmit = async e => {
     e.preventDefault();
     const v = Object.fromEntries(new FormData(f)), k = v.kind;
     if (k === 'featured' && !v.hotelId) return toast('กรุณาเลือกรีสอร์ทที่ต้องการดัน', 'err');
     if (k !== 'featured') {
       if (!v.advertiser.trim() && !v.title.trim()) return toast('กรุณาใส่ชื่อผู้ลงโฆษณาหรือหัวข้อ', 'err');
-      if ((k === 'banner' || k === 'popup') && !v.image) return toast('แบนเนอร์/ป๊อปอัพต้องมีรูป', 'err');
+      if ((k === 'banner' || k === 'popup' || k.startsWith('side_') || k === 'bottom_bar') && !v.image) return toast('แบนเนอร์/ป๊อปอัพต้องมีรูป', 'err');
       if (!v.image && !v.title.trim()) return toast('กรุณาใส่รูปหรือหัวข้อ', 'err');
       if (v.link.trim() && !/^https?:\/\//i.test(v.link.trim())) return toast('ลิงก์ต้องขึ้นต้นด้วย https://', 'err');
     }
     if (!v.start || !v.end || v.end < v.start) return toast('ช่วงวันที่ไม่ถูกต้อง', 'err');
     const next = { ...a, kind: k, advertiser: v.advertiser.trim(), hotelId: k === 'featured' ? v.hotelId : '', title: k === 'featured' ? '' : v.title.trim(), body: k === 'featured' ? '' : v.body.trim(),
       image: k === 'featured' ? '' : v.image, link: k === 'featured' ? '' : v.link.trim(), phone: k === 'featured' ? '' : v.phone.trim(), line: k === 'featured' ? '' : v.line.trim(),
-      start: v.start, end: v.end, fee: +v.fee || 0, paid: !!v.paid, note: v.note.trim() };
+      start: v.start, end: v.end, fee: +v.fee || 0, paid: !!v.paid, note: v.note.trim(), fit: k === 'banner' || k === 'card' || k.startsWith('side_') || k === 'bottom_bar' ? fitOf(v) : k === 'popup' ? { pos: v.popPos || 'center' } : {} };
     if (k === 'featured' && !next.advertiser) next.advertiser = DB.hotel(v.hotelId)?.name || '';
     const saved = await DB.saveAd(next); if (!saved) return;
     DB.log(ad ? 'ad.edit' : 'ad.add', `${next.advertiser || next.title} (${k})`); closeModal(); toast('บันทึกโฆษณาแล้ว'); admAds(main);

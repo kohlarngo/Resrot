@@ -18,16 +18,26 @@ function adHref(a) {
   return a.line ? socialUrl('line', a.line) : '';
 }
 function adAttrs(a) { const h = adHref(a); return `${h ? `href="${esc(h)}"` : ''} data-ad="${esc(a.id)}" ${/^https?:/i.test(h) ? 'target="_blank" rel="noopener sponsored"' : ''}`; }
+// การปรับรูปโฆษณา: fit = { mode: 'cover' | 'contain', zoom: 1–3, x: 0–100, y: 0–100 } (ตั้งในฟอร์มโฆษณา + มีตัวอย่างสด)
+function adFit(a) {
+  const f = a.fit || {}, n = (v, lo, hi, d) => Math.min(hi, Math.max(lo, Number.isFinite(+v) && v !== '' && v != null ? +v : d));
+  return { mode: f.mode === 'contain' ? 'contain' : 'cover', z: n(f.zoom, 1, 3, 1), x: n(f.x, 0, 100, 50), y: n(f.y, 0, 100, 50) };
+}
+const adImgStyle = a => { const f = adFit(a); return `object-fit:${f.mode};object-position:${f.x}% ${f.y}%;transform:scale(${f.z});transform-origin:${f.x}% ${f.y}%;`; };
+function adBannerSlide(a, on, style = '') {
+  const f = adFit(a);
+  return `<a class="ad-slide ${on ? 'on' : ''}" ${adAttrs(a)} style="${style}"><div class="ad-bg" style="background-image:url('${esc(imgUrl(a.image, 1400))}');background-size:${f.mode};background-position:${f.x}% ${f.y}%;transform:scale(${f.z});transform-origin:${f.x}% ${f.y}%"></div>
+    <span class="ad-tag">โฆษณา</span>${a.title || a.body ? `<div class="ad-cap"><b>${esc(a.title)}</b>${a.body ? `<span>${esc(a.body)}</span>` : ''}</div>` : ''}</a>`;
+}
 function adBanner() {
   const list = DB.publicAds('banner'); if (!list.length) return '';
-  return `<section class="block ad-banner" style="padding-top:28px">${list.map((a, i) => `<a class="ad-slide ${i ? '' : 'on'}" ${adAttrs(a)} style="background-image:url('${esc(imgUrl(a.image, 1400))}')">
-    <span class="ad-tag">โฆษณา</span>${a.title || a.body ? `<div class="ad-cap"><b>${esc(a.title)}</b>${a.body ? `<span>${esc(a.body)}</span>` : ''}</div>` : ''}</a>`).join('')}
+  return `<section class="block ad-banner" style="padding-top:28px">${list.map((a, i) => adBannerSlide(a, !i)).join('')}
     ${list.length > 1 ? `<div class="sl-dots">${list.map((_, i) => `<button class="sl-dot ${i ? '' : 'on'}" data-d="${i}" aria-label="แบนเนอร์ที่ ${i + 1}"></button>`).join('')}</div>` : ''}</section>`;
 }
 function adCard(a, wide) {
   const call = a.phone ? `<span><i class="fa-solid fa-phone"></i> ${esc(a.phone)}</span>` : '', line = a.line ? `<span><i class="fa-brands fa-line"></i> ${esc(a.line)}</span>` : '';
   return `<a class="ad-card ${wide ? 'wide' : ''}" ${adAttrs(a)}>
-    ${a.image ? `<div class="img">${imgTag(a.image, 600, '', a.id)}</div>` : ''}
+    ${a.image ? `<div class="img">${imgTag(a.image, 600, '', a.id).replace('<img ', `<img style="${adImgStyle(a)}" `)}</div>` : ''}
     <div class="body"><span class="ad-tag">โฆษณา</span><h3>${esc(a.title || a.advertiser)}</h3>${a.body ? `<p>${esc(a.body)}</p>` : ''}
       <div class="ad-meta small">${a.advertiser && a.title ? `<b>${esc(a.advertiser)}</b>` : ''}${call}${line}</div></div></a>`;
 }
@@ -43,7 +53,8 @@ function showAdPopup() {
   let seen = []; try { seen = JSON.parse(sessionStorage.getItem('sd_ad_pop') || '[]'); } catch {}
   const a = DB.publicAds('popup').find(x => !seen.includes(x.id)); if (!a) return;
   try { sessionStorage.setItem('sd_ad_pop', JSON.stringify([...seen, a.id])); } catch {}
-  const el = document.createElement('div'); el.className = 'ad-pop'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true');
+  const pos = ['left', 'right'].includes(a.fit?.pos) ? a.fit.pos : 'center'; // center = กลางจอ (ฉากหลังมืด) · left/right = ลอยมุมล่าง ไม่บังหน้าเว็บ
+  const el = document.createElement('div'); el.className = 'ad-pop' + (pos === 'center' ? '' : ` ad-pop-side ad-pop-${pos}`); el.setAttribute('role', pos === 'center' ? 'dialog' : 'complementary'); if (pos === 'center') el.setAttribute('aria-modal', 'true');
   el.innerHTML = adPopupHtml(a);
   const close = () => { el.remove(); document.removeEventListener('keydown', onKey); };
   const onKey = e => { if (e.key === 'Escape') close(); };
@@ -52,12 +63,52 @@ function showAdPopup() {
   document.body.appendChild(el); initAds(el);
   $('.ad-pop-x', el).focus();
 }
+// แบนเนอร์ลอยข้างจอ (ซ้าย/ขวา) มีปุ่มปิดด้านล่าง — จอใหญ่ลอยกลางขอบจอ · จอเล็ก/มือถือเป็นการ์ดเล็กมุมล่าง · ปิดแล้วไม่แสดงอีกจนกว่าจะเปิดเว็บใหม่
+function adSideHtml(a, side, inline = false, size = '') {
+  // ค่าตั้งต้นของแบนเนอร์ข้างจอ = แสดงทั้งรูป (contain) กรอบสูงตามสัดส่วนรูป ไม่ตัดส่วนล่าง (เช่นปุ่ม/ข้อความท้ายรูป) · เลือก "เต็มกรอบ" ในฟอร์มโฆษณาได้
+  const fa = (a.fit && a.fit.mode) ? a : { ...a, fit: { ...(a.fit || {}), mode: 'contain' } };
+  const contain = adFit(fa).mode === 'contain';
+  const img = imgTag(a.image, 480, '', a.id).replace('<img ', `<img style="${adImgStyle(fa)}" `);
+  return `<div class="ad-side ad-side-${side} ${inline ? 'inline' : ''} ${size}" role="complementary" aria-label="โฆษณา">
+    <a class="ad-side-img ${contain ? 'fit-contain' : ''}" ${adAttrs(a)}>${img}<span class="ad-tag">โฆษณา</span></a>
+    <button type="button" class="ad-side-x" aria-label="ปิดโฆษณา">ปิด <i class="fa-solid fa-xmark"></i></button></div>`;
+}
+// แถบโฆษณาติดขอบล่างจอ (Bottom Sticky / Footer Banner) — เกาะขอบล่างตลอดเมื่อเลื่อนหน้า มีปุ่มปิดสีแดงที่มุมบนขวาของแถบ
+function adBottomHtml(a, inline = false, size = '') {
+  const img = imgTag(a.image, 1200, '', a.id).replace('<img ', `<img style="${adImgStyle(a)}" `);
+  return `<div class="ad-bottom ${inline ? 'inline' : ''} ${size}" role="complementary" aria-label="โฆษณา"><div class="ad-bottom-in">
+    <a class="ad-bottom-img" ${adAttrs(a)}>${img}<span class="ad-tag">โฆษณา</span></a>
+    <button type="button" class="ad-bottom-x" aria-label="ปิดโฆษณา"><i class="fa-solid fa-xmark"></i></button></div></div>`;
+}
+function showSideAds() { // แบนเนอร์ลอยข้างจอ (ซ้าย/ขวา) + แถบติดขอบล่าง
+  $$('.ad-side:not(.inline), .ad-bottom:not(.inline)').forEach(e => e.remove());
+  document.body.classList.remove('has-bottom-ad');
+  if (PORTAL) return;
+  let closed = []; try { closed = JSON.parse(sessionStorage.getItem('sd_ad_side') || '[]'); } catch {}
+  const pick = kind => DB.publicAds(kind).find(x => x.image && !closed.includes(x.id));
+  const side = (kind, cls) => { const a = pick(kind); return a ? adSideHtml(a, cls) : ''; };
+  const bottom = pick('bottom_bar');
+  const html = side('side_left', 'L') + side('side_right', 'R') + (bottom ? adBottomHtml(bottom) : ''); if (!html) return;
+  document.body.insertAdjacentHTML('beforeend', html);
+  if (bottom) document.body.classList.add('has-bottom-ad');
+  $$('.ad-side:not(.inline), .ad-bottom:not(.inline)').forEach(el => {
+    initAds(el);
+    $('.ad-side-x, .ad-bottom-x', el).onclick = () => {
+      const id = $('[data-ad]', el)?.dataset.ad; if (id) { closed.push(id); try { sessionStorage.setItem('sd_ad_side', JSON.stringify(closed)); } catch {} }
+      el.remove(); if (!$('.ad-bottom:not(.inline)')) document.body.classList.remove('has-bottom-ad');
+    };
+  });
+}
 // รีสอร์ทแนะนำ (จ่ายค่าโฆษณา) — แสดงป้ายกำกับให้ชัดเจนว่าเป็นโฆษณา
 const isFeatured = id => DB.featuredIds().includes(id);
 const featuredBadge = id => isFeatured(id) ? '<span class="ad-badge">แนะนำ · โฆษณา</span>' : '';
 function adHomeFeatured() {
   const hs = DB.featuredIds().map(id => DB.hotel(id)).filter((h, i, a) => h && h.active !== false && a.indexOf(h) === i);
   return hs.length ? `<section class="block"><h2 class="sec-title"><i class="fa-solid fa-award" style="color:var(--accent)"></i> รีสอร์ทแนะนำ</h2><div class="card-grid">${hs.slice(0, 4).map(h => hotelCard(h)).join('')}</div></section>` : '';
+}
+function adHomeCards() {
+  const cards = DB.publicAds('card');
+  return cards.length ? `<section class="block ad-home-cards">${cards.slice(0, 2).map(a => adCard(a, true)).join('')}</section>` : '';
 }
 // ผูกการนับ + สไลด์แบนเนอร์ — นับการแสดงผลเมื่อโฆษณาถูกวาดบนหน้า และนับคลิกเมื่อกด
 function initAds(root) {
@@ -132,6 +183,7 @@ function pageHome(app) {
       </div>
     </section>
     ${adHomeFeatured()}
+    ${adHomeCards()}
     ${recent.length ? `<section class="block"><h2 class="sec-title">ที่พักที่คุณดูล่าสุด</h2><div class="card-grid">${recent.slice(0, 4).map(hotelCard).join('')}</div></section>` : ''}
     <section class="block">
       <h2 class="sec-title" data-edit="home.dest.title">จุดหมายปลายทางยอดนิยมในเกาะล้าน</h2>
@@ -464,7 +516,6 @@ function pageHotel(app, params, id) {
         </div>
         <div class="panel"><h3>จุดเด่น</h3>${h.highlights.map(x => `<div class="small" style="margin:6px 0"><i class="fa-solid fa-check green"></i> ${esc(x)}</div>`).join('')}
           <div class="small" style="margin:6px 0"><i class="fa-solid fa-clock green"></i> เช็คอิน ${h.checkIn} / เช็คเอาท์ ${h.checkOut}</div></div>
-        ${(() => { const c = DB.publicAds('card').filter(a => a.hotelId !== h.id); return c.length ? adCard(c[Math.floor(Math.random() * c.length)]) : ''; })()}
       </div></aside>
     </div>
   </div>`;
@@ -651,6 +702,33 @@ function pageBook(app, params) {
   }
   const timerHtml = () => `<div class="timer"><i class="fa-regular fa-clock"></i> เราสำรองราคานี้ไว้ให้คุณ <span id="timer-t">20:00</span> นาที</div>`;
 
+  // กล่อง "เลือกวิธีชำระเงิน" — แสดงที่หน้ากรอกข้อมูลผู้เข้าพัก เหนือปุ่ม "ถัดไป: ชำระเงิน" (และที่ขั้นชำระเงินด้วย) ใช้ st.pay ร่วมกัน
+  const PAY_LABEL = {
+    hotel: ['<b>ชำระเงินที่ที่พัก</b> <span class="tag-s green">ไม่ต้องชำระตอนนี้</span>', '<i class="fa-solid fa-hotel"></i>'],
+    promptpay: ['<b>พร้อมเพย์ (PromptPay QR)</b> <span class="tag-s blue">สแกนจ่ายได้ทุกธนาคาร</span>', '<i class="fa-solid fa-qrcode"></i>'],
+    bank: ['<b>โอนผ่านธนาคาร / Mobile Banking</b>', '<i class="fa-solid fa-building-columns"></i>'],
+  };
+  function payPanelHtml() {
+    const set = DB.settings(), methods = payMethods(offer, h), ow = DB.owner(h.ownerId);
+    if (!methods.includes(st.pay)) st.pay = methods[0] || null;
+    return `<div class="panel" id="pay-panel"><h2>เลือกวิธีชำระเงิน</h2>
+      ${methods.length ? `<div class="pay-opts">${methods.map(k => `<label class="pay-opt ${st.pay === k ? 'active' : ''}"><input type="radio" name="pay" value="${k}" ${st.pay === k ? 'checked' : ''}> <span>${PAY_LABEL[k][0]}</span><span class="logos">${PAY_LABEL[k][1]}</span></label>`).join('')}</div>`
+      : `<div class="notice warn"><i class="fa-solid fa-circle-info"></i><div>ที่พักนี้ยังไม่เปิดรับชำระเงินออนไลน์สำหรับห้องนี้ — กรุณาติดต่อ ${esc(ow?.phone || set.phone)} · LINE ${esc(ow?.line || set.line)}</div></div>`}
+      <div id="pay-detail"></div></div>`;
+  }
+  function bindPayPanel() {
+    const detail = () => {
+      const d = $('#pay-detail'); if (!d) return;
+      // QR จะแสดงหลังยืนยันการจอง เพื่อให้ยอดตรงกับที่เซิร์ฟเวอร์คำนวณ และกันการโอนก่อนได้ห้อง
+      if (st.pay === 'promptpay') d.innerHTML = `<div class="notice info"><i class="fa-solid fa-qrcode"></i><div>กด "ยืนยันการจอง" แล้วระบบจะแสดง <b>QR พร้อมเพย์ของเจ้าของรีสอร์ทพร้อมยอดเงิน</b><br>สแกนจ่ายผ่านแอปธนาคาร แล้ว <b>แนบสลิป</b> — เจ้าของรีสอร์ทจะตรวจสอบและยืนยันการจอง</div></div>`;
+      else if (st.pay === 'bank') d.innerHTML = `<div class="notice info"><i class="fa-solid fa-building-columns"></i><div>กด "ยืนยันการจอง" แล้วระบบจะแสดง <b>เลขบัญชีของเจ้าของรีสอร์ท</b> โอนแล้วแนบสลิป — เจ้าของรีสอร์ทจะตรวจสอบและยืนยันการจอง</div></div>`;
+      else if (st.pay === 'hotel') d.innerHTML = `<div class="notice"><i class="fa-solid fa-circle-check"></i><div>ชำระเงินที่ที่พักในวันเข้าพัก ไม่มีการเรียกเก็บเงินในตอนนี้ — เจ้าของรีสอร์ทจะยืนยันการจองให้</div></div>`;
+      else d.innerHTML = '';
+    };
+    $$('[name=pay]').forEach(r => r.onchange = () => { st.pay = r.value; $$('.pay-opt').forEach(o => o.classList.toggle('active', o.contains(r))); detail(); });
+    detail();
+  }
+
   function drawGuest() {
     const g = st.guest;
     const fg = (name, label, type = 'text', req = true, full = false, msg = 'กรุณากรอกข้อมูล') => `<div class="fg ${full ? 'full' : ''}"><label>${label} ${req ? '<span class="req">*</span>' : ''}</label><input name="${name}" type="${type}" value="${esc(g[name])}"><div class="err-msg">${msg}</div></div>`;
@@ -674,8 +752,10 @@ function pageBook(app, params) {
           <div class="fg full"><label>ข้อความถึงที่พัก</label><textarea id="note" rows="3">${esc(g.note)}</textarea></div>
         </div>
       </div>
+      ${payPanelHtml()}
       <div class="row" style="justify-content:flex-end"><button class="btn btn-primary btn-lg" id="next1">ถัดไป: ชำระเงิน <i class="fa-solid fa-chevron-right"></i></button></div>`;
     $('#b-login')?.addEventListener('click', () => authModal('login', () => pageBook(app, params)));
+    bindPayPanel();
     $('#next1').onclick = () => {
       const f = $('#g-form');
       Object.assign(g, Object.fromEntries(new FormData(f)));
@@ -692,17 +772,8 @@ function pageBook(app, params) {
   function drawPay() {
     const c = calc(), set = DB.settings(), methods = payMethods(offer, h), ow = DB.owner(h.ownerId);
     if (!methods.includes(st.pay)) st.pay = methods[0] || null;
-    const label = {
-      hotel: ['<b>ชำระเงินที่ที่พัก</b> <span class="tag-s green">ไม่ต้องชำระตอนนี้</span>', '<i class="fa-solid fa-hotel"></i>'],
-      promptpay: ['<b>พร้อมเพย์ (PromptPay QR)</b> <span class="tag-s blue">สแกนจ่ายได้ทุกธนาคาร</span>', '<i class="fa-solid fa-qrcode"></i>'],
-      bank: ['<b>โอนผ่านธนาคาร / Mobile Banking</b>', '<i class="fa-solid fa-building-columns"></i>'],
-    };
     $('#book-main').innerHTML = `${timerHtml()}
-      <div class="panel"><h2>เลือกวิธีชำระเงิน</h2>
-        ${methods.length ? `<div class="pay-opts">${methods.map(k => `<label class="pay-opt ${st.pay === k ? 'active' : ''}"><input type="radio" name="pay" value="${k}" ${st.pay === k ? 'checked' : ''}> <span>${label[k][0]}</span><span class="logos">${label[k][1]}</span></label>`).join('')}</div>`
-        : `<div class="notice warn"><i class="fa-solid fa-circle-info"></i><div>ที่พักนี้ยังไม่เปิดรับชำระเงินออนไลน์สำหรับห้องนี้ — กรุณาติดต่อ ${esc(ow?.phone || set.phone)} · LINE ${esc(ow?.line || set.line)}</div></div>`}
-        <div id="pay-detail"></div>
-      </div>
+      ${payPanelHtml()}
       <div class="panel small muted"><i class="fa-solid fa-shield-halved"></i> ${ow ? `ชำระเงินตรงถึงเจ้าของรีสอร์ท <b>${esc(ow.name)}</b> · ` : ''}การจองจะสมบูรณ์เมื่อเจ้าของรีสอร์ทยืนยัน · การกด "ยืนยันการจอง" ถือว่าคุณยอมรับ<a href="#/terms" target="_blank" rel="noopener">ข้อกำหนดและเงื่อนไข</a></div>
       <label class="panel small" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="tc-ok" ${st.terms ? 'checked' : ''} style="margin-top:3px"><span>${TERMS_GUEST_LABEL} <a href="#/terms" target="_blank" rel="noopener">(อ่านเงื่อนไข)</a></span></label>
       <div class="row between wrap">
@@ -710,16 +781,7 @@ function pageBook(app, params) {
         <div class="row"><div style="text-align:right"><div class="small muted">ยอดชำระ</div><div class="price" id="pay-total">${money(c.total)}</div></div>
         <button class="btn btn-primary btn-lg" id="confirm" ${methods.length ? '' : 'disabled'}><i class="fa-solid fa-lock"></i> ยืนยันการจอง</button></div>
       </div>`;
-    const detail = () => {
-      const d = $('#pay-detail');
-      // QR จะแสดงหลังยืนยันการจอง เพื่อให้ยอดตรงกับที่เซิร์ฟเวอร์คำนวณ และกันการโอนก่อนได้ห้อง
-      if (st.pay === 'promptpay') d.innerHTML = `<div class="notice info"><i class="fa-solid fa-qrcode"></i><div>กด "ยืนยันการจอง" แล้วระบบจะแสดง <b>QR พร้อมเพย์ของเจ้าของรีสอร์ทพร้อมยอดเงิน</b><br>สแกนจ่ายผ่านแอปธนาคาร แล้ว <b>แนบสลิป</b> — เจ้าของรีสอร์ทจะตรวจสอบและยืนยันการจอง</div></div>`;
-      else if (st.pay === 'bank') d.innerHTML = `<div class="notice info"><i class="fa-solid fa-building-columns"></i><div>กด "ยืนยันการจอง" แล้วระบบจะแสดง <b>เลขบัญชีของเจ้าของรีสอร์ท</b> โอนแล้วแนบสลิป — เจ้าของรีสอร์ทจะตรวจสอบและยืนยันการจอง</div></div>`;
-      else if (st.pay === 'hotel') d.innerHTML = `<div class="notice"><i class="fa-solid fa-circle-check"></i><div>ชำระเงินที่ที่พักในวันเข้าพัก ไม่มีการเรียกเก็บเงินในตอนนี้ — เจ้าของรีสอร์ทจะยืนยันการจองให้</div></div>`;
-      else d.innerHTML = '';
-    };
-    $$('[name=pay]').forEach(r => r.onchange = () => { st.pay = r.value; $$('.pay-opt').forEach(o => o.classList.toggle('active', o.contains(r))); detail(); });
-    detail();
+    bindPayPanel();
     $('#back1').onclick = () => { st.step = 1; draw(); };
     $('#tc-ok').onchange = e => { st.terms = e.target.checked; };
     $('#confirm').onclick = () => {

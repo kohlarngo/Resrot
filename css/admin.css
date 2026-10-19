@@ -522,3 +522,14 @@ body[data-portal] .bo-side { border-top: 4px solid var(--pc); }
 .ck-extra { margin-top: 10px; border-top: 2px dashed var(--bo-line); padding-top: 8px; } .ck-extra .ck-step { padding: 8px 4px; } .ck-extra .ck-n { width: 26px; height: 26px; background: #eef1f6; color: #5b6676; font-size: 12px; }
 .ck-extra .ck-step.done .ck-n { background: #e6f6ec; color: #0a8f3c; }
 .ck-foot { padding-top: 10px; border-top: 1px solid var(--bo-line); margin-top: 6px; }
+
+/* ไฮไลต์ช่องที่เช็กลิสต์พามา */
+.bo-flash { outline: 3px solid #e0a030; outline-offset: 3px; border-radius: 10px; animation: boflash 1.2s ease-in-out 3; }
+@keyframes boflash { 0%, 100% { background: transparent; } 50% { background: #fff3d6; } }
+
+/* ตัวอย่างโฆษณาบนหน้าแรกจริง (ฟอร์มโฆษณา) */
+#adp { position: fixed; inset: 0; z-index: 9500; background: #0f172a; display: flex; flex-direction: column; }
+.adp-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 16px; color: #fff; background: #1e293b; }
+.adp-b { border: 0; border-radius: 8px; padding: 8px 12px; background: #334155; color: #fff; font: inherit; font-size: 14px; cursor: pointer; } .adp-b.on { background: #2563eb; } .adp-x { background: #b42318; }
+.adp-stage { flex: 1; overflow: auto; padding: 12px; display: flex; justify-content: center; align-items: flex-start; }
+#adp-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 40px rgba(0, 0, 0, .5); flex: none; } #adp-f { border: 0; display: block; background: #fff; }

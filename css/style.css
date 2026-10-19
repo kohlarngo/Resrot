@@ -638,15 +638,16 @@ body:has(#modal) #ed-bar, body:has(#modal) #ed-fab { display: none; }
 .ad-tag { display: inline-block; background: rgba(0,0,0,.55); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; letter-spacing: .3px; }
 .ad-badge { position: absolute; left: 10px; top: 10px; z-index: 2; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 4px; }
 .ad-banner { position: relative; }
-.ad-banner .ad-slide { display: none; position: relative; height: 200px; border-radius: 14px; overflow: hidden; background: #dfe7f1 center / cover no-repeat; color: #fff; text-decoration: none; }
+.ad-banner .ad-slide { display: none; position: relative; height: 200px; border-radius: 14px; overflow: hidden; background: #dfe7f1; color: #fff; text-decoration: none; }
+.ad-banner .ad-slide .ad-bg { position: absolute; inset: 0; background-repeat: no-repeat; }
 .ad-banner .ad-slide.on { display: block; }
-.ad-banner .ad-tag { position: absolute; left: 12px; top: 12px; }
-.ad-cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 28px 20px 16px; background: linear-gradient(transparent, rgba(0,0,0,.65)); display: flex; flex-direction: column; gap: 2px; }
+.ad-banner .ad-tag { position: absolute; left: 12px; top: 12px; z-index: 1; }
+.ad-cap { position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; padding: 28px 20px 16px; background: linear-gradient(transparent, rgba(0,0,0,.65)); display: flex; flex-direction: column; gap: 2px; }
 .ad-cap b { font-size: 20px; } .ad-cap span { font-size: 14px; opacity: .92; }
 .ad-banner .sl-dots { position: absolute; bottom: 8px; right: 14px; display: flex; gap: 6px; left: auto; transform: none; }
 .ad-card { display: flex; flex-direction: column; background: #fff; border: 1px solid #e3e8ef; border-radius: 12px; overflow: hidden; text-decoration: none; color: inherit; margin: 12px 0; transition: .2s; }
 .ad-card:hover { box-shadow: var(--shadow-lg); }
-.ad-card .img { height: 150px; } .ad-card .img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ad-card .img { height: 150px; overflow: hidden; } .ad-card .img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ad-card .body { padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
 .ad-card .ad-tag { background: #eef1f6; color: #5b6676; align-self: flex-start; }
 .ad-card h3 { margin: 4px 0 0; font-size: 17px; } .ad-card p { margin: 0; color: #4a5568; font-size: 14px; }
@@ -665,3 +666,54 @@ body:has(#modal) #ed-bar, body:has(#modal) #ed-fab { display: none; }
 .ad-pop-box .ad-tag { position: absolute; left: 12px; top: 12px; z-index: 1; }
 .ad-pop-x { position: absolute; right: 10px; top: 10px; z-index: 2; width: 36px; height: 36px; border: 0; border-radius: 50%; background: rgba(0, 0, 0, .65); color: #fff; font-size: 16px; cursor: pointer; }
 .ad-pop-x:hover { background: #000; }
+
+/* แนบรูปประกอบการแจ้งเหตุฉุกเฉิน */
+.sos-photos { display: flex; gap: 10px; flex-wrap: wrap; }
+.sos-ph { position: relative; width: 92px; height: 92px; border-radius: 12px; overflow: hidden; border: 1px solid #f5c2c2; } .sos-ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sos-ph button { position: absolute; right: 4px; top: 4px; width: 26px; height: 26px; border-radius: 50%; border: 0; background: rgba(0, 0, 0, .65); color: #fff; font-size: 16px; line-height: 1; cursor: pointer; }
+.sos-ph-add { width: 92px; height: 92px; border: 2px dashed #f0a3a3; border-radius: 12px; background: #fff7f7; color: var(--accent); font-family: inherit; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 13px; } .sos-ph-add i { font-size: 22px; }
+.sos-adm-ph { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; } .sos-adm-ph a { display: inline-block; min-width: 56px; } .sos-adm-ph img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); display: block; }
+
+/* ฟอร์มโฆษณา: ปรับขนาดรูป */
+.ad-fit { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; align-items: end; } .ad-fit label { display: flex; flex-direction: column; gap: 4px; } .ad-fit input[type=range] { width: 100%; } .ad-fit select { padding: 8px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; }
+
+/* แบนเนอร์ลอยข้างจอ (ซ้าย/ขวา) + ปุ่มปิดด้านล่าง — responsive */
+.ad-side { position: fixed; z-index: 60; width: 96px; bottom: 84px; display: flex; flex-direction: column; background: #fff; border: 1px solid #e3e8ef; border-radius: 10px; overflow: hidden; box-shadow: 0 8px 28px rgba(15, 23, 42, .22); animation: adSideIn .4s ease; }
+.ad-side-L { left: 8px; } .ad-side-R { right: 8px; }
+.ad-side-img { display: block; position: relative; height: 136px; overflow: hidden; background: #eef1f6; text-decoration: none; }
+.ad-side-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ad-side .ad-tag { position: absolute; left: 4px; top: 4px; font-size: 9px; padding: 1px 5px; }
+.ad-side-x { border: 0; border-top: 1px solid #e3e8ef; background: #f6f8fb; color: #334155; font-family: inherit; font-weight: 700; font-size: 12px; line-height: 1; padding: 9px 0; cursor: pointer; } .ad-side-x:hover { background: #e9eef5; }
+@keyframes adSideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@media (min-width: 1400px) { .ad-side { width: 128px; top: 150px; bottom: auto; } .ad-side-img { height: 340px; } .ad-side-x { font-size: 13px; } }
+@media (max-width: 380px) { .ad-side { width: 80px; } .ad-side-img { height: 112px; } }
+.ad-side.inline { position: static; animation: none; box-shadow: 0 2px 10px rgba(15, 23, 42, .15); } .ad-side.inline.desk { width: 128px; } .ad-side.inline.desk .ad-side-img { height: 340px; }
+@media print { .ad-side { display: none; } }
+
+/* ป๊อปอัพแบบลอยมุมล่าง (ซ้าย/ขวา) — ไม่มีฉากหลังมืด ไม่บังหน้าเว็บ */
+.ad-pop.ad-pop-side { display: contents; }
+.ad-pop-side .ad-pop-box { position: fixed; bottom: 16px; z-index: 9000; width: min(300px, calc(100vw - 24px)); max-height: 70vh; animation: adSideIn .4s ease; box-shadow: 0 10px 36px rgba(15, 23, 42, .35); }
+.ad-pop-left .ad-pop-box { left: 12px; } .ad-pop-right .ad-pop-box { right: 12px; }
+.ad-pop-side .ad-pop-box img { max-height: 220px; }
+
+/* แถบโฆษณาติดขอบล่างจอ (Bottom Sticky) + ปุ่มปิดสีแดง — responsive */
+.ad-bottom { position: fixed; left: 0; right: 0; bottom: 0; z-index: 44; display: flex; justify-content: center; background: rgba(255, 255, 255, .97); border-top: 1px solid #e3e8ef; box-shadow: 0 -6px 24px rgba(15, 23, 42, .18); animation: adBotIn .4s ease; }
+.ad-bottom-in { position: relative; width: min(970px, 100%); }
+.ad-bottom-img { position: relative; display: block; height: 90px; overflow: hidden; background: #eef1f6; text-decoration: none; }
+.ad-bottom-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ad-bottom .ad-tag { position: absolute; left: 6px; top: 6px; font-size: 10px; padding: 1px 6px; }
+.ad-bottom-x { position: absolute; right: 8px; top: -15px; width: 30px; height: 30px; border-radius: 50%; border: 2px solid #fff; background: #d92d20; color: #fff; font-size: 14px; line-height: 1; display: grid; place-items: center; cursor: pointer; box-shadow: 0 3px 10px rgba(0, 0, 0, .3); } .ad-bottom-x:hover { background: #b42318; }
+@keyframes adBotIn { from { transform: translateY(100%); } to { transform: none; } }
+body.has-bottom-ad { padding-bottom: 92px; } body.has-bottom-ad #ed-fab { bottom: 112px; }
+@media (max-width: 700px) { .ad-bottom-img { height: 64px; } body.has-bottom-ad { padding-bottom: 66px; } body.has-bottom-ad #ed-fab { bottom: 86px; } }
+@media (max-width: 1399px) { body.has-bottom-ad .ad-side { bottom: 168px; } }
+@media (max-width: 700px) and (max-width: 1399px) { body.has-bottom-ad .ad-side { bottom: 142px; } }
+.ad-bottom.inline { position: relative; left: auto; right: auto; bottom: auto; animation: none; box-shadow: 0 2px 10px rgba(15, 23, 42, .15); border: 1px solid #e3e8ef; border-radius: 8px; margin-top: 16px; } .ad-bottom.inline .ad-bottom-img { height: auto; aspect-ratio: 970 / 90; } .ad-bottom.inline:not(.desk) .ad-bottom-img { height: 64px; aspect-ratio: auto; }
+@media print { .ad-bottom { display: none; } }
+
+/* แบนเนอร์ข้างจอ: แสดงทั้งรูป (ไม่ตัดส่วนล่าง) กรอบสูงตามสัดส่วนรูป */
+.ad-side-img.fit-contain { height: auto; max-height: 240px; background: #fff; } .ad-side-img.fit-contain img { width: 100%; height: auto; max-height: 240px; object-fit: contain; }
+@media (min-width: 1400px) { .ad-side-img.fit-contain, .ad-side-img.fit-contain img { max-height: 520px; } }
+.ad-side.inline.desk .ad-side-img.fit-contain { height: auto; max-height: 520px; } .ad-side.inline.desk .ad-side-img.fit-contain img { max-height: 520px; }
+/* ตัวอย่างในฟอร์มโฆษณา: กรอบ "มือถือ" ต้องแคบเสมอ แม้หน้าจอแอดมินกว้าง */
+.ad-side.inline:not(.desk) { width: 96px; } .ad-side.inline:not(.desk) .ad-side-img:not(.fit-contain) { height: 136px; } .ad-side.inline:not(.desk) .ad-side-img.fit-contain, .ad-side.inline:not(.desk) .ad-side-img.fit-contain img { max-height: 240px; }

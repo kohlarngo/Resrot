@@ -51,6 +51,7 @@ function render() {
   $('footer')?.remove();
   if (!isBO) { document.body.insertAdjacentHTML('beforeend', footerHtml()); bindSosLinks($('footer')); }
   if (!PORTAL) afterRender(); // เนื้อหาที่แก้สด + โหมดแก้ไข (editor.js)
+  if (!PORTAL) showSideAds(); // แบนเนอร์ลอยข้างจอ
   if (path !== lastPath) scrollTo(0, 0);
   lastPath = path;
 }
