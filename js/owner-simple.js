@@ -294,13 +294,14 @@ function boDevMedia(main) {
       <div class="row wrap" style="gap:12px;align-items:center"><label class="row" style="gap:8px"><input type="checkbox" id="bulk-on" checked> เปิดสไลด์อัตโนมัติ</label>
         <span class="small">เปลี่ยนรูปทุก</span><input type="range" id="bulk-sec" min="2" max="15" step="1" value="4" style="width:200px"><b id="bulk-v" style="min-width:64px">4 วินาที</b>
         <button class="btn btn-primary btn-sm" id="bulk-go"><i class="fa-solid fa-check-double"></i> ใช้กับทุกรีสอร์ท</button></div></section>
-    ${hotels.map(h => `<section class="card sh-card" data-h="${h.id}"><div class="sh-cover" style="aspect-ratio:21/6">${imgTag(h.images[0], 900, '', h.id)}<span class="im-badge">ภาพปก</span></div>
-      <div class="sh-body"><div class="row between wrap" style="gap:10px"><div><h3 style="margin:0">${esc(h.name)}</h3><div class="small muted">เจ้าของ: ${esc(ownerName(h))} · ${h.images.length} รูป · ${h.rooms.length} ประเภทห้อง${h.active === false ? ' · <span class="red">ปิดการขาย</span>' : ''}</div></div>
-          <div class="row wrap" style="gap:8px;align-items:center"><label class="row" style="gap:6px"><input type="checkbox" data-sl-on="${h.id}" ${h.slideshow?.on === true ? 'checked' : ''} ${h.images.length < 2 ? 'disabled' : ''}> สไลด์</label>
-            <input type="range" data-sl-sec="${h.id}" min="2" max="15" step="1" value="${sec(h)}" style="width:150px" ${h.images.length < 2 ? 'disabled' : ''}><b data-sl-v="${h.id}" style="min-width:64px">${sec(h)} วินาที</b></div></div>
-        <div class="sh-thumbs" style="margin-top:10px">${h.images.slice(0, 8).map(i => imgTag(i, 160)).join('')}${h.images.length > 8 ? `<span class="small muted">+${h.images.length - 8}</span>` : ''}</div>
-        <div class="row wrap" style="gap:8px;margin-top:12px"><button class="btn btn-primary btn-sm" data-deco="${h.id}"><i class="fa-solid fa-paintbrush"></i> จัดการรูป & ตกแต่งหน้า</button>
-          <a class="btn btn-outline btn-sm" href="${siteUrl('#/hotel/' + (h.slug || h.id))}" target="_blank" rel="noopener"><i class="fa-solid fa-eye"></i> ดูหน้าเว็บ</a></div></div></section>`).join('') || '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><p class="muted">ยังไม่มีรีสอร์ทในระบบ</p></div></section>'}`;
+    <div class="card sh-find"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="dm-q" placeholder="ค้นหารีสอร์ท หรือชื่อเจ้าของ..." autocomplete="off"><span class="small muted" id="dm-n">${hotels.length} แห่ง</span></div>
+    <div id="dm-list">${hotels.map(h => `<section class="card sh-row" data-h="${h.id}" data-q="${esc((h.name + ' ' + ownerName(h)).toLowerCase())}">
+      <div class="sh-thumb">${imgTag(h.images[0], 200, '', h.id)}</div>
+      <div class="sh-main"><b class="sh-name">${esc(h.name)}</b><div class="small muted">เจ้าของ: ${esc(ownerName(h))} · ${h.images.length} รูป${h.active === false ? ' · <span class="red">ปิดการขาย</span>' : ''}</div></div>
+      <div class="sh-ctl"><label class="row" style="gap:6px"><input type="checkbox" data-sl-on="${h.id}" ${h.slideshow?.on === true ? 'checked' : ''} ${h.images.length < 2 ? 'disabled' : ''}> สไลด์</label>
+        <input type="range" data-sl-sec="${h.id}" min="2" max="15" step="1" value="${sec(h)}" style="width:110px" ${h.images.length < 2 ? 'disabled' : ''}><b data-sl-v="${h.id}" style="min-width:58px;font-size:13px">${sec(h)} วินาที</b></div>
+      <div class="sh-act"><button class="btn btn-primary btn-sm" data-deco="${h.id}"><i class="fa-solid fa-paintbrush"></i> จัดการรูป</button>
+        <a class="btn btn-outline btn-sm" href="${siteUrl('#/hotel/' + (h.slug || h.id))}" target="_blank" rel="noopener" title="ดูหน้าเว็บ"><i class="fa-solid fa-eye"></i></a></div></section>`).join('') || '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><p class="muted">ยังไม่มีรีสอร์ทในระบบ</p></div></section>'}</div>`;
   const save = (id, patch) => { const h = JSON.parse(JSON.stringify(DB.hotel(id))); h.slideshow = { on: h.slideshow?.on === true, seconds: sec(h), ...patch }; DB.saveHotel(h); DB.log('hotel.slideshow', `${h.name} → ${h.slideshow.on ? 'เปิด ' + h.slideshow.seconds + ' วินาที' : 'ปิด'}`); };
   $$('[data-sl-on]', main).forEach(c => c.onchange = () => { save(c.dataset.slOn, { on: c.checked }); toast(c.checked ? 'เปิดสไลด์แล้ว' : 'ปิดสไลด์แล้ว'); });
   $$('[data-sl-sec]', main).forEach(r => {
@@ -308,6 +309,7 @@ function boDevMedia(main) {
     r.onchange = () => { save(r.dataset.slSec, { seconds: +r.value }); toast(`ตั้งเวลาสไลด์ ${r.value} วินาทีแล้ว`); };
   });
   $$('[data-deco]', main).forEach(b => b.onclick = () => shopModal(JSON.parse(JSON.stringify(DB.hotel(b.dataset.deco))), () => boDevMedia(main)));
+  const dq = $('#dm-q', main); if (dq) dq.oninput = () => { const q = dq.value.trim().toLowerCase(); let n = 0; $$('.sh-row', main).forEach(r => { const ok = !q || r.dataset.q.includes(q); r.style.display = ok ? '' : 'none'; if (ok) n++; }); $('#dm-n', main).textContent = n + ' แห่ง'; };
   $('#bulk-sec', main).oninput = e => $('#bulk-v', main).textContent = e.target.value + ' วินาที';
   $('#bulk-go', main).onclick = async () => {
     const on = $('#bulk-on', main).checked, seconds = +$('#bulk-sec', main).value;
