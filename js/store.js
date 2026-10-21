@@ -246,11 +246,11 @@ const DB = {
     return dbWrite(supa.from('sd_bookings').delete().eq('id', id), 'ลบการจอง');
   },
   _replaceBooking(b) { const i = CACHE.bookings.findIndex(x => x.id === b.id); if (i >= 0) CACHE.bookings[i] = b; else CACHE.bookings.push(b); return b; },
-  async cancelMyBooking(b) {
-    const nb = this._replaceBooking(await rpc('sd_cancel_booking', { p_id: b.id, p_pin: b.pin }));
+  async cancelMyBooking(b, acct) {
+    const nb = this._replaceBooking(await rpc('sd_request_cancel', { p_id: b.id, p_pin: b.pin, p_bank: acct?.bank || null, p_acct: acct?.account || null, p_name: acct?.name || null }));
     // คืนห้องในตารางห้องที่ถูกจอง (ใช้คำนวณห้องว่างฝั่งลูกค้า) ทันที ไม่ต้องรีเฟรชหน้า
     const i = CACHE.occ.findIndex(o => o.roomId === b.roomId && o.checkIn === b.checkIn && o.checkOut === b.checkOut && o.qty === b.qty);
-    if (i >= 0) CACHE.occ.splice(i, 1);
+    if (i >= 0 && nb.status === 'cancelled') CACHE.occ.splice(i, 1); // ยื่นคำขอยกเลิก = ยังจองห้องไว้จนกว่าเจ้าของจะยืนยัน
     return nb;
   },
   // ลูกค้าแนบสลิป → เก็บใน bucket ส่วนตัว sd-slips/<รหัสจอง>/ แล้วผูกกับการจอง (เจ้าของรีสอร์ทจะเห็นและกดอนุมัติ)
@@ -632,6 +632,10 @@ function isDemoContact(v) {
   return /demo/i.test(s) || /^(\+?66|0)?(\d)\2{7,}$/.test(s.replace(/\D/g, '')) || s.replace(/\D/g, '').replace(/^66/, '0') === '0818888888';
 }
 const cleanContact = v => (isDemoContact(v) ? '' : v || '');
+// ยกเลิกการจอง: ต้องล่วงหน้าอย่างน้อย N วันก่อนเช็คอิน · ลูกค้ายื่นคำขอ + บัญชีรับเงินคืน → เจ้าของยืนยัน/ปฏิเสธ (ต้องตรงกับ sd_request_cancel)
+const CANCEL_MIN_DAYS = 7;
+const cancelDaysLeft = b => Math.round((new Date(b.checkIn) - new Date(todayISO())) / 864e5);
+const BANKS_TH = ['กสิกรไทย', 'ไทยพาณิชย์', 'กรุงเทพ', 'กรุงไทย', 'กรุงศรีอยุธยา', 'ทหารไทยธนชาต (ttb)', 'ออมสิน', 'ธ.ก.ส.', 'ซีไอเอ็มบี ไทย', 'ยูโอบี', 'เกียรตินาคินภัทร', 'ทิสโก้', 'แลนด์ แอนด์ เฮ้าส์', 'อื่นๆ'];
 function socialUrl(key, v) {
   v = String(v || '').trim();
   if (!v) return '';

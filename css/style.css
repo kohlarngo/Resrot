@@ -291,6 +291,10 @@ input[type=range] { width: 100%; accent-color: var(--primary); }
 .room-body { display: grid; grid-template-columns: 240px 1fr; }
 .room-info { padding: 14px 16px; border-right: 1px solid var(--border); font-size: 14px; }
 .room-info img { border-radius: 8px; margin-bottom: 10px; aspect-ratio: 4/3; object-fit: cover; width: 100%; }
+.room-slider { position: relative; aspect-ratio: 4/3; margin-bottom: 10px; border-radius: 8px; overflow: hidden; background: #dfe6f1; }
+.room-info .room-slider img.sl-slide { position: absolute; inset: 0; height: 100%; margin: 0; border-radius: 0; opacity: 0; transition: opacity .7s ease; }
+.room-info .room-slider img.sl-slide.on { opacity: 1; z-index: 1; }
+.room-slider:hover .sl-nav { opacity: 1; } .room-slider .sl-nav { width: 32px; height: 32px; font-size: 13px; } .room-slider .sl-nav.prev { left: 8px; } .room-slider .sl-nav.next { right: 8px; } .room-slider .sl-dots { bottom: 8px; padding: 0 44px; }
 .room-info div { margin: 4px 0; display: flex; gap: 8px; align-items: center; }
 .room-info i { color: var(--muted); width: 16px; }
 .offer { display: grid; grid-template-columns: 1fr 90px 170px 150px; border-bottom: 1px solid var(--border); }

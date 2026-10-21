@@ -91,7 +91,7 @@ function boStatus(b) {
   if (b.checkedInAt) return 'inhouse';
   return bookingStatus(b);
 }
-const stChip = b => { const s = boStatus(b); return `<span class="status ${s}">${BO_ST[s]}</span>`; };
+const stChip = b => { const s = boStatus(b); return `<span class="status ${s}">${BO_ST[s]}</span>` + (b.cancelReq?.status === 'pending' && s !== 'cancelled' ? ' <span class="pill vip">ขอยกเลิก</span>' : ''); };
 const payChip = b => b.payment.paid ? '<span class="pill ok"><i class="fa-solid fa-circle-check"></i> ชำระแล้ว</span>' : b.status === 'cancelled' ? '<span class="pill">—</span>' : b.payment.claimedAt ? '<span class="pill vip"><i class="fa-solid fa-hourglass-half"></i> ลูกค้าแจ้งโอนแล้ว</span>' : '<span class="pill bad"><i class="fa-solid fa-clock"></i> ค้างชำระ</span>';
 const netRev = b => b.price.total - (b.price.tax || 0);
 const guestName = b => `${b.guest.firstName} ${b.guest.lastName}`.trim();
@@ -449,6 +449,16 @@ function boOwnerPending(app, u) {
 }
 
 // ================= Booking drawer & actions =================
+// ส่วน "คำขอยกเลิก" ในลิ้นชักการจอง: ธนาคาร/เลขบัญชี/ชื่อบัญชีที่ลูกค้าแจ้งไว้รับเงินคืน
+function cancelReqSecHtml(b) {
+  const c = b.cancelReq; if (!c) return '';
+  const chip = { pending: '<span class="pill vip">รอคุณยืนยัน</span>', approved: b.refundedAt ? '<span class="pill ok">โอนคืนแล้ว</span>' : '<span class="pill vip">ยืนยันแล้ว — รอโอนคืน</span>', rejected: '<span class="pill">ปฏิเสธแล้ว</span>' }[c.status] || '';
+  const row = (l, v) => `<div class="dl"><span>${l}</span><b>${v}</b></div>`;
+  return `<div class="dr-sec"><h4><i class="fa-solid fa-rotate-left"></i> คำขอยกเลิก ${chip}</h4>
+    <div class="small muted" style="margin-bottom:6px">ลูกค้าขอเมื่อ ${fmtDateTime(c.at)} · ยอดที่ต้องโอนคืน <b>${money(b.refund || b.price.total)}</b></div>
+    ${row('ธนาคาร', esc(c.bank))}${row('เลขบัญชี', esc(c.account))}${row('ชื่อบัญชี', esc(c.name))}
+    ${c.reason ? row('เหตุผลที่ปฏิเสธ', esc(c.reason)) : ''}${b.refundedAt ? row('โอนคืนเมื่อ', fmtDateTime(b.refundedAt)) : ''}</div>`;
+}
 async function bkAction(id, act, refresh = () => render()) {
   const b = DB.booking(id);
   if (!b) return false;
@@ -490,6 +500,24 @@ async function bkAction(id, act, refresh = () => render()) {
     if (reason == null) return false;
     patch = { status: 'cancelled', cancelledAt: now, cancelReason: reason, cancelledBy: u.name };
     log = 'booking.cancel'; msg = 'ยกเลิกการจองแล้ว';
+  } else if (act === 'cancelok') {
+    if (!can('bookings.edit')) return deny();
+    const c = b.cancelReq; if (!c || c.status !== 'pending') return false;
+    if (!(await confirmBox(`ยืนยันยกเลิก <b>${b.id}</b> และโอนเงินคืน <b>${money(b.price.total)}</b><br>${esc(c.bank)} · ${esc(c.account)} · ${esc(c.name)}<br><span class="small muted">หลังโอนแล้วกด "บันทึกว่าโอนคืนแล้ว" ในรายการจอง</span>`, 'ยืนยันยกเลิก'))) return false;
+    patch = { status: 'cancelled', cancelledAt: now, cancelledBy: u.name, cancelReason: 'ลูกค้าขอยกเลิกล่วงหน้า', refund: b.price.total, cancelReq: { ...c, status: 'approved', decidedAt: now, decidedBy: u.name } };
+    log = 'booking.cancel.approve'; msg = 'ยืนยันการยกเลิกแล้ว — โอนเงินคืนลูกค้าตามบัญชีที่แจ้ง';
+  } else if (act === 'cancelno') {
+    if (!can('bookings.edit')) return deny();
+    const c = b.cancelReq; if (!c || c.status !== 'pending') return false;
+    const reason = await promptBox(`ปฏิเสธคำขอยกเลิก ${b.id}`, 'เหตุผล (ลูกค้าจะเห็นข้อความนี้)', 'ปฏิเสธคำขอ');
+    if (reason == null) return false;
+    patch = { cancelReq: { ...c, status: 'rejected', decidedAt: now, decidedBy: u.name, reason } };
+    log = 'booking.cancel.reject'; msg = 'ปฏิเสธคำขอยกเลิกแล้ว';
+  } else if (act === 'refunded') {
+    if (!can('bookings.edit')) return deny();
+    if (!(await confirmBox(`บันทึกว่าโอนเงินคืน <b>${money(b.refund || b.price.total)}</b> ให้ลูกค้าของ <b>${b.id}</b> แล้ว?`, 'โอนแล้ว'))) return false;
+    patch = { refundedAt: now, refundedBy: u.name };
+    log = 'booking.refunded'; msg = 'บันทึกการโอนเงินคืนแล้ว';
   } else if (act === 'delete') {
     if (!can('bookings.delete')) return deny();
     if (!(await confirmBox(`ลบการจอง <b>${b.id}</b> ถาวร? ข้อมูลจะไม่สามารถกู้คืนได้ (แนะนำให้ "ยกเลิก" แทน)`, 'ลบถาวร'))) return false;
@@ -511,9 +539,11 @@ function bookingDrawer(id, refresh = () => render()) {
   if (can('frontdesk') && s === 'inhouse') acts.push(['checkout', 'fa-right-from-bracket', 'เช็คเอาท์', 'btn-primary']);
   if (can('bookings.edit') && b.status === 'pending') { acts.push(['approve', 'fa-check', 'อนุมัติการจอง', 'btn-primary']); acts.push(['reject', 'fa-xmark', 'ปฏิเสธ', 'btn-danger']); }
   if (can('bookings.edit') && b.status === 'confirmed' && !b.payment.paid && !b.checkedOutAt) acts.push(['pay', 'fa-money-bill-wave', 'รับชำระเงิน', acts.length ? 'btn-outline' : 'btn-primary']);
+  if (can('bookings.edit') && b.cancelReq?.status === 'pending' && b.status !== 'cancelled') { acts.unshift(['cancelok', 'fa-check', 'ยืนยันยกเลิก & คืนเงิน', 'btn-primary']); acts.push(['cancelno', 'fa-xmark', 'ปฏิเสธคำขอยกเลิก', 'btn-danger']); }
+  if (can('bookings.edit') && b.status === 'cancelled' && b.cancelReq?.status === 'approved' && !b.refundedAt) acts.unshift(['refunded', 'fa-money-bill-wave', 'บันทึกว่าโอนคืนแล้ว', 'btn-primary']);
   if (can('bookings.edit') && s === 'confirmed') acts.push(['cancel', 'fa-ban', 'ยกเลิก', 'btn-danger']);
   if (can('bookings.delete')) acts.push(['delete', 'fa-trash', 'ลบ', 'btn-ghost red']);
-  const tl = [[b.createdAt, 'fa-plus', 'สร้างการจอง', PAY_TH[b.payment.method]], [b.payment.claimedAt, 'fa-receipt', b.payment.slip ? 'ลูกค้าส่งสลิป' : 'ลูกค้าแจ้งชำระเงิน', PAY_TH[b.payment.method]], [b.payment.paidAt, 'fa-money-bill', 'รับชำระเงิน', b.payment.paidBy], [b.confirmedAt, 'fa-check', 'อนุมัติการจอง', b.approvedBy || ''], [b.checkedInAt, 'fa-right-to-bracket', 'เช็คอิน', b.checkedInBy], [b.checkedOutAt, 'fa-right-from-bracket', 'เช็คเอาท์', b.checkedOutBy], [b.cancelledAt, 'fa-ban', 'ยกเลิก', [b.cancelledBy, b.cancelReason].filter(Boolean).join(' — ')]]
+  const tl = [[b.createdAt, 'fa-plus', 'สร้างการจอง', PAY_TH[b.payment.method]], [b.payment.claimedAt, 'fa-receipt', b.payment.slip ? 'ลูกค้าส่งสลิป' : 'ลูกค้าแจ้งชำระเงิน', PAY_TH[b.payment.method]], [b.payment.paidAt, 'fa-money-bill', 'รับชำระเงิน', b.payment.paidBy], [b.confirmedAt, 'fa-check', 'อนุมัติการจอง', b.approvedBy || ''], [b.checkedInAt, 'fa-right-to-bracket', 'เช็คอิน', b.checkedInBy], [b.checkedOutAt, 'fa-right-from-bracket', 'เช็คเอาท์', b.checkedOutBy], [b.cancelReq?.at, 'fa-rotate-left', 'ลูกค้าขอยกเลิก', ''], [b.refundedAt, 'fa-money-bill-wave', 'โอนเงินคืนแล้ว', b.refundedBy], [b.cancelledAt, 'fa-ban', 'ยกเลิก', [b.cancelledBy, b.cancelReason].filter(Boolean).join(' — ')]]
     .filter(x => x[0]).sort((a, c) => a[0] < c[0] ? -1 : 1);
   const notes = b.notes || [];
   const req = [...(b.guest.requests || []), b.guest.note].filter(Boolean);
@@ -523,6 +553,7 @@ function bookingDrawer(id, refresh = () => render()) {
     ${acts.length ? `<div class="dr-acts">${acts.map(([k, ic, l, c]) => `<button class="btn btn-sm ${c}" data-dact="${k}"><i class="fa-solid ${ic}"></i> ${l}</button>`).join('')}<a class="btn btn-sm btn-ghost" href="${siteUrl('#/booking/' + b.id)}" target="_blank" rel="noopener"><i class="fa-solid fa-print"></i> ใบยืนยัน</a></div>` : ''}
     ${b.payment.slip ? `<div class="dr-sec"><h4><i class="fa-solid fa-receipt"></i> สลิปโอนเงิน <span class="muted small">ส่งเมื่อ ${fmtDateTime(b.payment.claimedAt)}</span></h4><div class="slip-full" data-slip="${esc(b.payment.slip)}"><i class="fa-solid fa-spinner fa-spin"></i></div>
       <div class="small muted" style="margin-top:6px">ยอดที่ต้องได้รับ <b>${money(b.price.total)}</b>${b.payment.payTo ? ` → พร้อมเพย์ ${esc(fmtPromptpay(b.payment.payTo))}` : ''} · อ้างอิง ${b.id}</div></div>` : ''}
+    ${cancelReqSecHtml(b)}
     <div class="dr-sec"><h4><i class="fa-regular fa-user"></i> ผู้เข้าพัก</h4>
       ${row('ชื่อ', esc(guestName(b)))}${row('อีเมล', `<a href="mailto:${esc(b.guest.email)}">${esc(b.guest.email)}</a>`)}${row('โทร', `<a href="tel:${esc(b.guest.phone)}">${esc(b.guest.phone)}</a>`)}
       ${row('จำนวน', `ผู้ใหญ่ ${b.adults}${b.children ? ` · เด็ก ${b.children}` : ''}`)}${req.length ? row('คำขอพิเศษ', esc(req.join(', '))) : ''}</div>

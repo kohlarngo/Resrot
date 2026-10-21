@@ -526,6 +526,7 @@ function pageHotel(app, params, id) {
   $('#chg').onclick = () => { scrollTo({ top: 0, behavior: 'smooth' }); setTimeout(() => $('.date-field').dispatchEvent(new MouseEvent('mousedown', { bubbles: true })), 300); };
   $('#share').onclick = () => { copyText(resortLink(h)); toast('คัดลอกลิงก์รีสอร์ทแล้ว'); };
   if (slideOn) initSlider($('#gallery'), h.slideshow?.seconds);
+  $$('.room-slider', app).forEach(el => initSlider(el, el.dataset.rsl));
   const allImgs = [...h.images, ...h.rooms.map(r => r.img)];
   $$('#gallery [data-i]').forEach(el => el.onclick = () => lightbox(allImgs, +el.dataset.i));
   $$('[data-rimg]', app).forEach(el => el.onclick = () => lightbox(allImgs, h.images.length + +el.dataset.rimg));
@@ -567,6 +568,15 @@ function initSlider(el, seconds) {
   el.addEventListener('touchend', e => { hover = false; if (x0 != null) { const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 40) { show(i + (dx < 0 ? 1 : -1)); play(); } } x0 = null; });
   el.dataset.interval = sec; play();
 }
+// รูปห้อง: ถ้านักพัฒนาเปิดสไลด์ของรีสอร์ท และห้องมีรูปเพิ่ม (r.imgs) → สไลด์รูปห้อง ไม่งั้นแสดงรูปเดียวเหมือนเดิม
+function roomImgHtml(h, r, idx) {
+  const one = (u, cls) => imgTag(u, 500, cls, r.id).replace('<img', `<img data-rimg="${idx}" style="cursor:pointer"`);
+  const list = [r.img, ...(r.imgs || [])].filter(Boolean);
+  if (h.slideshow?.on !== true || list.length < 2) return one(r.img, '');
+  return `<div class="room-slider" data-rsl="${h.slideshow.seconds || 4}" role="region" aria-roledescription="carousel">${list.map((u, i) => one(u, 'sl-slide' + (i ? '' : ' on'))).join('')}
+    <button type="button" class="sl-nav prev" aria-label="รูปก่อนหน้า"><i class="fa-solid fa-chevron-left"></i></button><button type="button" class="sl-nav next" aria-label="รูปถัดไป"><i class="fa-solid fa-chevron-right"></i></button>
+    <div class="sl-dots">${list.map((_, i) => `<button type="button" class="sl-dot ${i ? '' : 'on'}" data-d="${i}" aria-label="รูปที่ ${i + 1}"></button>`).join('')}</div></div>`;
+}
 function roomHtml(h, r, guestsPerRoom) {
   const avail = DB.available(r, S.checkIn, S.checkOut);
   const fits = r.maxGuests >= guestsPerRoom;
@@ -574,7 +584,7 @@ function roomHtml(h, r, guestsPerRoom) {
   return `<div class="room">
     <div class="room-head"><span>${esc(r.name)}</span>${avail > 0 && avail <= 3 ? `<span class="urgent" style="margin:0">เหลือเพียง ${avail} ห้อง!</span>` : ''}</div>
     <div class="room-body">
-      <div class="room-info">${imgTag(r.img, 500, '', r.id).replace('<img', `<img data-rimg="${idx}" style="cursor:pointer"`)}
+      <div class="room-info">${roomImgHtml(h, r, idx)}
         <div><i class="fa-solid fa-bed"></i>${esc(r.bed)}</div>
         <div><i class="fa-solid fa-up-right-and-down-left-from-center"></i>${r.size} ตร.ม.</div>
         <div><i class="fa-solid fa-mountain-sun"></i>${esc(r.view)}</div>
@@ -592,7 +602,7 @@ function roomHtml(h, r, guestsPerRoom) {
           return `<div class="offer">
             <div class="ben">
               ${o.breakfast ? '<div class="green"><i class="fa-solid fa-mug-saucer"></i><b>รวมอาหารเช้า</b></div>' : '<div class="muted"><i class="fa-solid fa-mug-saucer"></i>ไม่รวมอาหารเช้า</div>'}
-              ${o.freeCancel ? `<div class="green"><i class="fa-solid fa-check"></i><span><b>ยกเลิกฟรี</b> ก่อน ${fmtDate(addDays(S.checkIn, -1), false)}</span></div>` : '<div class="muted"><i class="fa-solid fa-xmark"></i>ไม่สามารถคืนเงินได้</div>'}
+              ${o.freeCancel ? `<div class="green"><i class="fa-solid fa-check"></i><span><b>ยกเลิกได้</b> ล่วงหน้า ${CANCEL_MIN_DAYS} วัน (ก่อน ${fmtDate(addDays(S.checkIn, -CANCEL_MIN_DAYS), false)})</span></div>` : '<div class="muted"><i class="fa-solid fa-xmark"></i>ไม่สามารถคืนเงินได้</div>'}
               ${o.payAtHotel ? '<div class="green"><i class="fa-solid fa-check"></i><b>ชำระเงินที่ที่พัก</b></div>' : '<div><i class="fa-solid fa-credit-card"></i>ชำระเงินล่วงหน้า</div>'}
               <div><i class="fa-solid fa-wifi green"></i>Wi-Fi ฟรี</div>
             </div>
@@ -835,10 +845,11 @@ function pageBookingView(app, params, id) {
       <table class="policy-table">
         <tr><td>ผู้เข้าพักหลัก</td><td>${esc(b.guest.firstName)} ${esc(b.guest.lastName)}<br><span class="small muted">${esc(b.guest.email)} · ${esc(b.guest.phone)}</span></td></tr>
         <tr><td>ห้องพัก</td><td>${b.qty} x ${esc(b.roomName)} · ${b.nights} คืน<br><span class="small muted">ผู้ใหญ่ ${b.adults}${b.children ? `, เด็ก ${b.children}` : ''}</span></td></tr>
-        <tr><td>สิทธิประโยชน์</td><td>${b.offer.breakfast ? 'รวมอาหารเช้า' : 'ไม่รวมอาหารเช้า'} · ${b.offer.freeCancel ? `ยกเลิกฟรีก่อน ${fmtDate(addDays(b.checkIn, -1), false)}` : 'ไม่สามารถคืนเงินได้'}</td></tr>
+        <tr><td>สิทธิประโยชน์</td><td>${b.offer.breakfast ? 'รวมอาหารเช้า' : 'ไม่รวมอาหารเช้า'} · ${b.offer.freeCancel ? `ยกเลิกได้ล่วงหน้า ${CANCEL_MIN_DAYS} วัน (ก่อน ${fmtDate(addDays(b.checkIn, -CANCEL_MIN_DAYS), false)}) — เจ้าของที่พักยืนยันและโอนเงินคืน` : 'ไม่สามารถคืนเงินได้'}</td></tr>
         ${b.guest.requests?.length || b.guest.note ? `<tr><td>คำขอพิเศษ</td><td>${esc([...(b.guest.requests || []), b.guest.note].filter(Boolean).join(', '))}</td></tr>` : ''}
         <tr><td>การชำระเงิน</td><td>${PAY_TH[b.payment.method]}${b.payment.last4 ? ` (${b.payment.brand} •••• ${b.payment.last4})` : ''} — ${b.payment.paid ? '<span class="green bold">ชำระแล้ว</span>' : b.payment.slip ? '<span class="bold">ส่งสลิปแล้ว รอตรวจสอบ</span>' : '<span class="red bold">ยังไม่ได้ชำระ</span>'}</td></tr>
         ${b.refund != null ? `<tr><td>การคืนเงิน</td><td>${b.refund > 0 ? money(b.refund) + ' (เจ้าของรีสอร์ทเป็นผู้คืนเงิน)' : 'ไม่มีการคืนเงิน'}</td></tr>` : ''}
+        ${b.cancelReq ? `<tr><td>คำขอยกเลิก</td><td>${{ pending: '<span class="bold">ส่งคำขอแล้ว — รอเจ้าของที่พักยืนยัน</span>', approved: '<span class="green bold">เจ้าของที่พักยืนยันแล้ว</span>', rejected: `<span class="red bold">เจ้าของที่พักปฏิเสธ</span>${b.cancelReq.reason ? ' — ' + esc(b.cancelReq.reason) : ''}` }[b.cancelReq.status] || ''}<br><span class="small muted">โอนคืนเข้า ${esc(b.cancelReq.bank)} ${esc(b.cancelReq.account)} (${esc(b.cancelReq.name)})${b.refundedAt ? ' · <span class="green">โอนเงินคืนแล้ว</span>' : ''}</span></td></tr>` : ''}
       </table>
       <div style="max-width:380px;margin-left:auto;margin-top:14px">
         <div class="sum-row"><span>ราคาห้องพัก</span><span>${money(b.price.room)}</span></div>
@@ -850,7 +861,7 @@ function pageBookingView(app, params, id) {
     </div>
     <div class="row wrap" style="justify-content:center">
       <button class="btn btn-outline" onclick="window.print()"><i class="fa-solid fa-print"></i> พิมพ์ / บันทึก PDF</button>
-      ${st === 'confirmed' || st === 'pending' ? '<button class="btn btn-danger" id="cancel-bk"><i class="fa-solid fa-xmark"></i> ยกเลิกการจอง</button>' : ''}
+      ${cancelBtnHtml(b, st)}
       <a class="btn btn-primary" href="#/my-bookings">การจองทั้งหมดของฉัน</a>
     </div>
   </div>`;
@@ -886,13 +897,32 @@ function payBoxHtml(b, st) {
 }
 const fmtPromptpay = id => id.length === 10 ? `${id.slice(0, 3)}-${id.slice(3, 6)}-${id.slice(6)}` : `${id.slice(0, 1)}-${id.slice(1, 5)}-${id.slice(5, 10)}-${id.slice(10, 12)}-${id.slice(12)}`;
 async function cancelBooking(b, done) {
-  const free = b.offer.freeCancel && todayISO() < b.checkIn;
-  const refund = b.payment.paid ? (free ? b.price.total : 0) : 0;
-  const ok = await confirmBox(free ? `ยกเลิกการจอง <b>${b.id}</b>?<br><span class="green">คุณจะได้รับเงินคืนเต็มจำนวน ${b.payment.paid ? money(refund) : ''}</span>`
-    : `ยกเลิกการจอง <b>${b.id}</b>?<br><span class="red">การจองนี้ไม่สามารถคืนเงินได้${b.payment.paid ? ` (${money(b.price.total)})` : ''}</span>`, 'ยืนยันยกเลิก');
-  if (!ok) return;
-  try { await DB.cancelMyBooking(b); toast('ยกเลิกการจองเรียบร้อยแล้ว'); } catch (e) { toast(e.message, 'err'); }
-  done();
+  const send = async acct => {
+    try { const nb = await DB.cancelMyBooking(b, acct); toast(nb.status === 'cancelled' ? 'ยกเลิกการจองเรียบร้อยแล้ว' : 'ส่งคำขอยกเลิกแล้ว — รอเจ้าของที่พักยืนยัน'); } catch (e) { toast(e.message, 'err'); }
+    done();
+  };
+  if (!(b.payment.paid || b.payment.slip)) { if (await confirmBox(`ยกเลิกการจอง <b>${b.id}</b>?<br><span class="muted small">ยังไม่มีการชำระเงิน</span>`, 'ยืนยันยกเลิก')) send(null); return; }
+  const m = openModal(`<h2><i class="fa-solid fa-rotate-left"></i> ขอยกเลิกการจอง <span class="small muted">· ${b.id}</span></h2>
+    <p class="small muted" style="margin:8px 0 14px">ยกเลิกได้ล่วงหน้าอย่างน้อย ${CANCEL_MIN_DAYS} วันก่อนเช็คอิน · เจ้าของที่พักจะตรวจสอบและกดยืนยัน แล้วโอนเงินคืน <b>${money(b.price.total)}</b> เข้าบัญชีที่คุณกรอกด้านล่าง</p>
+    <form id="cq-f" class="form-grid" novalidate>
+      <div class="fg full"><label>ธนาคาร <span class="req">*</span></label><select name="bank"><option value="">— เลือกธนาคาร —</option>${BANKS_TH.map(x => `<option>${esc(x)}</option>`).join('')}</select></div>
+      <div class="fg"><label>เลขบัญชี <span class="req">*</span></label><input name="account" inputmode="numeric" autocomplete="off" maxlength="20" placeholder="เฉพาะตัวเลข 10-15 หลัก"></div>
+      <div class="fg"><label>ชื่อบัญชี <span class="req">*</span></label><input name="name" autocomplete="off" maxlength="100" placeholder="ชื่อ-นามสกุลตามสมุดบัญชี"></div>
+    </form>
+    <div class="row" style="justify-content:flex-end;gap:8px;margin-top:16px"><button class="btn btn-ghost" data-close>ปิด</button><button class="btn btn-danger" id="cq-ok"><i class="fa-solid fa-paper-plane"></i> ส่งคำขอยกเลิก</button></div>`);
+  $('#cq-ok', m).onclick = () => {
+    const f = $('#cq-f', m).elements, acct = { bank: f.bank.value, account: f.account.value.replace(/\D/g, ''), name: f.name.value.trim() };
+    if (!acct.bank) return toast('กรุณาเลือกธนาคาร', 'err');
+    if (acct.account.length < 10 || acct.account.length > 15) return toast('เลขบัญชีต้องเป็นตัวเลข 10-15 หลัก', 'err');
+    if (acct.name.length < 2) return toast('กรุณากรอกชื่อบัญชี', 'err');
+    closeModal(); send(acct);
+  };
+}
+function cancelBtnHtml(b, st) {
+  if (st !== 'confirmed' && st !== 'pending') return '';
+  if (b.cancelReq?.status === 'pending') return '<span class="small muted">ส่งคำขอยกเลิกแล้ว — รอเจ้าของที่พักยืนยัน</span>';
+  if (cancelDaysLeft(b) < CANCEL_MIN_DAYS) return `<span class="small muted">ยกเลิกได้ล่วงหน้าอย่างน้อย ${CANCEL_MIN_DAYS} วันก่อนเช็คอิน — กรุณาติดต่อเจ้าของที่พัก</span>`;
+  return `<button class="btn btn-danger" id="cancel-bk"><i class="fa-solid fa-xmark"></i> ${b.payment.paid || b.payment.slip ? 'ขอยกเลิกการจอง' : 'ยกเลิกการจอง'}</button>`;
 }
 
 // ================= My bookings =================
