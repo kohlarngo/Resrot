@@ -296,6 +296,20 @@ function bindHeader() {
     setTimeout(() => document.addEventListener('click', () => dd.remove(), { once: true }));
   };
 }
+// ขอตำแหน่ง GPS ครั้งเดียวต่อการกดปุ่ม แล้วล็อกปุ่มไว้ — กดซ้ำต้องยืนยันปลดล็อกก่อน (กันขอตำแหน่งถี่ / ย้ายหมุดโดยไม่ตั้งใจ)
+function gpsOnce(btn, ok, fail, opts) {
+  if (btn.dataset.gpsBusy) return;
+  if (btn.dataset.gpsLock) {
+    if (!confirm('ล็อกตำแหน่งไว้แล้ว — ต้องการปลดล็อกและขอตำแหน่งใหม่หรือไม่?')) return;
+    delete btn.dataset.gpsLock; btn.innerHTML = btn.dataset.gpsLabel;
+  }
+  btn.dataset.gpsLabel = btn.innerHTML; btn.dataset.gpsBusy = '1'; btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังหาตำแหน่ง...';
+  const done = () => { delete btn.dataset.gpsBusy; btn.disabled = false; };
+  navigator.geolocation.getCurrentPosition(pos => {
+    done(); btn.dataset.gpsLock = '1'; btn.innerHTML = '<i class="fa-solid fa-lock"></i> ล็อกตำแหน่งแล้ว (กดเพื่อปลดล็อก)'; ok(pos);
+  }, e => { done(); btn.innerHTML = btn.dataset.gpsLabel; fail(e); }, opts);
+}
 function contactLinksHtml() {
   const s = DB.settings();
   const wait = '<span style="opacity:.7">รอกรอกเพิ่มเติม</span>';

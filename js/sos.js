@@ -200,14 +200,11 @@ function openSos(serviceId) {
 
   $('#sos-gps', m).onclick = () => {
     if (!navigator.geolocation) return toast('อุปกรณ์นี้ไม่รองรับการระบุตำแหน่ง', 'err');
-    const btn = $('#sos-gps', m); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังหาตำแหน่ง...';
-    navigator.geolocation.getCurrentPosition(pos => {
+    gpsOnce($('#sos-gps', m), pos => {
       const { latitude, longitude, accuracy } = pos.coords;
       setPin(latitude, longitude, accuracy);
       if (map) map.panTo([latitude, longitude], { animate: false }); // เลื่อนไปที่ตำแหน่ง โดยไม่เปลี่ยนระดับซูม
-      btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> อัปเดตตำแหน่งอีกครั้ง';
     }, err => {
-      btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> ใช้ตำแหน่งปัจจุบันของฉัน';
       toast(err.code === 1 ? 'กรุณาอนุญาตการเข้าถึงตำแหน่งในเบราว์เซอร์ หรือปักหมุดบนแผนที่เอง' : 'หาตำแหน่งไม่สำเร็จ — ปักหมุดบนแผนที่เองได้', 'err');
     }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
   };

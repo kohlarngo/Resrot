@@ -400,8 +400,8 @@ function boOwnerSignupForm(app, current) {
   const setLL = (lat, lng) => { f.lat.value = (+lat).toFixed(6); f.lng.value = (+lng).toFixed(6); showZone(); };
   $('#su-gps').onclick = () => {
     if (!navigator.geolocation) return err.textContent = 'เบราว์เซอร์นี้ไม่รองรับการหาตำแหน่ง — วางลิงก์ Google Maps แทน';
-    err.textContent = ''; toast('กำลังหาตำแหน่ง...', 'info');
-    navigator.geolocation.getCurrentPosition(pos => setLL(pos.coords.latitude, pos.coords.longitude), () => err.textContent = 'หาตำแหน่งไม่ได้ — อนุญาตการเข้าถึงตำแหน่ง หรือวางลิงก์ Google Maps แทน', { enableHighAccuracy: true, timeout: 15000 });
+    err.textContent = '';
+    gpsOnce($('#su-gps'), pos => setLL(pos.coords.latitude, pos.coords.longitude), () => err.textContent = 'หาตำแหน่งไม่ได้ — อนุญาตการเข้าถึงตำแหน่ง หรือวางลิงก์ Google Maps แทน', { enableHighAccuracy: true, timeout: 15000 });
   };
   $('#su-map').oninput = e => { const r = parseLatLng(e.target.value); if (r) setLL(r.lat, r.lng); else if (e.target.value.trim()) $('#su-zone').innerHTML = '<span class="muted">อ่านพิกัดไม่ได้ — ใช้ลิงก์ที่มีพิกัด (ไม่ใช่ลิงก์ย่อ maps.app.goo.gl) หรือกดปุ่ม "ใช้ตำแหน่งปัจจุบัน"</span>'; };
   showZone();
@@ -1498,7 +1498,7 @@ function hotelForm(h, done, opts = {}) {
   } else $('#h-map', m).innerHTML = '<div class="muted small" style="padding:20px">โหลดแผนที่ไม่ได้ — ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต</div>';
   $('#h-gps', m).onclick = () => {
     if (!navigator.geolocation) return toast('อุปกรณ์นี้ไม่รองรับการระบุตำแหน่ง', 'err');
-    navigator.geolocation.getCurrentPosition(p => { setPos(p.coords.latitude, p.coords.longitude, true); toast('ปักหมุดที่ตำแหน่งปัจจุบันแล้ว'); }, () => toast('ระบุตำแหน่งไม่ได้ — กรุณาอนุญาตการเข้าถึงตำแหน่ง', 'err'), { enableHighAccuracy: true, timeout: 10000 });
+    gpsOnce($('#h-gps', m), p => { setPos(p.coords.latitude, p.coords.longitude, true); toast('ปักหมุดที่ตำแหน่งปัจจุบันแล้ว'); }, () => toast('ระบุตำแหน่งไม่ได้ — กรุณาอนุญาตการเข้าถึงตำแหน่ง', 'err'), { enableHighAccuracy: true, timeout: 10000 });
   };
   $$('[data-radd]', m).forEach(b => b.onclick = () => {
     readRooms(); const t = ROOM_TEMPLATES[b.dataset.radd];
