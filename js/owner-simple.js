@@ -240,13 +240,13 @@ function shopModal(h, done) {
       <div class="fg full"><label><i class="fa-solid fa-scale-balanced"></i> กฎของรีสอร์ท (บรรทัดละ 1 ข้อ) — แสดงให้ผู้เข้าพักอ่านและเซ็นรับทราบตอนลงทะเบียนเช็คอิน และพิมพ์ในเอกสาร</label>
         <textarea name="houseRules" rows="6" maxlength="2000" placeholder="เช่น&#10;ห้ามสูบบุหรี่ในห้องพัก&#10;เงียบหลัง 22.00 น.&#10;กุญแจหายปรับ 500 บาท&#10;ห้ามนำอาหารมีกลิ่นแรงเข้าห้อง">${esc(h.houseRules || DEFAULT_HOUSE_RULES)}</textarea>
         <div class="small muted" style="margin-top:4px">เว้นว่าง = ไม่แสดงส่วนกฎในฟอร์มลงทะเบียน · ผู้เข้าพักแต่ละท่านเซ็นตามข้อความ ณ วันที่ลงทะเบียน (แก้กฎภายหลังไม่กระทบเอกสารเดิม)</div></div>
-      ${isAdmin(DB.currentUser()) ? `<div class="fg full"><label>ชื่อลิงก์ประจำรีสอร์ท (a-z 0-9 -)</label><input name="slug" value="${esc(h.slug || '')}" maxlength="40" placeholder="เช่น sea-view-lan"><div class="small muted" style="margin-top:4px">ลิงก์: <code id="sh-link"></code></div></div>` : ''}
+      ${isAdmin(DB.currentUser()) ? `<div class="fg full"><label>ชื่อลิงก์ประจำรีสอร์ท (a-z 0-9 -)</label><input name="slug" value="${esc(h.slug || '')}" maxlength="40" placeholder="เช่น sea-view-lan"><div class="small muted" style="margin-top:4px">ลิงก์: <code id="sh-link"></code><button type="button" class="btn btn-outline btn-sm" id="sh-copy" style="margin-left:6px"><i class="fa-regular fa-copy"></i> คัดลอก</button></div></div>` : ''}
       ${Object.entries(SOCIALS).map(([k, c]) => `<div class="fg"><label><i class="${c.icon}" style="color:${c.color}"></i> ${c.label}</label><input name="soc_${k}" value="${esc(h.social?.[k] || '')}" placeholder="${esc(c.ph)}"></div>`).join('')}
     </form>
     <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary" id="sh-save">บันทึก</button></div>`, 'wide');
   imgManager($('#sh-imgs', m), imgs);
   const f = $('#sh-f', m), link = () => $('#sh-link', m).textContent = resortLink({ id: h.id, slug: normSlug(f.elements.slug.value) });
-  if (f.elements.slug) { f.elements.slug.oninput = link; link(); }
+  if (f.elements.slug) { f.elements.slug.oninput = link; link(); $('#sh-copy', m).onclick = () => { copyText($('#sh-link', m).textContent); toast('คัดลอกลิงก์แล้ว'); }; }
   if (f.elements.slide_sec) { const secLbl = () => $('#sl-sec-v', m).textContent = f.elements.slide_sec.value + ' วินาที';
     f.elements.slide_sec.oninput = secLbl; secLbl(); }
   $('#sh-save', m).onclick = () => {

@@ -1445,7 +1445,7 @@ function hotelForm(h, done, opts = {}) {
         <div class="fg"><label>ระยะจากท่าเรือหน้าบ้าน (กม.)</label><input name="distance" type="number" step="0.1" min="0" value="${h.distance}"><div class="small muted" style="margin-top:4px">คำนวณให้อัตโนมัติเมื่อปักหมุด (แก้ได้)</div></div>
         <div class="fg"><label>เวลาเช็คอิน</label><input name="checkIn" value="${h.checkIn}"></div>
         <div class="fg"><label>เวลาเช็คเอาท์</label><input name="checkOut" value="${h.checkOut}"></div>
-        ${isAdmin(DB.currentUser()) ? `<div class="fg full"><label>ลิงก์ประจำรีสอร์ท (ชื่อสั้น a-z 0-9 -)</label><input name="slug" value="${esc(h.slug || '')}" placeholder="เช่น sea-view-lan" maxlength="40"><div class="small muted" style="margin-top:4px">ลูกค้ากดลิงก์นี้แล้วจองผ่านเราได้ทันที: <code id="slug-prev"></code></div></div>` : ''}
+        ${isAdmin(DB.currentUser()) ? `<div class="fg full"><label>ลิงก์ประจำรีสอร์ท (ชื่อสั้น a-z 0-9 -)</label><input name="slug" value="${esc(h.slug || '')}" placeholder="เช่น sea-view-lan" maxlength="40"><div class="small muted" style="margin-top:4px">ลูกค้ากดลิงก์นี้แล้วจองผ่านเราได้ทันที: <code id="slug-prev"></code><button type="button" class="btn btn-outline btn-sm" id="slug-copy" style="margin-left:6px"><i class="fa-regular fa-copy"></i> คัดลอก</button></div></div>` : ''}
         <div class="fg full"><label>ช่องทางโซเชียลของรีสอร์ท (แสดงหน้าเว็บ และใส่ในข้อความโปรโมต)</label>
           <div class="form-grid" style="margin-top:6px">${Object.entries(SOCIALS).map(([k, c]) => `<div class="fg"><label><i class="${c.icon}" style="color:${c.color}"></i> ${c.label}</label><input name="soc_${k}" value="${esc(h.social?.[k] || '')}" placeholder="${esc(c.ph)}"></div>`).join('')}</div></div>
         <div class="fg full"><label>คำอธิบาย</label><textarea name="description" rows="3">${esc(h.description)}</textarea></div>
@@ -1472,7 +1472,7 @@ function hotelForm(h, done, opts = {}) {
   drawRooms();
   if (opts.focusRooms) setTimeout(() => $('#r-list', m).scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
   if ($('[name=slug]', m)) { const slugPrev = () => $('#slug-prev', m).textContent = resortLink({ id: h.id, slug: normSlug($('[name=slug]', m).value) });
-    $('[name=slug]', m).oninput = slugPrev; slugPrev(); }
+    $('[name=slug]', m).oninput = slugPrev; slugPrev(); $('#slug-copy', m).onclick = () => { copyText($('#slug-prev', m).textContent); toast('คัดลอกลิงก์แล้ว'); }; }
   // แผนที่เลือกตำแหน่ง (แทนการพิมพ์ละติจูด / ลองจิจูด)
   const pos = { lat: +h.lat, lng: +h.lng }, PIER = DESTINATIONS[0];
   const kmFrom = (a, b) => { const R = 6371, rad = x => x * Math.PI / 180, dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
