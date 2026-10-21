@@ -131,13 +131,21 @@ function bindFavs(root) {
     toast(on ? 'บันทึกในรายการโปรดแล้ว' : 'ลบออกจากรายการโปรดแล้ว');
   });
 }
+// รูปปกบนการ์ด: ถ้า dev เปิดสไลด์ของรีสอร์ท และมีรูป ≥ 2 → สไลด์ (สูงสุด 5 รูป) ไม่งั้นแสดงรูปแรกรูปเดียว
+function cardImgHtml(h) {
+  const list = (h.images || []).filter(Boolean).slice(0, 5);
+  if (h.slideshow?.on !== true || list.length < 2) return imgTag(h.images[0], 600, '', h.id);
+  return `<div class="card-slider" data-rsl="${h.slideshow.seconds || 4}">${list.map((u, i) => imgTag(u, 600, 'sl-slide' + (i ? '' : ' on'), h.id)).join('')}
+    <button type="button" class="sl-nav prev" aria-label="รูปก่อนหน้า"><i class="fa-solid fa-chevron-left"></i></button><button type="button" class="sl-nav next" aria-label="รูปถัดไป"><i class="fa-solid fa-chevron-right"></i></button>
+    <div class="sl-dots">${list.map((_, i) => `<button type="button" class="sl-dot ${i ? '' : 'on'}" data-d="${i}" aria-label="รูปที่ ${i + 1}"></button>`).join('')}</div></div>`;
+}
 function hotelCard(h) {
   const best = DB.cheapest(h, S);
   const r = best?.room || h.rooms[0];
   const q = best || DB.quote(r, S.checkIn, S.checkOut);
   const off = q.perNightOrig ? Math.round((1 - q.perNight / q.perNightOrig) * 100) : 0;
   return `<div class="h-card" data-href="/hotel/${h.id}?${searchQuery()}">
-    <div class="img">${imgTag(h.images[0], 600, '', h.id)}${off > 0 ? `<span class="badge-off">-${off}%</span>` : ''}${featuredBadge(h.id)}${favBtn(h.id)}</div>
+    <div class="img">${cardImgHtml(h)}${off > 0 ? `<span class="badge-off">-${off}%</span>` : ''}${featuredBadge(h.id)}${favBtn(h.id)}</div>
     <div class="body">
       <div class="name">${esc(h.name)}</div>
       ${starsHtml(h.stars)}
@@ -151,6 +159,7 @@ function hotelCard(h) {
 function bindCards(root) {
   $$('[data-href]', root).forEach(c => c.onclick = e => { if (!e.target.closest('button,a')) go(c.dataset.href); });
   bindFavs(root);
+  $$('.card-slider', root).forEach(el => initSlider(el, el.dataset.rsl));
 }
 
 // ================= Home =================

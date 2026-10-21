@@ -178,6 +178,12 @@ section.block { padding: 36px 0 8px; }
 .h-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
 .h-card .img { aspect-ratio: 4/3; position: relative; }
 .h-card .img img { width: 100%; height: 100%; object-fit: cover; }
+.h-card .card-slider { position: absolute; inset: 0; overflow: hidden; }
+.h-card .img img.sl-slide { position: absolute; inset: 0; opacity: 0; transition: opacity .7s ease; }
+.h-card .img img.sl-slide.on { opacity: 1; }
+.h-card .sl-nav { width: 30px; height: 30px; font-size: 12px; } .h-card .sl-nav.prev { left: 6px; } .h-card .sl-nav.next { right: 6px; }
+.h-card:hover .sl-nav { opacity: 1; } .h-card .sl-dots { bottom: 7px; padding: 0 36px; } .h-card .sl-dot { width: 7px; height: 7px; } .h-card .sl-dot.on { width: 16px; }
+@media (hover: none) { .h-card .sl-nav { opacity: .85; } }
 .h-card .body { padding: 12px 14px 14px; display: flex; flex-direction: column; flex: 1; }
 .h-card .name { font-weight: 700; font-size: 16px; line-height: 1.3; margin-bottom: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .h-card .loc { font-size: 13px; color: var(--primary); margin-bottom: 8px; }
