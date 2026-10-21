@@ -7,6 +7,9 @@ const CK_KEEP_DAYS = 45; // ต้องตรงกับ KEEP_DAYS ใน Edge
 const ckExpiry = reg => { const d = new Date(new Date(reg.registeredAt || reg.savedAt).getTime() + CK_KEEP_DAYS * 864e5); return { date: d, left: Math.max(0, Math.ceil((d - Date.now()) / 864e5)) }; };
 const CK_CONSENT = 'ข้าพเจ้ายินยอมให้รีสอร์ทเก็บสำเนาบัตรประชาชน/พาสปอร์ตและลายเซ็นของข้าพเจ้า เพื่อใช้ลงทะเบียนผู้เข้าพักตามที่กฎหมายกำหนดและเพื่อความปลอดภัย ข้อมูลจะถูกเก็บเป็นความลับ เข้าถึงได้เฉพาะรีสอร์ทนี้และผู้ดูแลระบบที่ได้รับมอบหมาย (ดูเพื่อดูแลระบบเท่านั้น) และจะถูกลบอัตโนมัติเมื่อครบ 45 วัน';
 
+// โลโก้บนหัวทะเบียน: ชมรม (ตั้งได้ที่ "รูปทั้งเว็บ") + โลโก้รีสอร์ท (เจ้าของอัปโหลดในหน้า "ตกแต่งหน้ารีสอร์ท") — แปลงเป็น URL เต็มเพื่อให้หน้าต่างพิมพ์โหลดได้
+const ckAbs = u => { if (!u) return ''; try { return /^(https?:|data:)/.test(u) ? u : new URL(u, location.href).href; } catch { return ''; } };
+const ckLogos = hotelId => ({ club: ckAbs(siteImgId('logo', 'assets/logo-800.jpg')), resort: ckAbs(DB.hotel(hotelId)?.logo) });
 function ckDocOk(g) {
   const n = String(g.docNo || '').trim();
   if (g.docType === 'idcard') return /^\d{13}$/.test(n.replace(/\D/g, ''));
@@ -15,14 +18,16 @@ function ckDocOk(g) {
 }
 
 // เปิดฟอร์มลงทะเบียน — คืน 'saved' (บันทึกแล้ว) · 'skip' (ข้าม เช็คอินอย่างเดียว) · null (ปิด/ยกเลิก)
-function ckForm(b, { allowSkip = false } = {}) {
+function ckForm(b, { allowSkip = false, self = null } = {}) { // self = { pin } → ลูกค้ากรอกเองบนมือถือ (ส่งผ่าน sd_checkin_submit ไม่พิมพ์ ไม่ข้าม)
   return new Promise(resolve => {
     const total = Math.max(1, (b.adults || 1) + (b.children || 0));
     const rules = String(DB.hotel(b.hotelId)?.houseRules || '').split('\n').map(x => x.trim()).filter(Boolean); // กฎที่เจ้าของตั้ง ณ ตอนนี้ (เก็บสำเนาไว้ในทะเบียนที่เซ็น)
     const guests = [{ name: guestName(b), docType: 'idcard', docNo: '', nation: 'ไทย', photo: null, url: '' }];
     const ov = document.createElement('div');
     ov.className = 'ck-screen';
+    const lg = ckLogos(b.hotelId);
     ov.innerHTML = `<div class="ck-wrap">
+      <div class="row between" style="gap:12px;align-items:center;margin-bottom:10px"><img src="${esc(lg.club)}" alt="ชมรมรีสอร์ท & ที่พัก เกาะล้าน" style="height:52px;max-width:48%;object-fit:contain">${lg.resort ? `<img src="${esc(lg.resort)}" alt="" style="height:52px;max-width:48%;object-fit:contain">` : ''}</div>
       <div class="ck-head"><div><h2><i class="fa-solid fa-id-card"></i> ลงทะเบียนผู้เข้าพัก</h2>
         <div class="small muted">${esc(b.id)} · ${esc(b.hotelName)} · ${b.qty} × ${esc(b.roomName)} · ${fmtDate(b.checkIn, false)} – ${fmtDate(b.checkOut, false)}</div></div>
         <button type="button" class="ck-x" data-ck="close" aria-label="ปิด"><i class="fa-solid fa-xmark"></i></button></div>
@@ -43,6 +48,7 @@ function ckForm(b, { allowSkip = false } = {}) {
       <div class="ck-actions">${allowSkip ? '<button type="button" class="btn btn-ghost" data-ck="skip">ข้าม (เช็คอินอย่างเดียว)</button>' : '<button type="button" class="btn btn-ghost" data-ck="close">ยกเลิก</button>'}
         <button type="button" class="btn btn-primary btn-lg" id="ck-save"><i class="fa-solid fa-check"></i> บันทึกทะเบียน</button></div></div>`;
     document.body.appendChild(ov);
+    if (self) $('#ck-print', ov).closest('label').style.display = 'none';
     document.body.style.overflow = 'hidden';
 
     const finish = r => { guests.forEach(g => g.url && URL.revokeObjectURL(g.url)); ov.remove(); if (!$('#modal')) document.body.style.overflow = ''; resolve(r); };
@@ -118,7 +124,7 @@ function ckForm(b, { allowSkip = false } = {}) {
       if (rules.length && !$('#ck-rules', ov).checked) return err('ผู้เข้าพักต้องติ๊กยอมรับกฎของรีสอร์ทก่อน');
       if (!$('#ck-consent', ov).checked) return err('ผู้เข้าพักต้องติ๊กยินยอมให้เก็บข้อมูลก่อน');
       if (!dirty) return err('กรุณาให้ผู้เข้าพักเซ็นชื่อ');
-      const wantPrint = $('#ck-print', ov).checked; try { localStorage.setItem('sd_ck_print', wantPrint ? '1' : '0'); } catch {}
+      const wantPrint = !self && $('#ck-print', ov).checked; if (!self) try { localStorage.setItem('sd_ck_print', wantPrint ? '1' : '0'); } catch {}
       const pw = wantPrint ? window.open('', '_blank') : null;
       const btn = $('#ck-save', ov); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
       const uploaded = [];
@@ -130,6 +136,10 @@ function ckForm(b, { allowSkip = false } = {}) {
         }
         const sigBlob = await new Promise(r => cv.toBlob(r, 'image/png'));
         const signature = await DB.checkinUpload(b.hotelId, b.id, sigBlob, 'sign', 'image/png'); uploaded.push(signature);
+        if (self) {
+          await DB.checkinSelfSubmit(b.id, self.pin, { guests: out, phone: $('#ck-phone', ov).value.trim(), vehicle: $('#ck-car', ov).value.trim(), signature, consent: true, rulesAccepted: rules.length > 0 });
+          toast('ส่งทะเบียนเรียบร้อยแล้ว'); finish('saved'); return;
+        }
         const now = new Date().toISOString(), u = DB.currentUser();
         const regData = { guests: out, phone: $('#ck-phone', ov).value.trim(), vehicle: $('#ck-car', ov).value.trim(), signature, consentAt: now, registeredAt: now, registeredBy: u?.name || '', ...(rules.length ? { rules: rules.join('\n'), rulesAcceptedAt: now } : {}) };
         await DB.checkinSave(b.hotelId, b.id, regData);
@@ -145,10 +155,56 @@ function ckForm(b, { allowSkip = false } = {}) {
   });
 }
 
+const jsonObj = v => !!v && typeof v === 'object';
+
+// ================= ให้ลูกค้ากรอกทะเบียนเองบนมือถือ =================
+// เจ้าของกด "ให้ลูกค้ากรอกเองบนมือถือ" → เปิดสิทธิ์ที่การจอง (data.selfCheckin) แล้วส่งลิงก์ / QR ให้ลูกค้า
+// ลูกค้าเปิดลิงก์ ใส่ PIN ของการจอง แล้วกรอก ถ่ายรูปบัตร เซ็นบนมือถือตัวเอง → ข้อมูลเข้าทะเบียนเดียวกับที่เจ้าของกรอก (ดูได้เฉพาะเจ้าของรีสอร์ท)
+function ckSelfModal(b, done) {
+  if (!jsonObj(b.selfCheckin)) DB.updateBooking(b.id, { selfCheckin: { openedAt: new Date().toISOString(), openedBy: DB.currentUser()?.name || '' } });
+  const link = selfCheckinLink(b.id);
+  const qr = (() => { try { const q = qrcode(0, 'M'); q.addData(link); q.make(); return q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); } catch { return ''; } })();
+  const m = openModal(`<h2><i class="fa-solid fa-mobile-screen"></i> ให้ลูกค้ากรอกทะเบียนเอง <span class="small muted">· ${esc(b.id)}</span></h2>
+    <p class="small muted" style="margin:8px 0 12px">ให้ลูกค้าสแกน QR หรือส่งลิงก์ทาง LINE ลูกค้าจะกรอกข้อมูล ถ่ายรูปบัตร/พาสปอร์ต และเซ็นชื่อบนมือถือของตัวเอง โดยต้องใส่ <b>PIN 6 หลักของการจอง</b> (ลูกค้าได้รับตอนจอง) กรอกเสร็จแล้วข้อมูลจะเข้าทะเบียนในรายการจองนี้ จากนั้นกด "เช็คอิน" ได้เลย</p>
+    ${qr ? `<div style="width:200px;margin:0 auto 12px">${qr}</div>` : ''}
+    <div class="row" style="gap:8px"><input id="cs-link" readonly value="${esc(link)}" style="flex:1"><button type="button" class="btn btn-outline btn-sm" id="cs-copy"><i class="fa-regular fa-copy"></i> คัดลอก</button></div>
+    <div class="row between" style="gap:8px;margin-top:16px"><button type="button" class="btn btn-ghost btn-sm red" id="cs-off"><i class="fa-solid fa-ban"></i> ปิดการกรอก</button><button type="button" class="btn btn-primary" data-close>เสร็จ</button></div>`);
+  $('#cs-copy', m).onclick = () => { copyText(link); toast('คัดลอกลิงก์แล้ว'); };
+  $('#cs-off', m).onclick = () => { DB.updateBooking(b.id, { selfCheckin: null }); closeModal(); toast('ปิดการกรอกแล้ว'); done?.(); };
+  m.addEventListener('click', e => { if (e.target.closest('[data-close]')) done?.(); });
+}
+
 // ก่อนเช็คอิน: ถ้ายังไม่มีทะเบียน เปิดฟอร์มให้กรอก (ข้ามได้) — คืน false = ยกเลิกการเช็คอิน
+// เลือกวิธีลงทะเบียนตอนกดเช็คอิน — คืน 'self' | 'counter' | 'skip' | null (ปิดหน้าต่าง = ยกเลิกเช็คอิน)
+function ckChoose(b) {
+  return new Promise(resolve => {
+    let picked = false;
+    const m = openModal(`<h2><i class="fa-solid fa-id-card"></i> ทะเบียนผู้เข้าพัก <span class="small muted">· ${esc(b.id)}</span></h2>
+      <p class="small muted" style="margin:6px 0 14px">การจองนี้ยังไม่ได้ลงทะเบียน — เลือกวิธีลงทะเบียน</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button type="button" class="btn btn-primary btn-lg" data-pick="self"><i class="fa-solid fa-mobile-screen"></i> ให้ลูกค้ากรอกบนมือถือ (แนะนำ)</button>
+        <div class="small muted" style="margin:-4px 0 4px">ปุ่ม "กรอกทะเบียนเข้าพัก" จะขึ้นในการจองบนมือถือลูกค้าทันที — ลูกค้าถ่ายรูปบัตรและเซ็นชื่อเอง</div>
+        <button type="button" class="btn btn-outline" data-pick="counter"><i class="fa-solid fa-id-card"></i> กรอกที่เคาน์เตอร์ (ถ่ายรูปบัตร + ให้ลูกค้าเซ็นบนจอนี้)</button>
+        <button type="button" class="btn btn-ghost" data-pick="skip">ข้าม (เช็คอินอย่างเดียว)</button></div>`);
+    m.addEventListener('click', e => { const t = e.target.closest('[data-pick]'); if (!t) return; picked = true; closeModal(); resolve(t.dataset.pick); });
+    const obs = new MutationObserver(() => { if (!document.body.contains(m)) { obs.disconnect(); if (!picked) resolve(null); } });
+    obs.observe(document.body, { childList: true, subtree: true });
+  });
+}
+
+// ก่อนเช็คอิน: ถ้ายังไม่มีทะเบียน ให้เลือกวิธีลงทะเบียน — คืน false = ยกเลิกการเช็คอิน
 async function ckEnsure(b) {
   try { if (await DB.checkinGet(b.id)) return true; }
   catch (e) { return confirmBox(`เปิดทะเบียนผู้เข้าพักไม่ได้ (${esc(e.message || e)})<br>เช็คอินต่อโดยไม่ลงทะเบียนหรือไม่?`, 'เช็คอินต่อ'); }
+  if (jsonObj(b.selfCheckin)) return true; // เปิดให้ลูกค้ากรอกบนมือถือไว้แล้ว — เช็คอินต่อ ลูกค้าจะกรอกตามมา
+  const how = await ckChoose(b);
+  if (how === null) return false;
+  if (how === 'skip') return true;
+  if (how === 'self') {
+    DB.updateBooking(b.id, { selfCheckin: { openedAt: new Date().toISOString(), openedBy: DB.currentUser()?.name || '' } });
+    toast('เปิดให้ลูกค้ากรอกแล้ว — ปุ่ม "กรอกทะเบียนเข้าพัก" ขึ้นบนมือถือลูกค้า', 'info');
+    return true;
+  }
   return (await ckForm(b, { allowSkip: true })) !== null;
 }
 
@@ -172,8 +228,9 @@ async function ckDrawer(m, b) {
     let reg;
     try { reg = await DB.checkinGet(b.id); } catch (e) { box.innerHTML = head + `<p class="small muted">โหลดไม่ได้: ${esc(e.message || e)}</p>`; return; }
     if (!reg) {
-      box.innerHTML = head + '<p class="small muted" style="margin:0 0 8px">ยังไม่ได้ลงทะเบียน — ถ่ายรูปบัตร/พาสปอร์ตและให้ผู้เข้าพักเซ็นบนหน้าจอ ไม่ต้องพิมพ์เอกสาร</p><button class="btn btn-sm btn-primary" id="ck-open"><i class="fa-solid fa-id-card"></i> ลงทะเบียนผู้เข้าพัก</button>';
+      box.innerHTML = head + '<p class="small muted" style="margin:0 0 8px">ยังไม่ได้ลงทะเบียน — ถ่ายรูปบัตร/พาสปอร์ตและให้ผู้เข้าพักเซ็นบนหน้าจอ ไม่ต้องพิมพ์เอกสาร</p><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn btn-sm btn-primary" id="ck-open"><i class="fa-solid fa-id-card"></i> ลงทะเบียนผู้เข้าพัก</button><button class="btn btn-sm btn-outline" id="ck-self"><i class="fa-solid fa-mobile-screen"></i> ให้ลูกค้ากรอกเองบนมือถือ' + (jsonObj(b.selfCheckin) ? ' <span class="pill vip">เปิดอยู่</span>' : '') + '</button></div>';
       $('#ck-open', box).onclick = async () => { if (await ckForm(b)) paint(); };
+      $('#ck-self', box).onclick = () => ckSelfModal(b, paint);
       return;
     }
     box.innerHTML = head + `<p class="small" style="margin:0 0 8px"><span class="pill ok">ลงทะเบียนแล้ว</span> <span class="muted">${fmtDateTime(reg.registeredAt)}${reg.registeredBy ? ' · ' + esc(reg.registeredBy) : ''}</span></p>
@@ -238,7 +295,7 @@ async function ckPrint(b, reg, w) {
     if (!reg) throw new Error('ยังไม่มีทะเบียนของการจองนี้');
     const [photos, sig] = await Promise.all([Promise.all(reg.guests.map(g => DB.checkinUrl(g.photo))), DB.checkinUrl(reg.signature)]);
     const h = DB.hotel(b.hotelId) || {}, owner = h.ownerId ? DB.owner(h.ownerId) : null, me = DB.currentUser();
-    const T = x => esc(x == null ? '' : String(x));
+    const T = x => esc(x == null ? '' : String(x)), lg = ckLogos(b.hotelId);
     const row = (l, v) => v ? `<tr><th>${l}</th><td>${T(v)}</td></tr>` : '';
     const html = `<!doctype html><html lang="th"><head><meta charset="utf-8"><title>ทะเบียนผู้เข้าพัก ${T(b.id)}</title><style>
       @page { size: A4; margin: 12mm; }
@@ -250,13 +307,17 @@ async function ckPrint(b, reg, w) {
       table { border-collapse: collapse; width: 100%; } td, th { border: 1px solid #999; padding: 5px 8px; text-align: left; vertical-align: top; }
       th { background: #f1f1f1; width: 34%; font-weight: 600; } table.g th { width: auto; }
       .ph { display: inline-block; margin: 6px 10px 6px 0; vertical-align: top; page-break-inside: avoid; } .ph img { max-height: 230px; max-width: 340px; border: 1px solid #999; display: block; }
-      .sig { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; margin-top: 10px; page-break-inside: avoid; } .sig img { height: 90px; border-bottom: 1px solid #111; }
+      .sig { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-top: 10px; page-break-inside: avoid; } .sig > div { flex: 1 1 0; min-width: 0; } .sig .sg img { height: 90px; border-bottom: 1px solid #111; }
+      .idc { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; } .idc .ph { margin: 0; } .idc .ph img { max-height: 190px; max-width: 100%; }
       .box { border: 1px solid #999; padding: 8px 10px; font-size: 12px; margin-top: 8px; }
+      .brand { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 12px; }
+      .brand img { max-height: 74px; max-width: 46%; object-fit: contain; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .noprint { position: sticky; top: 0; background: #fff8e1; border: 1px solid #f0c36d; padding: 10px 14px; margin-bottom: 14px; display: flex; gap: 10px; align-items: center; justify-content: space-between; }
       .noprint button { font: inherit; font-weight: 700; padding: 8px 16px; border: 0; border-radius: 8px; background: #1a5fd0; color: #fff; cursor: pointer; }
       @media print { .noprint { display: none; } body { padding: 0; } }
     </style></head><body>
       <div class="noprint"><span>เลือก <b>พิมพ์</b> หรือเลือกปลายทางเป็น <b>บันทึกเป็น PDF</b> ในหน้าต่างพิมพ์</span><button onclick="window.print()">พิมพ์ / บันทึกเป็น PDF</button></div>
+      <div class="brand"><img src="${T(lg.club)}" alt="ชมรมรีสอร์ท & ที่พัก เกาะล้าน">${lg.resort ? `<img src="${T(lg.resort)}" alt="">` : ''}</div>
       <div class="top"><div><h1>ทะเบียนผู้เข้าพัก <span style="font-weight:400;font-size:14px">/ Guest Registration</span></h1><div>${T(b.hotelName)}</div>
         <div class="muted">${T(h.address || '')}${owner?.phone ? ' · โทร ' + T(owner.phone) : ''}</div></div>
         <div style="text-align:right"><div class="muted">รหัสการจอง</div><div style="font-size:20px;font-weight:700">${T(b.id)}</div></div></div>
@@ -265,12 +326,11 @@ async function ckPrint(b, reg, w) {
       <h2>ผู้เข้าพัก</h2>
       <table class="g"><thead><tr><th style="width:36px">#</th><th>ชื่อ-นามสกุล</th><th>ประเภทเอกสาร</th><th>เลขที่เอกสาร</th><th>สัญชาติ</th></tr></thead><tbody>
         ${reg.guests.map((g, i) => `<tr><td>${i + 1}</td><td>${T(g.name)}</td><td>${T(CK_DOC[g.docType] || '')}</td><td>${T(g.docNo)}</td><td>${T(g.nation)}</td></tr>`).join('')}</tbody></table>
-      <h2>สำเนาเอกสารประจำตัว</h2>
-      <div>${reg.guests.map((g, i) => photos[i] ? `<div class="ph"><img src="${photos[i]}" alt=""><div class="muted">ผู้เข้าพักท่านที่ ${i + 1} — ${T(g.name)}</div></div>` : '').join('')}</div>
       ${reg.rules ? `<h2>กฎของรีสอร์ท <span style="font-weight:400;font-size:12px">(ผู้เข้าพักรับทราบและยอมรับ เมื่อ ${T(fmtDateTime(reg.rulesAcceptedAt || reg.registeredAt))})</span></h2><ol style="margin:4px 0 0;padding-left:22px">${reg.rules.split('\n').map(r => `<li>${T(r)}</li>`).join('')}</ol>` : ''}
       <div class="box">${CK_CONSENT.replace('จะถูกลบอัตโนมัติเมื่อครบ 45 วัน', 'จะถูกลบออกจากระบบอัตโนมัติเมื่อครบ 45 วัน')}</div>
-      <div class="sig"><div>${sig ? `<img src="${sig}" alt="ลายเซ็น">` : ''}<div>(${T(reg.guests[0]?.name || '')})</div><div class="muted">ลายเซ็นผู้เข้าพัก</div></div>
-        <div style="text-align:right"><div class="muted">ลงทะเบียนเมื่อ</div><div>${T(fmtDateTime(reg.registeredAt || reg.savedAt))}</div><div class="muted">ผู้รับลงทะเบียน: ${T(reg.registeredBy || '')}</div></div></div>
+      <div class="sig"><div class="sg">${sig ? `<img src="${sig}" alt="ลายเซ็น">` : ''}<div>(${T(reg.guests[0]?.name || '')})</div><div class="muted">ลายเซ็นผู้เข้าพัก</div>
+          <div class="muted" style="margin-top:10px">ลงทะเบียนเมื่อ ${T(fmtDateTime(reg.registeredAt || reg.savedAt))}${reg.registeredBy ? ' · ผู้รับลงทะเบียน: ' + T(reg.registeredBy) : ''}</div></div>
+        <div><div class="muted" style="text-align:right;margin-bottom:4px">สำเนาบัตรประชาชน / พาสปอร์ต</div><div class="idc">${reg.guests.map((g, i) => photos[i] ? `<div class="ph"><img src="${photos[i]}" alt=""><div class="muted">ท่านที่ ${i + 1} — ${T(g.name)}</div></div>` : '').join('')}</div></div></div>
       <div class="muted" style="margin-top:14px">พิมพ์เมื่อ ${T(fmtDateTime(new Date().toISOString()))}${me ? ' โดย ' + T(me.name) : ''} · เอกสารนี้มีข้อมูลส่วนบุคคล โปรดเก็บรักษาให้ปลอดภัยและทำลายเมื่อพ้นความจำเป็น</div>
       <script>addEventListener('load', function () { setTimeout(function () { window.print(); }, 400); });<\/script>
     </body></html>`;

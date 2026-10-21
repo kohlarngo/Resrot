@@ -6,6 +6,7 @@ const ROUTES = [
   [/^\/hotel\/([\w-]+)$/, pageHotel],
   [/^\/book$/, pageBook],
   [/^\/booking\/(\w+)$/, pageBookingView],
+  [/^\/checkin\/(\w+)$/, pageSelfCheckin],
   [/^\/my-bookings$/, pageMyBookings],
   [/^\/favorites$/, pageFavorites],
   [/^\/profile$/, pageProfile],

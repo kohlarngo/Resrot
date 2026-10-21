@@ -231,6 +231,9 @@ const DB = {
     const { error } = await supa.from('sd_checkins').upsert({ booking_id: bookingId, hotel_id: hotelId, data, updated_at: new Date().toISOString() }, { onConflict: 'booking_id' });
     if (error) throw error;
   },
+  // ลูกค้ากรอกทะเบียนเองบนมือถือ (ยืนยันด้วยรหัสจอง + PIN) — เจ้าของต้องกด "ให้ลูกค้ากรอกเอง" ที่การจองก่อน
+  async checkinSelfStatus(id, pin) { return rpc('sd_checkin_status', { p_id: id, p_pin: pin }); },
+  async checkinSelfSubmit(id, pin, data) { return rpc('sd_checkin_submit', { p_id: id, p_pin: pin, p_data: data }); },
   async checkinUrl(path) {
     const { data, error } = await supa.storage.from('sd-checkin').createSignedUrl(path, 300);
     return error ? null : data.signedUrl;
@@ -621,6 +624,8 @@ const SOCIALS = {
   line: { label: 'LINE ID', icon: 'fa-brands fa-line', color: '#06c755', ph: '@ไลน์ไอดี หรือ https://line.me/ti/p/...' },
 };
 const normSlug = v => String(v || '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+// ลิงก์ให้ลูกค้ากรอกทะเบียนผู้เข้าพักเองบนมือถือ (ลูกค้าต้องใส่ PIN ของการจอง)
+function selfCheckinLink(id) { return location.href.split('#')[0].replace(/[^/]*$/, '') + SITE_URL + '#/checkin/' + id; }
 function resortLink(h, src) {
   const base = location.href.split('#')[0].replace(/[^/]*$/, '') + SITE_URL;
   return `${base}#/hotel/${h.slug || h.id}${src ? '?src=' + src : ''}`;

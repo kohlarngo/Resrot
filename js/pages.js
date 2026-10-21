@@ -602,7 +602,7 @@ function roomHtml(h, r, guestsPerRoom) {
           return `<div class="offer">
             <div class="ben">
               ${o.breakfast ? '<div class="green"><i class="fa-solid fa-mug-saucer"></i><b>รวมอาหารเช้า</b></div>' : '<div class="muted"><i class="fa-solid fa-mug-saucer"></i>ไม่รวมอาหารเช้า</div>'}
-              ${o.freeCancel ? `<div class="green"><i class="fa-solid fa-check"></i><span><b>ยกเลิกได้</b> ล่วงหน้า ${CANCEL_MIN_DAYS} วัน (ก่อน ${fmtDate(addDays(S.checkIn, -CANCEL_MIN_DAYS), false)})</span></div>` : '<div class="muted"><i class="fa-solid fa-xmark"></i>ไม่สามารถคืนเงินได้</div>'}
+              ${o.freeCancel ? `<div class="green"><i class="fa-solid fa-check"></i><span><b>ยกเลิกได้</b> ล่วงหน้า ${CANCEL_MIN_DAYS} วัน (ได้ถึงวันที่ ${fmtDate(addDays(S.checkIn, -CANCEL_MIN_DAYS), false)})</span></div>` : '<div class="muted"><i class="fa-solid fa-xmark"></i>ไม่สามารถคืนเงินได้</div>'}
               ${o.payAtHotel ? '<div class="green"><i class="fa-solid fa-check"></i><b>ชำระเงินที่ที่พัก</b></div>' : '<div><i class="fa-solid fa-credit-card"></i>ชำระเงินล่วงหน้า</div>'}
               <div><i class="fa-solid fa-wifi green"></i>Wi-Fi ฟรี</div>
             </div>
@@ -819,6 +819,42 @@ function bookingStatus(b) { return b.status === 'confirmed' && b.checkOut < toda
 const STATUS_TH = { confirmed: 'ยืนยันแล้ว', pending: 'รอยืนยัน', cancelled: 'ยกเลิกแล้ว', completed: 'เข้าพักแล้ว' };
 const PAY_TH = { card: 'บัตรเครดิต/เดบิต', promptpay: 'พร้อมเพย์', bank: 'โอนผ่านธนาคาร', hotel: 'ชำระที่ที่พัก' };
 
+// ================= ลูกค้ากรอกทะเบียนผู้เข้าพักเองบนมือถือ (#/checkin/<รหัสจอง>) =================
+// เจ้าของรีสอร์ทกด "ให้ลูกค้ากรอกเอง" ที่การจองก่อน · ลูกค้าใส่ PIN → กรอก ถ่ายรูปบัตร เซ็นชื่อ → เข้าทะเบียนของรีสอร์ท
+async function pageSelfCheckin(app, params, id) {
+  const wrap = html => { app.innerHTML = `<div class="container" style="max-width:560px;padding-top:24px"><div class="panel" style="text-align:center">${html}</div></div>`; };
+  const ask = msg => {
+    wrap(`<h2><i class="fa-solid fa-id-card"></i> ลงทะเบียนผู้เข้าพัก</h2><p class="muted small" style="margin:6px 0 14px">การจอง <b>${esc(id)}</b> — ใส่ PIN 6 หลักที่ได้รับตอนจองเพื่อเริ่มกรอก</p>
+      ${msg ? `<div class="red small" style="margin-bottom:10px">${esc(msg)}</div>` : ''}
+      <form id="sc-f" style="display:flex;gap:8px;justify-content:center"><input name="pin" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="PIN 6 หลัก" style="max-width:160px;text-align:center;font-size:18px"><button class="btn btn-primary">ถัดไป</button></form>`);
+    $('#sc-f').onsubmit = e => { e.preventDefault(); start(e.target.pin.value.trim()); };
+  };
+  const start = async pin => {
+    if (!/^\d{4,6}$/.test(pin)) return ask('กรุณาใส่ PIN ที่ได้รับตอนจอง');
+    wrap('<p class="muted"><i class="fa-solid fa-spinner fa-spin"></i> กำลังตรวจสอบ...</p>');
+    let b, st;
+    try { b = await DB.lookupBooking(id, pin); st = await DB.checkinSelfStatus(id, pin); } catch (e) { return ask(e.message); }
+    if (!b) return ask('ไม่พบการจอง หรือ PIN ไม่ถูกต้อง');
+    if (st.done) return wrap('<h2><i class="fa-solid fa-circle-check green"></i> กรอกทะเบียนเรียบร้อยแล้ว</h2><p class="muted">ขอบคุณครับ/ค่ะ — แสดงรหัสจองกับเจ้าหน้าที่ตอนเช็คอินได้เลย</p>');
+    if (!st.open) return wrap('<h2><i class="fa-solid fa-hourglass-half"></i> ที่พักยังไม่เปิดให้กรอก</h2><p class="muted">กรุณาแจ้งเจ้าหน้าที่ที่พัก แล้วลองใหม่อีกครั้ง หรือกรอกที่เคาน์เตอร์ตอนเช็คอิน</p>');
+    const begin = async () => {
+      const r = await ckForm(b, { self: { pin } });
+      if (r === 'saved') wrap('<h2><i class="fa-solid fa-circle-check green"></i> ส่งทะเบียนเรียบร้อยแล้ว</h2><p class="muted">ขอบคุณครับ/ค่ะ — แสดงรหัสจองกับเจ้าหน้าที่ตอนเช็คอินได้เลย<br><b>' + esc(b.id) + '</b></p>');
+    };
+    wrap(`<h2><i class="fa-solid fa-id-card"></i> ลงทะเบียนผู้เข้าพัก</h2>
+      <p class="muted small" style="margin:6px 0 14px">${esc(b.hotelName)} · ${b.qty} × ${esc(b.roomName)}<br>${fmtDate(b.checkIn, false)} – ${fmtDate(b.checkOut, false)}</p>
+      <p class="small" style="text-align:left;margin:0 0 14px">เตรียม <b>บัตรประชาชนหรือพาสปอร์ต</b> ของผู้เข้าพักทุกท่าน — ระบบจะให้ถ่ายรูปเอกสาร และเซ็นชื่อบนหน้าจอ ข้อมูลเก็บเป็นความลับ เห็นเฉพาะรีสอร์ทนี้ และลบอัตโนมัติเมื่อครบ 45 วัน</p>
+      <button class="btn btn-primary btn-lg" id="sc-go"><i class="fa-solid fa-play"></i> เริ่มกรอกทะเบียน</button>`);
+    $('#sc-go').onclick = begin;
+  };
+  const saved = LS.get('mybk', []).find(x => x.id === id.toUpperCase());
+  saved?.pin ? start(saved.pin) : ask('');
+}
+// เจ้าของกดเช็คอิน / เปิดให้ลูกค้ากรอกแล้ว → ปุ่มกรอกทะเบียนผู้เข้าพักบนมือถือลูกค้า (ปิดเมื่อกรอกแล้ว เช็คเอาท์ หรือยกเลิก)
+const selfCheckinBannerHtml = b => b.selfCheckin && typeof b.selfCheckin === 'object' && !b.selfCheckinDoneAt && !b.checkedOutAt && b.status !== 'cancelled'
+  ? `<div class="panel" style="border:2px solid var(--primary,#1a5fd0);text-align:center"><h2 style="margin:0 0 6px"><i class="fa-solid fa-id-card"></i> กรอกทะเบียนผู้เข้าพัก</h2>
+      <p class="small muted" style="margin:0 0 12px">ที่พักเปิดให้กรอกแล้ว — เตรียมบัตรประชาชนหรือพาสปอร์ตของผู้เข้าพัก ใช้เวลาไม่ถึง 2 นาที</p>
+      <a class="btn btn-primary btn-lg" href="#/checkin/${esc(b.id)}"><i class="fa-solid fa-pen-to-square"></i> กรอกทะเบียนเข้าพัก</a></div>` : '';
 function pageBookingView(app, params, id) {
   const b = DB.booking(id);
   if (!b) { app.innerHTML = `<div class="container"><div class="empty" style="margin-top:30px"><h3>ไม่พบการจองนี้</h3><a href="#/my-bookings" class="btn btn-primary">การจองของฉัน</a></div></div>`; return; }
@@ -832,6 +868,7 @@ function pageBookingView(app, params, id) {
       <div class="muted small">หมายเลขการจอง</div><div class="bk-id">${b.id}</div><div class="small muted">PIN: ${b.pin} — ใช้ค้นหาการจองได้ที่ "การจองของฉัน"</div></div>` : ''}
     ${rejected ? `<div class="notice warn"><i class="fa-solid fa-circle-xmark"></i><div><b>เจ้าของรีสอร์ทปฏิเสธการจองนี้</b>${b.cancelReason ? ` — ${esc(b.cancelReason)}` : ''}<br>หากโอนเงินไปแล้ว กรุณาติดต่อเจ้าของรีสอร์ทเพื่อขอรับเงินคืน</div></div>` : ''}
     ${st === 'pending' && b.payment.method === 'hotel' ? '<div class="notice info"><i class="fa-solid fa-hourglass-half"></i><div>รอเจ้าของรีสอร์ทยืนยันการจอง — ชำระเงินที่ที่พักในวันเข้าพัก</div></div>' : ''}
+    ${selfCheckinBannerHtml(b)}
     ${payBoxHtml(b, st)}
     <div class="panel" id="voucher">
       <div class="row between wrap"><h2 style="margin:0">ใบยืนยันการจอง (Voucher)</h2><span class="status ${st}">${STATUS_TH[st]}</span></div>
@@ -845,7 +882,7 @@ function pageBookingView(app, params, id) {
       <table class="policy-table">
         <tr><td>ผู้เข้าพักหลัก</td><td>${esc(b.guest.firstName)} ${esc(b.guest.lastName)}<br><span class="small muted">${esc(b.guest.email)} · ${esc(b.guest.phone)}</span></td></tr>
         <tr><td>ห้องพัก</td><td>${b.qty} x ${esc(b.roomName)} · ${b.nights} คืน<br><span class="small muted">ผู้ใหญ่ ${b.adults}${b.children ? `, เด็ก ${b.children}` : ''}</span></td></tr>
-        <tr><td>สิทธิประโยชน์</td><td>${b.offer.breakfast ? 'รวมอาหารเช้า' : 'ไม่รวมอาหารเช้า'} · ${b.offer.freeCancel ? `ยกเลิกได้ล่วงหน้า ${CANCEL_MIN_DAYS} วัน (ก่อน ${fmtDate(addDays(b.checkIn, -CANCEL_MIN_DAYS), false)}) — เจ้าของที่พักยืนยันและโอนเงินคืน` : 'ไม่สามารถคืนเงินได้'}</td></tr>
+        <tr><td>สิทธิประโยชน์</td><td>${b.offer.breakfast ? 'รวมอาหารเช้า' : 'ไม่รวมอาหารเช้า'} · ${b.offer.freeCancel ? `ยกเลิกได้ล่วงหน้า ${CANCEL_MIN_DAYS} วัน (ได้ถึงวันที่ ${fmtDate(addDays(b.checkIn, -CANCEL_MIN_DAYS), false)}) — เจ้าของที่พักยืนยันและโอนเงินคืน` : 'ไม่สามารถคืนเงินได้'}</td></tr>
         ${b.guest.requests?.length || b.guest.note ? `<tr><td>คำขอพิเศษ</td><td>${esc([...(b.guest.requests || []), b.guest.note].filter(Boolean).join(', '))}</td></tr>` : ''}
         <tr><td>การชำระเงิน</td><td>${PAY_TH[b.payment.method]}${b.payment.last4 ? ` (${b.payment.brand} •••• ${b.payment.last4})` : ''} — ${b.payment.paid ? '<span class="green bold">ชำระแล้ว</span>' : b.payment.slip ? '<span class="bold">ส่งสลิปแล้ว รอตรวจสอบ</span>' : '<span class="red bold">ยังไม่ได้ชำระ</span>'}</td></tr>
         ${b.refund != null ? `<tr><td>การคืนเงิน</td><td>${b.refund > 0 ? money(b.refund) + ' (เจ้าของรีสอร์ทเป็นผู้คืนเงิน)' : 'ไม่มีการคืนเงิน'}</td></tr>` : ''}
@@ -921,7 +958,7 @@ async function cancelBooking(b, done) {
 function cancelBtnHtml(b, st) {
   if (st !== 'confirmed' && st !== 'pending') return '';
   if (b.cancelReq?.status === 'pending') return '<span class="small muted">ส่งคำขอยกเลิกแล้ว — รอเจ้าของที่พักยืนยัน</span>';
-  if (cancelDaysLeft(b) < CANCEL_MIN_DAYS) return `<span class="small muted">ยกเลิกได้ล่วงหน้าอย่างน้อย ${CANCEL_MIN_DAYS} วันก่อนเช็คอิน — กรุณาติดต่อเจ้าของที่พัก</span>`;
+  if (cancelDaysLeft(b) < CANCEL_MIN_DAYS) return `<span class="small muted">ยกเลิกได้ถึงวันที่ ${fmtDate(addDays(b.checkIn, -CANCEL_MIN_DAYS), false)} (ล่วงหน้า ${CANCEL_MIN_DAYS} วัน) — ตอนนี้เลยกำหนดแล้ว กรุณาติดต่อเจ้าของที่พัก</span>`;
   return `<button class="btn btn-danger" id="cancel-bk"><i class="fa-solid fa-xmark"></i> ${b.payment.paid || b.payment.slip ? 'ขอยกเลิกการจอง' : 'ยกเลิกการจอง'}</button>`;
 }
 

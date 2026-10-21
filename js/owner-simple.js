@@ -233,6 +233,9 @@ function shopModal(h, done) {
   const m = openModal(`<h2><i class="fa-solid fa-paintbrush"></i> ตกแต่งหน้ารีสอร์ท <span class="small muted">· ${esc(h.name)}</span></h2>
     <form id="sh-f" class="form-grid" novalidate style="margin-top:14px">
       <div class="fg full"><label>รูปภาพ — รูปแรกคือ <b>ภาพปก</b> (กดดาวเพื่อตั้งรูปอื่นเป็นปก)</label><div id="sh-imgs"></div></div>
+      <div class="fg full"><label>โลโก้รีสอร์ท <span class="small muted">— แสดงบนหัวใบทะเบียนผู้เข้าพักที่พิมพ์ (ไม่บังคับ)</span></label>
+        <div class="row" style="gap:12px;align-items:center"><span id="sh-logo-prev" style="display:inline-flex;align-items:center;justify-content:center;width:96px;height:64px;border:1px dashed var(--border,#ccd);border-radius:8px;overflow:hidden"></span>
+          <button type="button" class="btn btn-outline btn-sm" id="sh-logo-up"><i class="fa-solid fa-camera"></i> อัปโหลดโลโก้</button><button type="button" class="btn btn-ghost btn-sm" id="sh-logo-rm"><i class="fa-solid fa-trash"></i> ลบโลโก้</button></div></div>
       ${can('hotels.media') ? `<div class="fg full slide-set"><label class="row" style="gap:8px;font-weight:700"><input type="checkbox" name="slide_on" ${h.slideshow?.on === true ? 'checked' : ''}> <i class="fa-solid fa-images"></i> สไลด์รูปอัตโนมัติบนหน้ารีสอร์ท</label>
         <div class="row wrap" style="gap:8px;margin-top:8px;align-items:center"><span class="small">เปลี่ยนรูปทุก</span>
           <input name="slide_sec" type="range" min="2" max="15" step="1" value="${Math.min(15, Math.max(2, Math.round(+h.slideshow?.seconds || 4)))}" style="flex:1;min-width:140px;max-width:260px"><b id="sl-sec-v" style="min-width:64px"></b></div>
@@ -241,13 +244,27 @@ function shopModal(h, done) {
       <div class="fg full"><label>คำอธิบาย</label><textarea name="description" rows="3">${esc(h.description || '')}</textarea></div>
       <div class="fg full"><label>จุดเด่น (บรรทัดละ 1 ข้อ)</label><textarea name="highlights" rows="3">${esc((h.highlights || []).join('\n'))}</textarea></div>
       <div class="fg full"><label><i class="fa-solid fa-scale-balanced"></i> กฎของรีสอร์ท (บรรทัดละ 1 ข้อ) — แสดงให้ผู้เข้าพักอ่านและเซ็นรับทราบตอนลงทะเบียนเช็คอิน และพิมพ์ในเอกสาร</label>
-        <textarea name="houseRules" rows="6" maxlength="2000" placeholder="เช่น&#10;ห้ามสูบบุหรี่ในห้องพัก&#10;เงียบหลัง 22.00 น.&#10;กุญแจหายปรับ 500 บาท&#10;ห้ามนำอาหารมีกลิ่นแรงเข้าห้อง">${esc(h.houseRules || DEFAULT_HOUSE_RULES)}</textarea>
+        <div class="small muted" style="margin:2px 0 6px">กดเลือกกฎตัวอย่างที่ต้องการ (กดซ้ำเพื่อเอาออก) แล้วแก้ข้อความ เพิ่ม หรือลบได้เองในช่องด้านล่าง</div>
+        <div id="sh-rule-chips" class="row wrap" style="gap:6px;margin-bottom:8px"></div>
+        <textarea name="houseRules" rows="8" maxlength="2000" placeholder="เช่น&#10;ห้ามสูบบุหรี่ในห้องพัก&#10;เงียบหลัง 22.00 น.&#10;กุญแจหายปรับ 500 บาท&#10;ห้ามนำอาหารมีกลิ่นแรงเข้าห้อง">${esc(h.houseRules || DEFAULT_HOUSE_RULES)}</textarea>
         <div class="small muted" style="margin-top:4px">เว้นว่าง = ไม่แสดงส่วนกฎในฟอร์มลงทะเบียน · ผู้เข้าพักแต่ละท่านเซ็นตามข้อความ ณ วันที่ลงทะเบียน (แก้กฎภายหลังไม่กระทบเอกสารเดิม)</div></div>
       ${isAdmin(DB.currentUser()) ? `<div class="fg full"><label>ชื่อลิงก์ประจำรีสอร์ท (a-z 0-9 -)</label><input name="slug" value="${esc(h.slug || '')}" maxlength="40" placeholder="เช่น sea-view-lan"><div class="small muted" style="margin-top:4px">ลิงก์: <code id="sh-link"></code><button type="button" class="btn btn-outline btn-sm" id="sh-copy" style="margin-left:6px"><i class="fa-regular fa-copy"></i> คัดลอก</button></div></div>` : ''}
       ${Object.entries(SOCIALS).map(([k, c]) => `<div class="fg"><label><i class="${c.icon}" style="color:${c.color}"></i> ${c.label}</label><input name="soc_${k}" value="${esc(h.social?.[k] || '')}" placeholder="${esc(c.ph)}"></div>`).join('')}
     </form>
     <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary" id="sh-save">บันทึก</button></div>`, 'wide');
   imgManager($('#sh-imgs', m), imgs);
+  let logo = h.logo || '';
+  const drawLogo = () => { $('#sh-logo-prev', m).innerHTML = logo ? `<img src="${esc(logo)}" alt="" style="max-width:100%;max-height:100%;object-fit:contain">` : '<span class="small muted">ยังไม่มีโลโก้</span>'; $('#sh-logo-rm', m).style.display = logo ? '' : 'none'; };
+  drawLogo();
+  $('#sh-logo-up', m).onclick = async () => {
+    try { toast('เลือกรูปโลโก้จากเครื่อง...', 'info'); const url = await pickAndUploadImage(600); if (!url) return; logo = url; drawLogo(); toast('อัปโหลดโลโก้แล้ว — กด "บันทึก" เพื่อใช้งาน'); }
+    catch (e) { toast('อัปโหลดโลโก้ไม่สำเร็จ: ' + e.message, 'err'); }
+  };
+  $('#sh-logo-rm', m).onclick = () => { logo = ''; drawLogo(); };
+  const ruleTa = $('[name=houseRules]', m), ruleChips = $('#sh-rule-chips', m), ruleLines = () => ruleTa.value.split('\n').map(x => x.trim()).filter(Boolean);
+  const drawChips = () => { const on = new Set(ruleLines()); ruleChips.innerHTML = HOUSE_RULE_SAMPLES.map(([lbl, t], i) => `<button type="button" class="btn btn-sm ${on.has(t) ? 'btn-primary' : 'btn-outline'}" data-rs="${i}"><i class="fa-solid ${on.has(t) ? 'fa-check' : 'fa-plus'}"></i> ${esc(lbl)}</button>`).join(''); };
+  ruleChips.onclick = e => { const b = e.target.closest('[data-rs]'); if (!b) return; const t = HOUSE_RULE_SAMPLES[+b.dataset.rs][1], ls = ruleLines(); ruleTa.value = (ls.includes(t) ? ls.filter(x => x !== t) : [...ls, t]).join('\n'); drawChips(); };
+  ruleTa.addEventListener('input', drawChips); drawChips();
   const f = $('#sh-f', m), link = () => $('#sh-link', m).textContent = resortLink({ id: h.id, slug: normSlug(f.elements.slug.value) });
   if (f.elements.slug) { f.elements.slug.oninput = link; link(); $('#sh-copy', m).onclick = () => { copyText($('#sh-link', m).textContent); toast('คัดลอกลิงก์แล้ว'); }; }
   if (f.elements.slide_sec) { const secLbl = () => $('#sl-sec-v', m).textContent = f.elements.slide_sec.value + ' วินาที';
@@ -257,7 +274,7 @@ function shopModal(h, done) {
     if (!v('name').trim()) return toast('กรุณาใส่ชื่อรีสอร์ท', 'err');
     const sl = f.elements.slug ? normSlug(v('slug')) : h.slug;
     if (sl && DB.hotels(true).some(x => x.id !== h.id && (x.slug === sl || x.id === sl))) return toast('ชื่อลิงก์นี้ถูกใช้แล้ว กรุณาเลือกชื่ออื่น', 'err');
-    Object.assign(h, { name: v('name').trim(), description: v('description'), images: imgs.length ? imgs : h.images, slug: sl || undefined,
+    Object.assign(h, { name: v('name').trim(), description: v('description'), images: imgs.length ? imgs : h.images, logo: logo || undefined, slug: sl || undefined,
       slideshow: f.elements.slide_on ? { on: f.elements.slide_on.checked, seconds: Math.min(15, Math.max(2, Math.round(+v('slide_sec')) || 4)) } : h.slideshow,
       highlights: v('highlights').split('\n').map(s => s.trim()).filter(Boolean),
       houseRules: v('houseRules').split('\n').map(s => s.trim()).filter(Boolean).join('\n').slice(0, 2000),
