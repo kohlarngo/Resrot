@@ -270,6 +270,7 @@ function headerHtml() {
     <div class="header-right">
       <button class="btn btn-ghost btn-sm hide-m" title="สกุลเงิน">THB ฿</button>
       ${langSwitcherHtml()}
+      ${DB.settings().line ? `<a class="btn btn-ghost btn-sm" href="${esc(socialUrl('line', DB.settings().line))}" target="_blank" rel="noopener" aria-label="LINE"><i class="fa-brands fa-line" style="color:#06c755"></i></a>` : ''}
       ${u ? `<div class="user-chip" id="user-chip" style="cursor:pointer"><span class="avatar">${esc(u.name[0] || '?')}</span><span class="hide-m">${esc(u.name)}</span><i class="fa-solid fa-chevron-down small"></i></div>`
       : `<button class="btn btn-outline btn-sm" data-auth="login">เข้าสู่ระบบ</button><button class="btn btn-primary btn-sm hide-m" data-auth="register">สร้างบัญชี</button>`}
     </div></div></header>`;
@@ -295,9 +296,15 @@ function bindHeader() {
     setTimeout(() => document.addEventListener('click', () => dd.remove(), { once: true }));
   };
 }
+function contactLinksHtml() {
+  const s = DB.settings();
+  const wait = '<span style="opacity:.7">รอกรอกเพิ่มเติม</span>';
+  return (s.phone ? `<a href="tel:${esc(s.phone.replace(/[^\d+]/g, ''))}"><i class="fa-solid fa-phone"></i> ${esc(s.phone)}</a>` : `<span><i class="fa-solid fa-phone"></i> โทร: ${wait}</span>`)
+    + (s.line ? `<a href="${esc(socialUrl('line', s.line))}" target="_blank" rel="noopener"><i class="fa-brands fa-line"></i> LINE ${esc(s.line)}</a>` : `<span><i class="fa-brands fa-line"></i> LINE: ${wait}</span>`);
+}
 function footerHtml() {
   return `<footer><div class="container"><div class="foot-grid">
-    <div><h4 data-edit="footer.help.title">ช่วยเหลือ</h4><a href="#/help"><span data-edit="footer.help1">ศูนย์ช่วยเหลือ</span></a><a href="#/help"><span data-edit="footer.help2">คำถามที่พบบ่อย</span></a><a href="#/help"><span data-edit="footer.help3">นโยบายความเป็นส่วนตัว</span></a><a href="#/help"><span data-edit="footer.help4">ข้อกำหนดการใช้งาน</span></a></div>
+    <div><h4 data-edit="footer.help.title">ช่วยเหลือ</h4><a href="#/help"><span data-edit="footer.help1">ศูนย์ช่วยเหลือ</span></a><a href="#/help"><span data-edit="footer.help2">คำถามที่พบบ่อย</span></a><a href="privacy.html"><span data-edit="footer.help3">นโยบายความเป็นส่วนตัว</span></a><a href="terms.html"><span data-edit="footer.help4">ข้อกำหนดการใช้งาน</span></a>${contactLinksHtml()}</div>
     ${sosFooterHtml()}
     <div><h4 data-edit="footer.dest.title">จุดหมายยอดนิยม</h4>${DESTINATIONS.slice(0, 5).map((d, i) => `<a href="#/search?q=${encodeURIComponent(d.name)}"><span data-edit="footer.dest${i}">ที่พัก${d.name}</span></a>`).join('')}</div>
     <div><h4 data-edit="footer.partner.title">พาร์ทเนอร์</h4><a href="owner.html#/admin/signup"><span data-edit="footer.partner1">ลงทะเบียนรีสอร์ทฟรี</span></a><a href="#/help"><span data-edit="footer.partner2">ร่วมเป็นพันธมิตร</span></a></div>

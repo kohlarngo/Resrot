@@ -46,7 +46,7 @@ function adPopupHtml(a, inline) {
   const body = `${a.image ? `<img src="${esc(imgUrl(a.image, 900))}" alt="${esc(a.title || a.advertiser)}">` : ''}
     ${a.title || a.body ? `<div class="ad-pop-txt">${a.title ? `<h3>${esc(a.title)}</h3>` : ''}${a.body ? `<p>${esc(a.body)}</p>` : ''}</div>` : ''}`;
   const h = adHref(a), inner = h ? `<a ${adAttrs(a)}>${body}</a>` : `<div data-ad="${esc(a.id)}">${body}</div>`;
-  return `<div class="ad-pop-box ${inline ? 'inline' : ''}"><span class="ad-tag">โฆษณา</span><button type="button" class="ad-pop-x" aria-label="ปิด"><i class="fa-solid fa-xmark"></i></button>${inner}</div>`;
+  return `<div class="ad-pop-box ${inline ? 'inline' : ''}"><button type="button" class="ad-pop-x" aria-label="ปิด"><i class="fa-solid fa-xmark"></i></button>${inner}</div>`;
 }
 function showAdPopup() {
   if (document.querySelector('.ad-pop')) return;
@@ -202,7 +202,7 @@ function pageHome(app) {
       <h2 class="sec-title" data-edit="home.why.title">ทำไมต้องจองกับ ชมรมรีสอร์ท & ที่พัก เกาะล้าน</h2>
       <div class="why-grid">
         <div class="why"><i class="fa-solid fa-tags"></i><h4 data-edit="home.why1.title">รับประกันราคาดีที่สุด</h4><p data-edit="home.why1.text">เจอราคาถูกกว่า เราคืนส่วนต่างให้</p></div>
-        <div class="why"><i class="fa-solid fa-calendar-xmark"></i><h4 data-edit="home.why2.title">ยกเลิกฟรี</h4><p data-edit="home.why2.text">ที่พักหลายแห่งยกเลิกได้ฟรีก่อนเข้าพัก</p></div>
+        <div class="why"><i class="fa-solid fa-calendar-xmark"></i><h4 data-edit="home.why2.title">ยกเลิกฟรี</h4><p data-edit="home.why2.text">เลือกห้องแบบยกเลิกฟรีได้ ดูเงื่อนไขของแต่ละห้องก่อนจอง</p></div>
         <div class="why"><i class="fa-solid fa-shield-halved"></i><h4 data-edit="home.why3.title">ชำระเงินปลอดภัย</h4><p data-edit="home.why3.text">สแกนจ่ายพร้อมเพย์ได้ทุกธนาคาร หรือชำระที่ที่พัก</p></div>
         <div class="why"><i class="fa-solid fa-headset"></i><h4 data-edit="home.why4.title">บริการ 24 ชม.</h4><p data-edit="home.why4.text">ทีมงานพร้อมช่วยเหลือคุณตลอดเวลา</p></div>
       </div>
@@ -466,7 +466,7 @@ function pageHotel(app, params, id) {
               <h1 class="d-title">${esc(h.name)}</h1>
               <div class="small"><i class="fa-solid fa-location-dot" style="color:var(--primary)"></i> ${esc(h.address)} · <a href="javascript:" data-go="loc">ดูแผนที่</a></div>
             </div>
-            <div class="row"><span class="fav-inline">${favBtn(h.id)}</span><button class="btn btn-outline btn-sm" id="share"><i class="fa-solid fa-share-nodes"></i> แชร์</button></div>
+            <div class="row"><span class="fav-inline">${favBtn(h.id)}</span><button class="btn btn-outline btn-sm" id="share"><i class="fa-solid fa-share-nodes"></i> แชร์</button>${(c => (c.tel ? `<a class="btn btn-outline btn-sm" href="tel:${esc(c.tel)}"><i class="fa-solid fa-phone"></i> โทร</a>` : '<span class="btn btn-outline btn-sm muted" aria-disabled="true"><i class="fa-solid fa-phone"></i> โทร: รอกรอกเพิ่มเติม</span>') + (c.line ? `<a class="btn btn-outline btn-sm" href="${esc(c.line)}" target="_blank" rel="noopener"><i class="fa-brands fa-line" style="color:#06c755"></i> LINE</a>` : '<span class="btn btn-outline btn-sm muted" aria-disabled="true"><i class="fa-brands fa-line"></i> LINE: รอกรอกเพิ่มเติม</span>'))(contactOf(h))}</div>
           </div>
           <div class="tags" style="margin-top:14px">${h.highlights.map(x => `<span class="tag-s green"><i class="fa-solid fa-thumbs-up"></i> ${esc(x)}</span>`).join('')}</div>
           <p style="margin:14px 0 0">${esc(h.description)}</p>
@@ -675,7 +675,6 @@ function pageBook(app, params) {
     app.innerHTML = `<div class="container">${steps()}<div class="book-layout"><div id="book-main"></div><aside><div class="side-box" id="book-sum">${summary()}</div></aside></div></div>`;
     st.step === 1 ? drawGuest() : drawPay();
     bindSum();
-    tick();
   }
   function bindSum() {
     $('#login-save')?.addEventListener('click', () => authModal('login', () => pageBook(app, params)));
@@ -700,7 +699,7 @@ function pageBook(app, params) {
       if (!left) { clearInterval(bookTimer); toast('หมดเวลาการจอง กรุณาเลือกห้องใหม่อีกครั้ง', 'err'); go(`/hotel/${h.id}?${searchQuery()}`); }
     }, 1000);
   }
-  const timerHtml = () => `<div class="timer"><i class="fa-regular fa-clock"></i> เราสำรองราคานี้ไว้ให้คุณ <span id="timer-t">20:00</span> นาที</div>`;
+  const timerHtml = () => '';
 
   // กล่อง "เลือกวิธีชำระเงิน" — แสดงที่หน้ากรอกข้อมูลผู้เข้าพัก เหนือปุ่ม "ถัดไป: ชำระเงิน" (และที่ขั้นชำระเงินด้วย) ใช้ st.pay ร่วมกัน
   const PAY_LABEL = {
@@ -968,7 +967,15 @@ function pageProfile(app) {
     toast('บันทึกข้อมูลแล้ว'); render();
   };
 }
+// ช่องทางติดต่อ: เจ้าของรีสอร์ท (ถ้ามี) ไม่ก็ของชมรมจากหน้าตั้งค่า — ไม่มีค่าไหนก็ไม่แสดงปุ่ม
+function contactOf(h) {
+  const s = DB.settings(), o = h && DB.owner(h.ownerId);
+  const tel = String((o && o.phone) || s.phone || '').replace(/[^\d+]/g, '');
+  const line = (o && o.line) || h?.social?.line || s.line || '';
+  return { tel: tel.length >= 8 ? tel : '', line: line ? socialUrl('line', line) : '' };
+}
 function pageHelp(app) {
+  const s = DB.settings();
   const faq = [
     ['จะยกเลิกการจองได้อย่างไร?', 'ไปที่ "การจองของฉัน" เลือกการจองที่ต้องการ แล้วกด "ยกเลิกการจอง" หากห้องเป็นแบบยกเลิกฟรีและยังไม่ถึงวันก่อนเช็คอิน คุณจะได้รับเงินคืนเต็มจำนวน'],
     ['ราคาที่แสดงรวมภาษีหรือไม่?', 'ราคาที่แสดงเป็นราคาสุทธิ ไม่มีค่าธรรมเนียมหรือภาษีเพิ่ม ราคารวมทั้งหมดจะแสดงในขั้นตอนการจอง'],
@@ -978,5 +985,5 @@ function pageHelp(app) {
   ];
   app.innerHTML = `<div class="container" style="max-width:800px;padding-top:24px"><h1 class="sec-title">ศูนย์ช่วยเหลือ</h1>
     ${faq.map(([q, a]) => `<details class="panel"><summary class="bold" style="cursor:pointer">${q}</summary><p style="margin:10px 0 0">${a}</p></details>`).join('')}
-    <div class="panel"><h3>ติดต่อเรา</h3><p class="small"><i class="fa-solid fa-phone"></i> 02-000-0000 (24 ชม.) · <i class="fa-solid fa-envelope"></i> support@staydee.com</p></div></div>`;
+    <div class="panel"><h3>ติดต่อเรา</h3><p class="small">${[s.phone && `<a href="tel:${esc(s.phone.replace(/[^\d+]/g, ''))}"><i class="fa-solid fa-phone"></i> ${esc(s.phone)}</a>`, s.email && `<a href="mailto:${esc(s.email)}"><i class="fa-solid fa-envelope"></i> ${esc(s.email)}</a>`, s.line && `<a href="${esc(socialUrl('line', s.line))}" target="_blank" rel="noopener"><i class="fa-brands fa-line"></i> LINE ${esc(s.line)}</a>`].filter(Boolean).join(' · ')}${[!s.phone && 'เบอร์โทร', !s.email && 'อีเมล', !s.line && 'LINE'].filter(Boolean).map(x => ` <span class="muted">${x}: รอกรอกเพิ่มเติม</span>`).join(' · ')}</p></div></div>`;
 }

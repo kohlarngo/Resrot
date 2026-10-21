@@ -1832,7 +1832,8 @@ function boSettings(main) {
   main.innerHTML = pageHead('ตั้งค่ากิจการ', 'ข้อมูลนี้ใช้ในเอกสาร หน้าเว็บ และหน้าเข้าสู่ระบบ') + `
     <form id="set-f"><div class="bo-grid g-1-1">
       <section class="card"><div class="card-h"><h3>ข้อมูลกิจการ</h3></div><div class="form-grid">
-        ${fg('bizName', 'ชื่อแบรนด์')}${fg('legalName', 'ชื่อนิติบุคคล')}${fg('taxId', 'เลขประจำตัวผู้เสียภาษี', 'inputmode="numeric" maxlength="13"')}${fg('phone', 'เบอร์โทร')}${fg('email', 'อีเมล', 'type="email"')}${fg('line', 'LINE Official')}
+        ${fg('bizName', 'ชื่อแบรนด์')}${fg('legalName', 'ชื่อนิติบุคคล')}${fg('taxId', 'เลขประจำตัวผู้เสียภาษี', 'inputmode="numeric" maxlength="13"')}${fg('phone', 'เบอร์โทรชมรม (แสดงท้ายเว็บ ศูนย์ช่วยเหลือ และหน้าที่พัก)', 'inputmode="tel" placeholder="รอกรอก เช่น 038-xxx-xxx"')}${fg('email', 'อีเมลชมรม (แสดงในศูนย์ช่วยเหลือ)', 'type="email" placeholder="รอกรอก เช่น info@โดเมนของชมรม"')}${fg('line', 'LINE Official ของชมรม (แสดงหัวเว็บ ท้ายเว็บ และหน้าที่พัก)', 'placeholder="รอกรอก เช่น @kohlarn หรือลิงก์ https://line.me/..."')}
+        ${!s.phone || !s.email || !s.line ? `<div class="fg full"><div class="small" style="background:#fff7e6;border:1px solid #f5c26b;border-radius:8px;padding:8px 12px"><i class="fa-solid fa-triangle-exclamation"></i> ยังไม่ได้กรอก: ${[!s.phone && 'เบอร์โทร', !s.email && 'อีเมล', !s.line && 'LINE'].filter(Boolean).join(' · ')} — ช่องที่ว่างจะไม่แสดงบนเว็บ กรอกแล้วกดบันทึกด้านล่าง</div></div>` : ''}
         <div class="fg full"><label>ที่อยู่</label><textarea name="address" rows="2">${esc(s.address)}</textarea></div>
         ${fg('targetMonthly', 'เป้ายอดขายต่อเดือน (฿)', 'type="number" min="0" step="1000"', true)}</div></section>
       <section class="card"><div class="card-h"><h3><i class="fa-solid fa-qrcode"></i> การรับชำระเงิน</h3></div>

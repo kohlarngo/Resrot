@@ -652,7 +652,7 @@ const ownerApproved = u => !!u && u.role === 'owner' && u.ownerStatus === 'appro
 const userPerms = u => u.role === 'admin' && Array.isArray(u.perms) ? u.perms.filter(p => ROLE_PERMS.admin.includes(p)) : (ROLE_PERMS[u.role] || []);
 const can = (perm, u = DB.currentUser()) => !!u && u.active !== false && (u.role !== 'owner' || u.ownerStatus === 'approved') && userPerms(u).includes(perm);
 
-const DEFAULT_SETTINGS = { bizName: 'ชมรมรีสอร์ท & ที่พัก เกาะล้าน', legalName: 'ชมรมรีสอร์ท & ที่พัก เกาะล้าน', taxId: '', phone: '038-000-000', email: 'contact@staydee.com', line: '@staydee', address: 'เกาะล้าน อ.บางละมุง จ.ชลบุรี 20150', announceOn: false, announce: '', announceType: 'info', targetMonthly: 300000, promptpayId: '', promptpayName: '', bankInfo: '' };
+const DEFAULT_SETTINGS = { bizName: 'ชมรมรีสอร์ท & ที่พัก เกาะล้าน', legalName: 'ชมรมรีสอร์ท & ที่พัก เกาะล้าน', taxId: '', phone: '', email: '', line: '', address: 'เกาะล้าน อ.บางละมุง จ.ชลบุรี 20150', announceOn: false, announce: '', announceType: 'info', targetMonthly: 300000, promptpayId: '', promptpayName: '', bankInfo: '' };
 // QR พร้อมเพย์จาก promptpay.io (สร้าง QR อย่างเดียว ไม่ยืนยันการชำระ) — id = เบอร์มือถือ 10 หลัก หรือเลขบัตร/เลขผู้เสียภาษี 13 หลัก
 const isPromptpayId = v => /^(0\d{9}|\d{13})$/.test(String(v || ''));
 const promptpayQr = (id, amount) => `https://promptpay.io/${encodeURIComponent(id)}${amount != null ? '/' + (+amount).toFixed(2) : ''}.png`;
