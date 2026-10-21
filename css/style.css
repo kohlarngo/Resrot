@@ -184,6 +184,9 @@ section.block { padding: 36px 0 8px; }
 .sh-row .sh-thumb { width: 76px; height: 56px; border-radius: 8px; overflow: hidden; background: #eee; } .sh-row .sh-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .sh-row .sh-name { display: block; line-height: 1.3; } .sh-row .sh-ctl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; } .sh-row .sh-act { display: flex; gap: 6px; }
 @media (max-width: 900px) { .sh-row { grid-template-columns: 76px minmax(0, 1fr); } .sh-row .sh-ctl, .sh-row .sh-act { grid-column: 1 / -1; } }
+.sold .img img { filter: grayscale(1); opacity: .55; }
+.sold-badge { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 4; background: rgba(40,40,40,.82); color: #fff; font-weight: 800; font-size: 20px; letter-spacing: .5px; padding: 8px 26px; border-radius: 999px; pointer-events: none; }
+.h-card.sold .name, .r-card.sold h3 { color: var(--muted); } .h-card.sold .price { color: var(--muted); }
 .h-card .card-slider { position: absolute; inset: 0; overflow: hidden; }
 .h-card .img img.sl-slide { position: absolute; inset: 0; opacity: 0; transition: opacity .7s ease; }
 .h-card .img img.sl-slide.on { opacity: 1; }

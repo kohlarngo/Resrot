@@ -139,13 +139,14 @@ function cardImgHtml(h) {
     <button type="button" class="sl-nav prev" aria-label="รูปก่อนหน้า"><i class="fa-solid fa-chevron-left"></i></button><button type="button" class="sl-nav next" aria-label="รูปถัดไป"><i class="fa-solid fa-chevron-right"></i></button>
     <div class="sl-dots">${list.map((_, i) => `<button type="button" class="sl-dot ${i ? '' : 'on'}" data-d="${i}" aria-label="รูปที่ ${i + 1}"></button>`).join('')}</div></div>`;
 }
+const soldBadge = '<span class="sold-badge">เต็ม</span>'; // ไม่มีห้องว่างในวันที่เลือก → รูปเป็นสีเทา + ป้าย "เต็ม"
 function hotelCard(h) {
   const best = DB.cheapest(h, S);
   const r = best?.room || h.rooms[0];
   const q = best || DB.quote(r, S.checkIn, S.checkOut);
   const off = q.perNightOrig ? Math.round((1 - q.perNight / q.perNightOrig) * 100) : 0;
-  return `<div class="h-card" data-href="/hotel/${h.id}?${searchQuery()}">
-    <div class="img">${cardImgHtml(h)}${off > 0 ? `<span class="badge-off">-${off}%</span>` : ''}${featuredBadge(h.id)}${favBtn(h.id)}</div>
+  return `<div class="h-card${best ? '' : ' sold'}" data-href="/hotel/${h.id}?${searchQuery()}">
+    <div class="img">${cardImgHtml(h)}${best ? '' : soldBadge}${off > 0 ? `<span class="badge-off">-${off}%</span>` : ''}${featuredBadge(h.id)}${favBtn(h.id)}</div>
     <div class="body">
       <div class="name">${esc(h.name)}</div>
       ${starsHtml(h.stars)}
@@ -346,14 +347,16 @@ function sortList(list) {
     deals: (a, b) => disc(b) - disc(a),
   }[sortBy];
   // รีสอร์ทแนะนำ (โฆษณา) ขึ้นบนสุดในการเรียงแบบ "แนะนำ" — การเรียงตามราคา/คะแนนอื่นๆ ยังเป็นไปตามจริง
-  return list.sort(sortBy === 'best' ? (a, b) => (isFeatured(b.h.id) - isFeatured(a.h.id)) || fn(a, b) : fn);
+  // ที่พักที่เต็มในวันที่เลือกอยู่ท้ายรายการเสมอ ไม่ว่าเรียงแบบไหน
+  const cmp = sortBy === 'best' ? (a, b) => (isFeatured(b.h.id) - isFeatured(a.h.id)) || fn(a, b) : fn;
+  return list.sort((a, b) => (!!b.best - !!a.best) || cmp(a, b));
 }
 function resultCard({ h, best }) {
   const r = best?.room;
   const off = best ? Math.round((1 - best.perNight / best.perNightOrig) * 100) : 0;
   const total = best ? best.perNight * nights() * S.rooms : 0;
-  return `<div class="r-card" data-href="/hotel/${h.id}?${searchQuery()}">
-    <div class="img">${imgTag(h.images[0], 600, '', h.id)}${featuredBadge(h.id)}${favBtn(h.id)}
+  return `<div class="r-card${best ? '' : ' sold'}" data-href="/hotel/${h.id}?${searchQuery()}">
+    <div class="img">${imgTag(h.images[0], 600, '', h.id)}${best ? '' : soldBadge}${featuredBadge(h.id)}${favBtn(h.id)}
       <div class="thumbs">${h.images.slice(1, 5).map(i => imgTag(i, 160)).join('')}</div></div>
     <div class="mid">
       <h3>${esc(h.name)}</h3>
