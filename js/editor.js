@@ -152,6 +152,6 @@ async function edSave() {
 // กันออกจากหน้าโดยลืมบันทึก + กันคลิกพาไปหน้าอื่นระหว่างแก้ไข
 window.addEventListener('beforeunload', e => { if (ED.on && edDirtyCount()) { e.preventDefault(); e.returnValue = ''; } });
 document.addEventListener('click', e => {
-  if (!ED.on || e.target.closest('#ed-bar, #modal, #toast, .ed-chg, [data-edit]')) return;
+  if (!ED.on || e.target.closest('#ed-bar, #modal, #toast, .ed-chg, [data-edit], .sl-nav, .sl-dot')) return;
   if (e.target.closest('#app, footer, .header')) { e.preventDefault(); e.stopPropagation(); }
 }, true);
