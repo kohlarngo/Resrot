@@ -73,7 +73,7 @@ const DB = {
       supa.auth.getSession(),
     ]);
     CACHE.pubAds = pubAds;
-    CACHE.owners = Object.fromEntries(owners.map(o => [o.id, o]));
+    CACHE.owners = Object.fromEntries(owners.map(o => [o.id, { ...o, phone: cleanContact(o.phone), line: cleanContact(o.line) }]));
     if (kv.error) throw kv.error;
     CACHE.hotels = hotels.map(r => r.data).sort(byNaturalId);
     CACHE.kv = Object.fromEntries(kv.data.map(r => [r.key, r.value]));
@@ -432,7 +432,7 @@ const DB = {
     CACHE.kv[key] = value;
     return dbWrite(supa.from('sd_kv').upsert({ key, value, updated_at: new Date().toISOString() }), key);
   },
-  settings() { return { ...DEFAULT_SETTINGS, ...CACHE.kv.settings }; },
+  settings() { const s = { ...DEFAULT_SETTINGS, ...CACHE.kv.settings }; return { ...s, phone: cleanContact(s.phone), line: cleanContact(s.line), email: s.email || DEFAULT_SETTINGS.email }; },
   saveSettings(patch) { return this._kv('settings', { ...this.settings(), ...patch }); },
   flags() { return { ...DEFAULT_FLAGS, ...CACHE.kv.flags }; },
   saveFlags(patch) { return this._kv('flags', { ...this.flags(), ...patch }); },
@@ -626,6 +626,12 @@ function resortLink(h, src) {
   return `${base}#/hotel/${h.slug || h.id}${src ? '?src=' + src : ''}`;
 }
 // ลิงก์เปิดโปรไฟล์โซเชียลของรีสอร์ท (รับทั้ง URL เต็ม @ไอดี หรือชื่อเฉยๆ)
+// เบอร์/LINE ตัวอย่างที่หลุดมาจากข้อมูลทดลอง (เช่น 081-888-8888, @demo-h8) — ถือว่าไม่มีค่า จะได้ไม่โทร/แชทไปหาคนที่ไม่เกี่ยวข้อง
+function isDemoContact(v) {
+  const s = String(v || '').trim();
+  return /demo/i.test(s) || /^(\+?66|0)?(\d)\2{7,}$/.test(s.replace(/\D/g, '')) || s.replace(/\D/g, '').replace(/^66/, '0') === '0818888888';
+}
+const cleanContact = v => (isDemoContact(v) ? '' : v || '');
 function socialUrl(key, v) {
   v = String(v || '').trim();
   if (!v) return '';
@@ -652,7 +658,7 @@ const ownerApproved = u => !!u && u.role === 'owner' && u.ownerStatus === 'appro
 const userPerms = u => u.role === 'admin' && Array.isArray(u.perms) ? u.perms.filter(p => ROLE_PERMS.admin.includes(p)) : (ROLE_PERMS[u.role] || []);
 const can = (perm, u = DB.currentUser()) => !!u && u.active !== false && (u.role !== 'owner' || u.ownerStatus === 'approved') && userPerms(u).includes(perm);
 
-const DEFAULT_SETTINGS = { bizName: 'ชมรมรีสอร์ท & ที่พัก เกาะล้าน', legalName: 'ชมรมรีสอร์ท & ที่พัก เกาะล้าน', taxId: '', phone: '', email: '', line: '', address: 'เกาะล้าน อ.บางละมุง จ.ชลบุรี 20150', announceOn: false, announce: '', announceType: 'info', targetMonthly: 300000, promptpayId: '', promptpayName: '', bankInfo: '' };
+const DEFAULT_SETTINGS = { bizName: 'ชมรมรีสอร์ท & ที่พัก เกาะล้าน', legalName: 'ชมรมรีสอร์ท & ที่พัก เกาะล้าน', taxId: '', phone: '', email: 'kohlarngo@gmail.com', line: '', address: 'เกาะล้าน อ.บางละมุง จ.ชลบุรี 20150', announceOn: false, announce: '', announceType: 'info', targetMonthly: 300000, promptpayId: '', promptpayName: '', bankInfo: '' };
 // QR พร้อมเพย์จาก promptpay.io (สร้าง QR อย่างเดียว ไม่ยืนยันการชำระ) — id = เบอร์มือถือ 10 หลัก หรือเลขบัตร/เลขผู้เสียภาษี 13 หลัก
 const isPromptpayId = v => /^(0\d{9}|\d{13})$/.test(String(v || ''));
 const promptpayQr = (id, amount) => `https://promptpay.io/${encodeURIComponent(id)}${amount != null ? '/' + (+amount).toFixed(2) : ''}.png`;

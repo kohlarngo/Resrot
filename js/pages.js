@@ -201,7 +201,7 @@ function pageHome(app) {
     <section class="block">
       <h2 class="sec-title" data-edit="home.why.title">ทำไมต้องจองกับ ชมรมรีสอร์ท & ที่พัก เกาะล้าน</h2>
       <div class="why-grid">
-        <div class="why"><i class="fa-solid fa-tags"></i><h4 data-edit="home.why1.title">รับประกันราคาดีที่สุด</h4><p data-edit="home.why1.text">เจอราคาถูกกว่า เราคืนส่วนต่างให้</p></div>
+        <div class="why"><i class="fa-solid fa-tags"></i><h4 data-edit="home.why1.title">จองตรงกับที่พักเกาะล้าน</h4><p data-edit="home.why1.text">ราคาตรงจากเจ้าของที่พัก ไม่ผ่านคนกลาง</p></div>
         <div class="why"><i class="fa-solid fa-calendar-xmark"></i><h4 data-edit="home.why2.title">ยกเลิกฟรี</h4><p data-edit="home.why2.text">เลือกห้องแบบยกเลิกฟรีได้ ดูเงื่อนไขของแต่ละห้องก่อนจอง</p></div>
         <div class="why"><i class="fa-solid fa-shield-halved"></i><h4 data-edit="home.why3.title">ชำระเงินปลอดภัย</h4><p data-edit="home.why3.text">สแกนจ่ายพร้อมเพย์ได้ทุกธนาคาร หรือชำระที่ที่พัก</p></div>
         <div class="why"><i class="fa-solid fa-headset"></i><h4 data-edit="home.why4.title">บริการ 24 ชม.</h4><p data-edit="home.why4.text">ทีมงานพร้อมช่วยเหลือคุณตลอดเวลา</p></div>
@@ -971,7 +971,7 @@ function pageProfile(app) {
 function contactOf(h) {
   const s = DB.settings(), o = h && DB.owner(h.ownerId);
   const tel = String((o && o.phone) || s.phone || '').replace(/[^\d+]/g, '');
-  const line = (o && o.line) || h?.social?.line || s.line || '';
+  const line = (o && o.line) || cleanContact(h?.social?.line) || s.line || '';
   return { tel: tel.length >= 8 ? tel : '', line: line ? socialUrl('line', line) : '' };
 }
 function pageHelp(app) {

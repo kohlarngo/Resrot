@@ -314,7 +314,8 @@ function contactLinksHtml() {
   const s = DB.settings();
   const wait = '<span style="opacity:.7">รอกรอกเพิ่มเติม</span>';
   return (s.phone ? `<a href="tel:${esc(s.phone.replace(/[^\d+]/g, ''))}"><i class="fa-solid fa-phone"></i> ${esc(s.phone)}</a>` : `<span><i class="fa-solid fa-phone"></i> โทร: ${wait}</span>`)
-    + (s.line ? `<a href="${esc(socialUrl('line', s.line))}" target="_blank" rel="noopener"><i class="fa-brands fa-line"></i> LINE ${esc(s.line)}</a>` : `<span><i class="fa-brands fa-line"></i> LINE: ${wait}</span>`);
+    + (s.line ? `<a href="${esc(socialUrl('line', s.line))}" target="_blank" rel="noopener"><i class="fa-brands fa-line"></i> LINE ${esc(s.line)}</a>` : `<span><i class="fa-brands fa-line"></i> LINE: ${wait}</span>`)
+    + (s.email ? `<a href="mailto:${esc(s.email)}"><i class="fa-solid fa-envelope"></i> ${esc(s.email)}</a>` : '');
 }
 function footerHtml() {
   return `<footer><div class="container"><div class="foot-grid">

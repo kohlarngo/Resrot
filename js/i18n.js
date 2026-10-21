@@ -68,7 +68,7 @@ const I18N_ROWS = [
   [`ใช้โค้ด`, `Use code`, `使用优惠码`], [`(คลิกเพื่อคัดลอก)`, `(click to copy)`, `（点击复制）`], [`ดีลพูลวิลล่า`, `Pool villa deal`, `泳池别墅优惠`], [`ลดทันที ฿{0}`, `Instant ฿{0} off`, `立减 ฿{0}`],
   [`เมื่อจองครบ ฿{0}`, `when you book ฿{0}+`, `订单满 ฿{0} 可用`], [`ที่พักที่คุณดูล่าสุด`, `Recently viewed`, `最近浏览`], [`จุดหมายปลายทางยอดนิยมในเกาะล้าน`, `Popular destinations on Koh Larn`, `格兰岛热门目的地`],
   [`ดีลสุดคุ้มวันนี้`, `Today's best deals`, `今日超值优惠`], [`ดูทั้งหมด`, `See all`, `查看全部`], [`ที่พักแนะนำตามชายหาด`, `Recommended stays by beach`, `按海滩推荐住宿`], [`ยังไม่มีที่พักในบริเวณนี้`, `No properties in this area yet`, `该区域暂无住宿`],
-  [`ทำไมต้องจองกับ ชมรมรีสอร์ท & ที่พัก เกาะล้าน`, `Why book with Koh Larn Resort & Stay Club`, `为什么选择 格兰岛度假村与住宿俱乐部 预订`], [`รับประกันราคาดีที่สุด`, `Best price guarantee`, `最低价保证`], [`เจอราคาถูกกว่า เราคืนส่วนต่างให้`, `Find it cheaper and we refund the difference`, `发现更低价，我们补差价`],
+  [`ทำไมต้องจองกับ ชมรมรีสอร์ท & ที่พัก เกาะล้าน`, `Why book with Koh Larn Resort & Stay Club`, `为什么选择 格兰岛度假村与住宿俱乐部 预订`], [`จองตรงกับที่พักเกาะล้าน`, `Book direct with Koh Larn stays`, `直接预订格兰岛住宿`], [`ราคาตรงจากเจ้าของที่พัก ไม่ผ่านคนกลาง`, `Prices straight from the owners, no middlemen`, `房东直接定价，无中间商`],
   [`ยกเลิกฟรี`, `Free cancellation`, `免费取消`], [`ที่พักหลายแห่งยกเลิกได้ฟรีก่อนเข้าพัก`, `Many properties allow free cancellation before check-in`, `许多住宿在入住前可免费取消`],
   [`ชำระเงินปลอดภัย`, `Secure payment`, `安全支付`], [`สแกนจ่ายพร้อมเพย์ได้ทุกธนาคาร หรือชำระที่ที่พัก`, `Pay by PromptPay QR from any bank, or pay at the property`, `支持任意银行扫码支付 (PromptPay)，或到店支付`],
   [`บริการ {0} ชม.`, `{0}-hour support`, `{0} 小时服务`], [`ทีมงานพร้อมช่วยเหลือคุณตลอดเวลา`, `Our team is here to help any time`, `团队随时为您提供帮助`],
