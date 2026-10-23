@@ -552,7 +552,7 @@ function bookingDrawer(id, refresh = () => render()) {
   const row = (l, v) => `<div class="dl"><span>${l}</span><b>${v}</b></div>`;
   const m = openModal(`
     <div class="dr-head"><div class="small muted">การจอง</div><h2>${b.id}</h2><div class="row wrap" style="gap:8px">${stChip(b)} ${payChip(b)}</div></div>
-    ${acts.length ? `<div class="dr-acts">${acts.map(([k, ic, l, c]) => `<button class="btn btn-sm ${c}" data-dact="${k}"><i class="fa-solid ${ic}"></i> ${l}</button>`).join('')}<a class="btn btn-sm btn-ghost" href="${siteUrl('#/booking/' + b.id)}" target="_blank" rel="noopener"><i class="fa-solid fa-print"></i> ใบยืนยัน</a></div>` : ''}
+    ${acts.length ? `<div class="dr-acts">${acts.map(([k, ic, l, c]) => `<button class="btn btn-sm ${c}" data-dact="${k}"><i class="fa-solid ${ic}"></i> ${l}</button>`).join('')}<a class="btn btn-sm btn-ghost" href="${siteUrl('#/booking/' + b.id)}" target="_blank" rel="noopener"><i class="fa-solid fa-print"></i> ดูใบยืนยันการจอง</a></div>` : ''}
     ${b.payment.slip ? `<div class="dr-sec"><h4><i class="fa-solid fa-receipt"></i> สลิปโอนเงิน <span class="muted small">ส่งเมื่อ ${fmtDateTime(b.payment.claimedAt)}</span></h4><div class="slip-full" data-slip="${esc(b.payment.slip)}"><i class="fa-solid fa-spinner fa-spin"></i></div>
       <div class="small muted" style="margin-top:6px">ยอดที่ต้องได้รับ <b>${money(b.price.total)}</b>${b.payment.payTo ? ` → พร้อมเพย์ ${esc(fmtPromptpay(b.payment.payTo))}` : ''} · อ้างอิง ${b.id}</div></div>` : ''}
     ${cancelReqSecHtml(b)}
