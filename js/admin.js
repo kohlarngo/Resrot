@@ -146,13 +146,13 @@ function pageAdmin(app, params, section) {
   const group = nav.find(g => g.items.includes(item))?.g || 'บัญชี';
   const r = ROLES[u.role];
   const alerts = boAlerts();
-  const menuBadge = alerts.sos + alerts.arrivals + alerts.approvals + alerts.apps; // จุดแดงบนปุ่มเมนูมือถือ: มีงานค้างในเมนูด้านใน (ตัวเลขเท่ากับป้ายแดงข้างเมนู)
+  const menuBadge = alerts.sos + alerts.arrivals + alerts.approvals + alerts.apps + alerts.svc; // จุดแดงบนปุ่มเมนูมือถือ: มีงานค้างในเมนูด้านใน (ตัวเลขเท่ากับป้ายแดงข้างเมนู)
   const sideTop = $('#bo-side')?.scrollTop || 0; // จำตำแหน่งเลื่อนของเมนูด้านข้าง
   app.innerHTML = `<div class="bo">
     <aside class="bo-side" id="bo-side">
       <a href="#/admin" class="bo-brand"><span class="bo-logo"><img src="${esc(siteImgId('icon', 'assets/icon-192.png'))}" alt=""></span><div><b>${esc(u.role === 'owner' ? (u.biz?.resortName || u.name) : DB.settings().bizName)}</b><small>${PORTAL_INFO[portalRole(u)].title} · v${APP_VERSION}</small></div></a>
       <div class="bo-me" style="--rc:${r.color}"><span class="bo-av" style="background:${r.color}">${esc(u.name[0] || '?')}</span><div><b>${esc(u.name)}</b><small><i class="fa-solid ${r.icon}"></i> ${r.label}</small></div></div>
-      <nav class="bo-nav">${nav.map(g => { const its = g.items.filter(i => can(i[3]) && (!i[5] || i[5]() || i[0] === item[0])); return its.length ? `<div class="bo-g">${g.g}</div>${its.map(([k, ic, l]) => `<a href="#/admin/${k}" class="${k === item[0] ? 'active' : ''}"><i class="fa-solid ${ic}"></i><span>${l}</span>${k === 'sos' && alerts.sos ? `<em>${alerts.sos}</em>` : k === 'frontdesk' && alerts.arrivals ? `<em>${alerts.arrivals}</em>` : k === 'approvals' && alerts.approvals ? `<em>${alerts.approvals}</em>` : k === 'partners' && alerts.apps ? `<em>${alerts.apps}</em>` : ''}</a>`).join('')}` : ''; }).join('')}</nav>
+      <nav class="bo-nav">${nav.map(g => { const its = g.items.filter(i => can(i[3]) && (!i[5] || i[5]() || i[0] === item[0])); return its.length ? `<div class="bo-g">${g.g}</div>${its.map(([k, ic, l]) => `<a href="#/admin/${k}" class="${k === item[0] ? 'active' : ''}"><i class="fa-solid ${ic}"></i><span>${l}</span>${k === 'sos' && alerts.sos ? `<em>${alerts.sos}</em>` : k === 'frontdesk' && alerts.arrivals ? `<em>${alerts.arrivals}</em>` : k === 'approvals' && alerts.approvals ? `<em>${alerts.approvals}</em>` : k === 'partners' && alerts.apps ? `<em>${alerts.apps}</em>` : k === 'media' && alerts.svc ? `<em>${alerts.svc}</em>` : ''}</a>`).join('')}` : ''; }).join('')}</nav>
     </aside>
     <div class="bo-scrim" id="bo-scrim"></div>
     <div class="bo-body">
@@ -213,7 +213,9 @@ function boAlerts() {
     const fails = DB.audit().filter(a => a.action === 'auth.fail' && Date.now() - new Date(a.at) < 864e5).length;
     if (fails >= 3) list.push(['fa-shield-halved', 'bad', `มีการใส่รหัสผ่านผิด ${fails} ครั้งใน 24 ชม.`, '#/admin/audit']);
   }
-  return { list, sos, arrivals, approvals, apps };
+  const svc = can('hotels.media') ? DB.serviceRequests().length : 0;
+  if (svc) list.push(['fa-arrows-rotate', 'bad', `รีสอร์ทขอใช้ซิงก์ iCal (Plus) ${svc} รายการ`, '#/admin/media']);
+  return { list, sos, arrivals, approvals, apps, svc };
 }
 
 function bindShell(alerts) {
@@ -646,31 +648,79 @@ function boApprovals(main) {
 // ================= เจ้าของรีสอร์ท: บัญชีรับเงิน & ข้อมูลรีสอร์ท =================
 function boPayout(main, params) {
   const u = DB.currentUser(), b = u.biz || {}, p = u.payout || {};
+  const maskNum = s => String(s ?? '').replace(/\d[\d\s-]{5,}\d/g, m => { const d = m.replace(/\D/g, ''); return '•'.repeat(Math.max(0, d.length - 4)) + d.slice(-4); });
   const fg = (k, l, v, attrs = '', full = false) => `<div class="fg ${full ? 'full' : ''}"><label>${l}</label><input name="${k}" value="${esc(v ?? '')}" ${attrs}></div>`;
+  let shown = false;
+  const sum = () => {
+    const pid = p.promptpayId ? (shown ? fmtPromptpay(p.promptpayId) : maskNum(p.promptpayId)) : '';
+    const row = (l, v) => `<div class="dl"><span>${l}</span><b style="text-align:right;white-space:pre-wrap">${v || '<span class="muted">ยังไม่ได้ตั้งค่า</span>'}</b></div>`;
+    return row('พร้อมเพย์', esc(pid)) + row('ชื่อบัญชีพร้อมเพย์', esc(p.promptpayName || '')) + row('บัญชีธนาคาร', esc(shown ? (p.bankInfo || '') : maskNum(p.bankInfo || '')));
+  };
   main.innerHTML = pageHead('บัญชีรับเงิน', 'ลูกค้าโอนเงินเข้าบัญชีของคุณโดยตรง — แพลตฟอร์มไม่ได้ถือเงินแทน') + `
-    <form id="po-f"><div class="bo-grid g-1-1">
-      <section class="card"><div class="card-h"><h3><i class="fa-solid fa-qrcode"></i> บัญชีรับเงิน</h3></div><div class="form-grid">
-        ${fg('promptpayId', 'หมายเลขพร้อมเพย์ (เบอร์มือถือ 10 หลัก หรือเลข 13 หลัก)', p.promptpayId, 'inputmode="numeric" maxlength="13" placeholder="0812345678"', true)}
-        ${fg('promptpayName', 'ชื่อบัญชีพร้อมเพย์ (ให้ลูกค้าตรวจก่อนโอน)', p.promptpayName, 'maxlength="80"', true)}
-        <div class="fg full"><label>บัญชีธนาคาร (เว้นว่าง = ไม่รับโอนเข้าบัญชีธนาคาร)</label><textarea name="bankInfo" rows="3" maxlength="300" placeholder="ธนาคาร... เลขที่บัญชี... ชื่อบัญชี...">${esc(p.bankInfo || '')}</textarea></div></div>
-</section>
-      <section class="card"><div class="card-h"><h3><i class="fa-solid fa-store"></i> ข้อมูลรีสอร์ท (แสดงให้ลูกค้า)</h3></div><div class="form-grid">
+    <div class="bo-grid g-1-1">
+      <section class="card"><div class="card-h"><h3><i class="fa-solid fa-qrcode"></i> บัญชีรับเงิน</h3><button type="button" class="btn btn-ghost btn-sm" id="po-eye"><i class="fa-regular fa-eye"></i> แสดงเลขเต็ม</button></div>
+        <div id="po-sum">${sum()}</div>
+        <div class="row wrap" style="gap:8px;margin-top:14px"><button type="button" class="btn btn-primary" id="po-edit"><i class="fa-solid fa-pen"></i> เปลี่ยนบัญชีรับเงิน</button></div>
+        <div class="notice info" style="margin-top:12px"><i class="fa-solid fa-shield-halved"></i><div>เพื่อความปลอดภัย การเปลี่ยนบัญชีต้องยืนยันด้วย <b>รหัส OTP ทางอีเมล</b> และรหัสผ่าน (ถ้าบัญชีมี) · ระบบจะแจ้งเตือนคุณทาง Telegram / แจ้งเตือนมือถือทุกครั้งที่มีการเปลี่ยน</div></div>
+        <h4 style="margin:16px 0 6px"><i class="fa-solid fa-clock-rotate-left"></i> ประวัติการเปลี่ยนบัญชี</h4><div id="po-hist" class="small muted">กำลังโหลด...</div></section>
+      <form id="po-f"><section class="card"><div class="card-h"><h3><i class="fa-solid fa-store"></i> ข้อมูลรีสอร์ท (แสดงให้ลูกค้า)</h3></div><div class="form-grid">
         ${fg('resortName', 'ชื่อรีสอร์ท / ชื่อที่แสดง', b.resortName, 'maxlength="100"', true)}
         ${fg('phone', 'เบอร์ติดต่อ', b.phone, 'type="tel" maxlength="20"')}${fg('line', 'LINE', b.line, 'maxlength="60"')}
         ${fg('targetMonthly', 'เป้ายอดขายต่อเดือน (฿)', b.targetMonthly || '', 'type="number" min="0" step="1000"', true)}</div>
-        <p class="small muted" style="margin-top:12px">ลูกค้าเห็นชื่อ เบอร์ และ LINE นี้ในใบยืนยันการจอง เพื่อติดต่อคุณโดยตรง</p></section>
-    </div><div class="save-bar"><button class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> บันทึก</button></div></form>`;
-  const f = $('#po-f');
-  const fo = params?.get('focus'); if (fo) { boClearParams(); setTimeout(() => boFocus(f, `[name="${fo}"]`), 250); }
-  f.onsubmit = e => {
+        <p class="small muted" style="margin-top:12px">ลูกค้าเห็นชื่อ เบอร์ และ LINE นี้ในใบยืนยันการจอง เพื่อติดต่อคุณโดยตรง</p>
+        <div class="save-bar"><button class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลรีสอร์ท</button></div></section></form>
+    </div>`;
+  $('#po-eye').onclick = e => { shown = !shown; $('#po-sum').innerHTML = sum(); e.currentTarget.innerHTML = shown ? '<i class="fa-regular fa-eye-slash"></i> ซ่อนเลข' : '<i class="fa-regular fa-eye"></i> แสดงเลขเต็ม'; };
+  supa.from('sd_payout_history').select('*').eq('owner_id', u.id).order('at', { ascending: false }).limit(10).then(r => {
+    const h = r.data || [];
+    $('#po-hist').innerHTML = h.length ? h.map(x => `<div style="padding:6px 0;border-top:1px solid var(--bo-line)">${fmtDateTime(x.at)} · พร้อมเพย์ ${esc(x.old_masked?.promptpayId || '-')} → <b>${esc(x.new_masked?.promptpayId || '-')}</b>${x.old_masked?.bankInfo !== x.new_masked?.bankInfo ? ' · แก้บัญชีธนาคาร' : ''}</div>`).join('') : 'ยังไม่เคยเปลี่ยนบัญชีผ่านระบบ';
+  });
+  const fo = params?.get('focus'); if (fo) { boClearParams(); setTimeout(() => fo === 'promptpayId' ? $('#po-edit')?.click() : boFocus($('#po-f'), `[name="${fo}"]`), 250); }
+
+  // เรียก Edge Function sd-payout (ยืนยันตัวตนฝั่งเซิร์ฟเวอร์) — คืน { data } หรือ { error }
+  const call = async body => {
+    const r = await supa.functions.invoke('sd-payout', { body });
+    if (!r.error) return { data: r.data };
+    let msg = r.error.message; try { msg = (await r.error.context.json()).error || msg; } catch { /* ใช้ข้อความเดิม */ }
+    return { error: msg };
+  };
+  $('#po-edit').onclick = async () => {
+    const info = (await call({ action: 'info' })).data || { hasPassword: false, email: '' };
+    const m = openModal(`<h2><i class="fa-solid fa-pen"></i> เปลี่ยนบัญชีรับเงิน</h2><form id="pe-f" class="form-grid" style="margin-top:12px" novalidate>
+      ${fg('promptpayId', 'หมายเลขพร้อมเพย์ (เบอร์มือถือ 10 หลัก หรือเลข 13 หลัก)', p.promptpayId, 'inputmode="numeric" maxlength="13" placeholder="0812345678" autocomplete="off"', true)}
+      ${fg('promptpayName', 'ชื่อบัญชีพร้อมเพย์ (ให้ลูกค้าตรวจก่อนโอน)', p.promptpayName, 'maxlength="80"', true)}
+      <div class="fg full"><label>บัญชีธนาคาร (เว้นว่าง = ไม่รับโอนเข้าบัญชีธนาคาร)</label><textarea name="bankInfo" rows="3" maxlength="300" placeholder="ธนาคาร... เลขที่บัญชี... ชื่อบัญชี...">${esc(p.bankInfo || '')}</textarea></div>
+      <div class="fg full" style="border-top:1px solid var(--bo-line);padding-top:12px"><label><i class="fa-solid fa-shield-halved"></i> ยืนยันตัวตนก่อนบันทึก</label>
+        <div class="row wrap" style="gap:8px;align-items:center"><button type="button" class="btn btn-outline btn-sm" id="pe-otp"><i class="fa-regular fa-envelope"></i> ส่งรหัส OTP ไปที่ ${esc(info.email || 'อีเมลของคุณ')}</button><span class="small muted" id="pe-otp-s"></span></div></div>
+      <div class="fg"><label>รหัส OTP จากอีเมล</label><input name="otp" inputmode="numeric" maxlength="10" autocomplete="one-time-code" placeholder="••••••"></div>
+      ${info.hasPassword ? '<div class="fg"><label>รหัสผ่านของบัญชีนี้</label><input name="password" type="password" autocomplete="current-password"></div>' : ''}
+      <div class="full row" style="justify-content:flex-end;gap:8px"><button type="button" class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary"><i class="fa-solid fa-lock"></i> ยืนยันและบันทึก</button></div></form>`);
+    const f = $('#pe-f', m), st = $('#pe-otp-s', m);
+    $('#pe-otp', m).onclick = async e => {
+      const btn = e.currentTarget; btn.disabled = true; st.textContent = 'กำลังส่ง...';
+      const r = await call({ action: 'send-otp' });
+      if (r.error) { btn.disabled = false; st.textContent = ''; return toast(r.error, 'err'); }
+      st.textContent = 'ส่งรหัสแล้ว — ตรวจอีเมล (รวมถึงกล่องสแปม)'; setTimeout(() => { btn.disabled = false; }, 60000);
+    };
+    f.onsubmit = async e => {
+      e.preventDefault();
+      const v = Object.fromEntries(new FormData(f)), pid = v.promptpayId.replace(/\D/g, '');
+      if (pid && !isPromptpayId(pid)) return toast('หมายเลขพร้อมเพย์ต้องเป็นเบอร์มือถือ 10 หลัก หรือเลข 13 หลัก', 'err');
+      if (!v.otp.trim()) return toast('กรอกรหัส OTP จากอีเมล (กด "ส่งรหัส OTP" ก่อน)', 'err');
+      if (info.hasPassword && !v.password) return toast('กรอกรหัสผ่านของบัญชีนี้', 'err');
+      const btn = f.querySelector('button:not([type=button])'); btn.disabled = true;
+      const r = await call({ action: 'save', otp: v.otp, password: v.password, payout: { promptpayId: pid, promptpayName: v.promptpayName.trim(), bankInfo: v.bankInfo.trim() } });
+      if (r.error) { btn.disabled = false; return toast(r.error, 'err'); }
+      closeModal(); toast(r.data?.unchanged ? 'ไม่มีการเปลี่ยนแปลง' : 'เปลี่ยนบัญชีรับเงินแล้ว — ส่งแจ้งเตือนให้คุณแล้ว'); DB.load().then(render);
+    };
+  };
+
+  $('#po-f').onsubmit = e => {
     e.preventDefault();
-    const v = Object.fromEntries(new FormData(f));
-    v.promptpayId = v.promptpayId.replace(/\D/g, '');
-    if (v.promptpayId && !isPromptpayId(v.promptpayId)) return toast('หมายเลขพร้อมเพย์ต้องเป็นเบอร์มือถือ 10 หลัก หรือเลข 13 หลัก', 'err');
+    const v = Object.fromEntries(new FormData(e.currentTarget));
     if (!v.resortName.trim()) return toast('กรุณากรอกชื่อรีสอร์ท', 'err');
-    DB.saveBusiness({ resortName: v.resortName.trim(), phone: v.phone.trim(), line: v.line.trim(), targetMonthly: Math.max(0, +v.targetMonthly || 0) },
-      { promptpayId: v.promptpayId, promptpayName: v.promptpayName.trim(), bankInfo: v.bankInfo.trim() });
-    DB.log('payout.save', v.promptpayId ? `พร้อมเพย์ ${v.promptpayId}` : 'ข้อมูลรีสอร์ท');
+    DB.saveBusiness({ resortName: v.resortName.trim(), phone: v.phone.trim(), line: v.line.trim(), targetMonthly: Math.max(0, +v.targetMonthly || 0) });
+    DB.log('payout.save', 'ข้อมูลรีสอร์ท');
     toast('บันทึกแล้ว'); setTimeout(() => DB.load().then(render), 600);
   };
 }
@@ -1919,7 +1969,7 @@ function boSettings(main) {
 const AUDIT_TH = {
   'auth.login': 'เข้าสู่ระบบ', 'auth.logout': 'ออกจากระบบ', 'auth.fail': 'ใส่รหัสผ่านผิด',
   'booking.pay': 'รับชำระเงิน', 'checkin.register': 'ลงทะเบียนผู้เข้าพัก', 'checkin.print': 'พิมพ์ทะเบียนผู้เข้าพัก', 'checkin.view': 'เปิดดูรูปเอกสารผู้เข้าพัก', 'checkin.delete': 'ลบข้อมูลเอกสารผู้เข้าพัก', 'booking.confirm': 'ยืนยันการจอง', 'booking.checkin': 'เช็คอิน', 'booking.checkout': 'เช็คเอาท์', 'booking.cancel': 'ยกเลิกการจอง', 'booking.delete': 'ลบการจอง', 'booking.note': 'เพิ่มโน้ต', 'booking.export': 'ส่งออกการจอง',
-  'hotel.save': 'บันทึกที่พัก', 'hotel.delete': 'ลบที่พัก', 'hotel.toggle': 'เปิด/ปิดขาย', 'hotel.ical': 'เปิด/ปิดซิงก์ iCal รายรีสอร์ท', 'hotel.maintenance': 'ปิดปรับปรุงรีสอร์ท','hotel.maintenance.release': 'เปิดรับจองคืนหลังปรับปรุง','coupon.add': 'เพิ่มโค้ด', 'coupon.toggle': 'เปิด/ปิดโค้ด', 'coupon.delete': 'ลบโค้ด', 'review.delete': 'ลบรีวิว', 'sos.status': 'อัปเดตเหตุฉุกเฉิน', 'sos.contacts': 'แก้เบอร์ฉุกเฉิน',
+  'hotel.save': 'บันทึกที่พัก', 'hotel.delete': 'ลบที่พัก', 'hotel.toggle': 'เปิด/ปิดขาย', 'hotel.ical': 'เปิด/ปิดซิงก์ iCal รายรีสอร์ท', 'service.request': 'ขอใช้บริการเสริม','hotel.maintenance': 'ปิดปรับปรุงรีสอร์ท','hotel.maintenance.release': 'เปิดรับจองคืนหลังปรับปรุง','coupon.add': 'เพิ่มโค้ด', 'coupon.toggle': 'เปิด/ปิดโค้ด', 'coupon.delete': 'ลบโค้ด', 'review.delete': 'ลบรีวิว', 'sos.status': 'อัปเดตเหตุฉุกเฉิน', 'sos.contacts': 'แก้เบอร์ฉุกเฉิน',
   'staff.add': 'เพิ่มทีมงาน', 'staff.edit': 'แก้ไขทีมงาน', 'staff.suspend': 'ระงับบัญชี', 'staff.activate': 'เปิดใช้บัญชี', 'staff.delete': 'ลบทีมงาน', 'staff.resetpw': 'รีเซ็ตรหัสผ่าน',
   'booking.approve': 'อนุมัติการจอง', 'booking.reject': 'ปฏิเสธการจอง', 'payout.save': 'ตั้งค่าบัญชีรับเงิน',
   'partner.approve': 'อนุมัติเจ้าของรีสอร์ท', 'partner.reject': 'ไม่อนุมัติเจ้าของรีสอร์ท', 'partner.suspend': 'ระงับเจ้าของรีสอร์ท', 'partner.activate': 'เปิดใช้เจ้าของรีสอร์ท',

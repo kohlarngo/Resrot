@@ -289,6 +289,9 @@ function boDevMedia(main) {
   const hotels = DB.hotels(true);
   const sec = h => Math.min(15, Math.max(2, Math.round(+h.slideshow?.seconds || 4)));
   const ownerName = h => { const o = h.ownerId ? DB.owner(h.ownerId) : null; return o ? (o.biz?.resortName || o.name) : 'แพลตฟอร์ม'; };
+  const reqOf = h => DB.serviceRequests().find(r => r.hotel_id === h.id && r.service === 'ical');
+  const reqHtml = h => { const r = reqOf(h); return r ? `<div class="small" style="margin-top:4px;color:#b45309"><i class="fa-solid fa-arrows-rotate"></i> <b>ขอใช้ซิงก์ iCal (Plus)</b> · ${fmtDateTime(r.created_at)} · ${[r.phone && `โทร <a href="tel:${esc(r.phone)}">${esc(r.phone)}</a>`, r.line && 'LINE ' + esc(r.line)].filter(Boolean).join(' · ')}${r.note ? ` · “${esc(r.note)}”` : ''} <button type="button" class="btn btn-ghost btn-sm" data-req-x="${r.id}">ปิดคำขอ</button></div>` : ''; };
+  const closeReq = async (id, status) => { const r = await supa.from('sd_service_requests').update({ status }).eq('id', id); if (r.error) return toast('บันทึกไม่สำเร็จ: ' + r.error.message, 'err'); CACHE.svcReq = (CACHE.svcReq || []).filter(x => x.id !== id); };
   main.innerHTML = pageHead('สไลด์ & รูปรีสอร์ท', `${hotels.length} รีสอร์ท · เปิด/ปิดสไลด์ ตั้งเวลา และจัดการรูปของรีสอร์ททุกแห่ง (เจ้าของรีสอร์ทยังแก้ของตัวเองได้เหมือนเดิม)`) + `
     <section class="card"><div class="card-h"><h3><i class="fa-solid fa-wand-magic-sparkles"></i> ตั้งค่าให้ทุกรีสอร์ทพร้อมกัน</h3></div>
       <div class="row wrap" style="gap:12px;align-items:center"><label class="row" style="gap:8px"><input type="checkbox" id="bulk-on" checked> เปิดสไลด์อัตโนมัติ</label>
@@ -297,7 +300,7 @@ function boDevMedia(main) {
     <div class="card sh-find"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="dm-q" placeholder="ค้นหารีสอร์ท หรือชื่อเจ้าของ..." autocomplete="off"><span class="small muted" id="dm-n">${hotels.length} แห่ง</span></div>
     <div id="dm-list">${hotels.map(h => `<section class="card sh-row" data-h="${h.id}" data-q="${esc((h.name + ' ' + ownerName(h)).toLowerCase())}">
       <div class="sh-thumb">${imgTag(h.images[0], 200, '', h.id)}</div>
-      <div class="sh-main"><b class="sh-name">${esc(h.name)}</b><div class="small muted">เจ้าของ: ${esc(ownerName(h))} · ${h.images.length} รูป${h.active === false ? ' · <span class="red">ปิดการขาย</span>' : ''}</div></div>
+      <div class="sh-main"><b class="sh-name">${esc(h.name)}</b><div class="small muted">เจ้าของ: ${esc(ownerName(h))} · ${h.images.length} รูป${h.active === false ? ' · <span class="red">ปิดการขาย</span>' : ''}</div>${reqHtml(h)}</div>
       <div class="sh-ctl"><label class="row" style="gap:6px"><input type="checkbox" data-sl-on="${h.id}" ${h.slideshow?.on === true ? 'checked' : ''} ${h.images.length < 2 ? 'disabled' : ''}> สไลด์</label>
         <input type="range" data-sl-sec="${h.id}" min="2" max="15" step="1" value="${sec(h)}" style="width:110px" ${h.images.length < 2 ? 'disabled' : ''}><b data-sl-v="${h.id}" style="min-width:58px;font-size:13px">${sec(h)} วินาที</b>
         <label class="row" style="gap:6px" title="ให้เจ้าของรีสอร์ทนี้ใช้ซิงก์ปฏิทิน Agoda / Booking.com (iCal)"><input type="checkbox" data-ic-on="${h.id}" ${h.icalOn === true ? 'checked' : ''} ${DB.flags().icalSync ? 'disabled' : ''}> ซิงก์ iCal (Plus)${DB.flags().icalSync ? ' <span class="small muted">(เปิดทั้งระบบ)</span>' : ''}</label></div>
@@ -305,7 +308,11 @@ function boDevMedia(main) {
         <a class="btn btn-outline btn-sm" href="${siteUrl('#/hotel/' + (h.slug || h.id))}" target="_blank" rel="noopener" title="ดูหน้าเว็บ"><i class="fa-solid fa-eye"></i></a></div></section>`).join('') || '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><p class="muted">ยังไม่มีรีสอร์ทในระบบ</p></div></section>'}</div>`;
   const save = (id, patch) => { const h = JSON.parse(JSON.stringify(DB.hotel(id))); h.slideshow = { on: h.slideshow?.on === true, seconds: sec(h), ...patch }; DB.saveHotel(h); DB.log('hotel.slideshow', `${h.name} → ${h.slideshow.on ? 'เปิด ' + h.slideshow.seconds + ' วินาที' : 'ปิด'}`); };
   $$('[data-sl-on]', main).forEach(c => c.onchange = () => { save(c.dataset.slOn, { on: c.checked }); toast(c.checked ? 'เปิดสไลด์แล้ว' : 'ปิดสไลด์แล้ว'); });
-  $$('[data-ic-on]', main).forEach(c => c.onchange = () => { const h = JSON.parse(JSON.stringify(DB.hotel(c.dataset.icOn))); h.icalOn = c.checked; DB.saveHotel(h); DB.log('hotel.ical', `${h.name} → ${c.checked ? 'เปิด' : 'ปิด'}ซิงก์ iCal`); toast(c.checked ? 'เปิดซิงก์ iCal ให้รีสอร์ทนี้แล้ว' : 'ปิดซิงก์ iCal ของรีสอร์ทนี้แล้ว'); });
+  $$('[data-ic-on]', main).forEach(c => c.onchange = async () => {
+    const h = JSON.parse(JSON.stringify(DB.hotel(c.dataset.icOn))); h.icalOn = c.checked; DB.saveHotel(h); DB.log('hotel.ical', `${h.name} → ${c.checked ? 'เปิด' : 'ปิด'}ซิงก์ iCal`); toast(c.checked ? 'เปิดซิงก์ iCal ให้รีสอร์ทนี้แล้ว' : 'ปิดซิงก์ iCal ของรีสอร์ทนี้แล้ว');
+    const r = c.checked && reqOf(h); if (r) { await closeReq(r.id, 'done'); boDevMedia(main); } // เปิดให้แล้ว = ปิดคำขอที่ค้างอยู่
+  });
+  $$('[data-req-x]', main).forEach(b => b.onclick = async () => { if (!(await confirmBox('ปิดคำขอนี้โดยไม่เปิดบริการให้?', 'ปิดคำขอ'))) return; await closeReq(b.dataset.reqX, 'rejected'); boDevMedia(main); });
   $$('[data-sl-sec]', main).forEach(r => {
     r.oninput = () => $(`[data-sl-v="${r.dataset.slSec}"]`, main).textContent = r.value + ' วินาที';
     r.onchange = () => { save(r.dataset.slSec, { seconds: +r.value }); toast(`ตั้งเวลาสไลด์ ${r.value} วินาทีแล้ว`); };
@@ -413,11 +420,26 @@ function boChannels(main) {
     const box = $('#ch-feeds'); if (!box) return;
     const h = DB.hotel(f.hid); if (!h) { box.innerHTML = ''; return; }
     if (!icalOn(h)) {
-      const st = DB.settings();
-      box.innerHTML = `<div class="card-h"><h3><i class="fa-solid fa-arrows-rotate"></i> ซิงก์ปฏิทินอัตโนมัติ (iCal) <span class="pill" style="background:#f59e0b;color:#fff"><i class="fa-solid fa-crown"></i> Plus</span></h3></div>
-        <p style="margin:0 0 8px">ดึงปฏิทินจาก Agoda / Booking.com ทุก 20 นาที แล้วลดห้องบนเว็บให้อัตโนมัติ ไม่ต้องคอยกรอกเองทุกครั้ง · เป็นบริการเสริมแบบ <b>Plus</b> (มีค่าบริการ)</p>
-        <p class="small" style="margin:0 0 8px">สนใจสมัคร ติดต่อทีมงาน${st.phone ? ` โทร <a href="tel:${esc(st.phone)}">${esc(st.phone)}</a>` : ''}${st.line ? ` · LINE ${esc(st.line)}` : ''}</p>
-        <p class="small muted" style="margin:0">ระหว่างนี้ยังใช้ปุ่ม “บันทึกการจองใหม่” ลดห้องด้วยตัวเองได้ตามปกติ ไม่มีค่าใช้จ่าย</p>`;
+      const st = DB.settings(), u = DB.currentUser(), biz = u?.biz || {};
+      const open = (await supa.from('sd_service_requests').select('*').eq('hotel_id', h.id).eq('service', 'ical').eq('status', 'new').maybeSingle()).data;
+      box.innerHTML = `<div class="card-h"><h3><i class="fa-solid fa-arrows-rotate"></i> ซิงก์อัตโนมัติ <span class="pill" style="background:#f59e0b;color:#fff"><i class="fa-solid fa-crown"></i> Plus</span></h3></div>
+        <p style="margin:0 0 8px">ดึงข้อมูล Agoda / Booking.com ทุก 20 นาที แล้วลดห้องบนเว็บให้อัตโนมัติ ไม่ต้องคอยกรอกเองทุกครั้ง · เป็นบริการเสริมแบบ <b>Plus</b> (มีค่าบริการ) ต้องติดต่อผู้พัฒนาก่อน</p>
+        ${open ? `<div class="notice info"><i class="fa-solid fa-circle-check"></i><div><b>ส่งคำขอแล้ว</b> เมื่อ ${fmtDateTime(open.created_at)} — ผู้พัฒนาจะติดต่อกลับทาง ${[open.phone && 'โทร ' + esc(open.phone), open.line && 'LINE ' + esc(open.line)].filter(Boolean).join(' / ')}</div></div>`
+        : `<form id="ic-req" class="form-grid" novalidate><div class="fg"><label>เบอร์โทรที่ให้ติดต่อกลับ</label><input name="phone" type="tel" maxlength="30" value="${esc(biz.phone || '')}" placeholder="08x-xxx-xxxx"></div>
+          <div class="fg"><label>LINE ID</label><input name="line" maxlength="60" value="${esc(biz.line || '')}" placeholder="@ไลน์ไอดี"></div>
+          <div class="fg full"><label>ข้อความถึงผู้พัฒนา (ไม่บังคับ)</label><input name="note" maxlength="300" placeholder="เช่น ขายที่ Agoda และ Booking.com"></div>
+          <div class="full"><button class="btn btn-primary" type="submit"><i class="fa-solid fa-paper-plane"></i> ขอใช้บริการซิงก์อัตโนมัติ (iCal)</button></div></form>`}
+        <p class="small muted" style="margin:10px 0 0">${st.phone || st.line ? `ติดต่อผู้พัฒนาโดยตรง${st.phone ? ` โทร <a href="tel:${esc(st.phone)}">${esc(st.phone)}</a>` : ''}${st.line ? ` · LINE ${esc(st.line)}` : ''} · ` : ''}ระหว่างนี้ยังใช้ปุ่ม “บันทึกการจองใหม่” ลดห้องด้วยตัวเองได้ฟรี</p>`;
+      const rf = $('#ic-req', box);
+      if (rf) rf.onsubmit = async e => {
+        e.preventDefault();
+        const phone = rf.elements.phone.value.trim(), line = rf.elements.line.value.trim();
+        if (!phone && !line) return toast('กรอกเบอร์โทรหรือ LINE อย่างน้อย 1 ช่องทาง เพื่อให้ผู้พัฒนาติดต่อกลับ', 'err');
+        const btn = rf.querySelector('button'); btn.disabled = true;
+        const r = await supa.from('sd_service_requests').insert({ hotel_id: h.id, service: 'ical', phone, line, note: rf.elements.note.value.trim() });
+        if (r.error) { btn.disabled = false; return toast('ส่งคำขอไม่สำเร็จ: ' + r.error.message, 'err'); }
+        DB.log('service.request', `${h.name} · ซิงก์ iCal (Plus)`); toast('ส่งคำขอแล้ว — ผู้พัฒนาจะติดต่อกลับ'); drawFeeds();
+      };
       return;
     }
     const res = await supa.from('sd_ical_feeds').select('*').eq('hotel_id', h.id).order('created_at');

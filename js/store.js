@@ -79,7 +79,7 @@ const DB = {
     CACHE.kv = Object.fromEntries(kv.data.map(r => [r.key, r.value]));
     CACHE.occ = occ.map(r => ({ roomId: r.room_id, checkIn: r.check_in, checkOut: r.check_out, qty: r.qty }));
     CACHE.pubReviews = pub; CACHE.pubCoupons = pubCp;
-    Object.assign(CACHE, { me: null, ads: [], bookings: [], profiles: [], coupons: [], reviews: [], audit: [], errors: [], sos: [] });
+    Object.assign(CACHE, { me: null, svcReq: [], ads: [], bookings: [], profiles: [], coupons: [], reviews: [], audit: [], errors: [], sos: [] });
     if (session) {
       let { data: p } = await supa.from('sd_profiles').select('*').eq('id', session.user.id).maybeSingle();
       const meta = session.user.user_metadata || {}; // Google / Facebook ส่งชื่อมาเป็น full_name หรือ name
@@ -99,7 +99,8 @@ const DB = {
         can('sos.manage') ? fetchAll(() => supa.from('sd_sos').select('data').order('at', { ascending: false })).then(r => r.map(x => x.data)) : none,
         can('ads.manage') ? fetchAll(() => supa.from('sd_ads').select('*').order('created_at', { ascending: false })).then(r => r.map(toAd)) : none,
       ]);
-      Object.assign(CACHE, { bookings, profiles, coupons, reviews, audit, errors, sos, ads });
+      const svcReq = can('hotels.media') ? await supa.from('sd_service_requests').select('*').eq('status', 'new').order('created_at').then(r => r.data || []) : [];
+      Object.assign(CACHE, { bookings, profiles, coupons, reviews, audit, errors, sos, ads, svcReq });
     }
     // การจองที่ทำจากเครื่องนี้โดยไม่ล็อกอิน — ดึงด้วยรหัส + PIN (เฉพาะหน้าเว็บลูกค้า ไม่ปนกับหลังบ้าน)
     const extra = PORTAL ? [] : await Promise.all(LS.get('mybk', []).filter(x => !CACHE.bookings.some(b => b.id === x.id))
@@ -278,6 +279,7 @@ const DB = {
   // ---- Ads (โฆษณา) ----
   ads() { return CACHE.ads; },
   publicAds(kind) { return CACHE.pubAds.filter(a => a.kind === kind); },
+  serviceRequests() { return CACHE.svcReq || []; }, // คำขอใช้บริการเสริมที่ยังไม่ได้ติดต่อกลับ (เฉพาะ dev)
   featuredIds() { return CACHE.pubAds.filter(a => a.kind === 'featured').map(a => a.hotelId); },
   // อันดับที่ dev กำหนดให้รีสอร์ทแนะนำในผลค้นหา (เก็บใน fit.rank) — 0 = ไม่กำหนด (ขึ้นบนสุด)
   featuredRank(id) { const a = CACHE.pubAds.find(x => x.kind === 'featured' && x.hotelId === id); return Math.max(0, Math.floor(+a?.fit?.rank) || 0); },
@@ -349,8 +351,8 @@ const DB = {
   async setOwnerStatus(id, status, note = '') { await rpc('sd_set_owner_status', { p_id: id, p_status: status, p_note: note }); await this.load(); },
   saveBusiness(biz, payout) { // ข้อมูลรีสอร์ท + บัญชีรับเงินของเจ้าของ (แก้ได้เฉพาะของตัวเอง)
     const me = CACHE.me;
-    Object.assign(me, { biz: { ...me.biz, ...biz }, payout: { ...me.payout, ...payout } });
-    return dbWrite(supa.from('sd_profiles').update({ biz: me.biz, payout: me.payout }).eq('id', me.id), 'ข้อมูลรีสอร์ท');
+    Object.assign(me, { biz: { ...me.biz, ...biz } });
+    return dbWrite(supa.from('sd_profiles').update({ biz: me.biz }).eq('id', me.id), 'ข้อมูลรีสอร์ท'); // บัญชีรับเงินเปลี่ยนผ่านฟังก์ชัน sd-payout เท่านั้น (ยืนยัน OTP)
   },
   currentUser() { return CACHE.me && CACHE.me.active !== false ? CACHE.me : null; },
   async login(email, pass) {
