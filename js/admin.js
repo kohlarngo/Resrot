@@ -1297,7 +1297,8 @@ function admCalendar(main) {
         <div><small>โทร</small><b><a href="tel:${esc(b.guest.phone)}">${esc(b.guest.phone || '-')}</a></b></div><div><small>ผู้เข้าพัก</small><b>${b.adults} ผู้ใหญ่${b.children ? ` + ${b.children} เด็ก` : ''}</b></div>
         <div><small>ยอดรวม</small><b>${money(b.price.total)}</b></div><div><small>การชำระเงิน</small><b>${payChip(b)}</b></div></div>
         <div class="small muted" style="margin-top:10px">รหัสจอง ${esc(b.id)}</div>
-        <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn btn-ghost" data-close>ปิด</button><a class="btn btn-primary" href="#/admin/${b.status === 'pending' ? 'approvals' : 'bookings'}">${b.status === 'pending' ? 'ไปตรวจสลิป & อนุมัติ' : 'ดูในรายการจอง'}</a></div>`);
+        <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn btn-ghost" data-close>ปิด</button>${b.status === 'pending' ? '<a class="btn btn-primary" href="#/admin/approvals">ไปตรวจสลิป & อนุมัติ</a>' : '<button class="btn btn-primary" id="cal-detail">รายละเอียดการจอง</button>'}</div>`);
+      const det = $('#cal-detail', m); if (det) det.onclick = () => bookingDrawer(b.id, draw);
     });
   };
   $('#c-h').onchange = e => { hid = e.target.value; draw(); };
