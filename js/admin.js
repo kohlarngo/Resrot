@@ -1919,7 +1919,7 @@ function boSettings(main) {
 const AUDIT_TH = {
   'auth.login': 'เข้าสู่ระบบ', 'auth.logout': 'ออกจากระบบ', 'auth.fail': 'ใส่รหัสผ่านผิด',
   'booking.pay': 'รับชำระเงิน', 'checkin.register': 'ลงทะเบียนผู้เข้าพัก', 'checkin.print': 'พิมพ์ทะเบียนผู้เข้าพัก', 'checkin.view': 'เปิดดูรูปเอกสารผู้เข้าพัก', 'checkin.delete': 'ลบข้อมูลเอกสารผู้เข้าพัก', 'booking.confirm': 'ยืนยันการจอง', 'booking.checkin': 'เช็คอิน', 'booking.checkout': 'เช็คเอาท์', 'booking.cancel': 'ยกเลิกการจอง', 'booking.delete': 'ลบการจอง', 'booking.note': 'เพิ่มโน้ต', 'booking.export': 'ส่งออกการจอง',
-  'hotel.save': 'บันทึกที่พัก', 'hotel.delete': 'ลบที่พัก', 'hotel.toggle': 'เปิด/ปิดขาย', 'hotel.maintenance': 'ปิดปรับปรุงรีสอร์ท', 'hotel.maintenance.release': 'เปิดรับจองคืนหลังปรับปรุง','coupon.add': 'เพิ่มโค้ด', 'coupon.toggle': 'เปิด/ปิดโค้ด', 'coupon.delete': 'ลบโค้ด', 'review.delete': 'ลบรีวิว', 'sos.status': 'อัปเดตเหตุฉุกเฉิน', 'sos.contacts': 'แก้เบอร์ฉุกเฉิน',
+  'hotel.save': 'บันทึกที่พัก', 'hotel.delete': 'ลบที่พัก', 'hotel.toggle': 'เปิด/ปิดขาย', 'hotel.ical': 'เปิด/ปิดซิงก์ iCal รายรีสอร์ท', 'hotel.maintenance': 'ปิดปรับปรุงรีสอร์ท','hotel.maintenance.release': 'เปิดรับจองคืนหลังปรับปรุง','coupon.add': 'เพิ่มโค้ด', 'coupon.toggle': 'เปิด/ปิดโค้ด', 'coupon.delete': 'ลบโค้ด', 'review.delete': 'ลบรีวิว', 'sos.status': 'อัปเดตเหตุฉุกเฉิน', 'sos.contacts': 'แก้เบอร์ฉุกเฉิน',
   'staff.add': 'เพิ่มทีมงาน', 'staff.edit': 'แก้ไขทีมงาน', 'staff.suspend': 'ระงับบัญชี', 'staff.activate': 'เปิดใช้บัญชี', 'staff.delete': 'ลบทีมงาน', 'staff.resetpw': 'รีเซ็ตรหัสผ่าน',
   'booking.approve': 'อนุมัติการจอง', 'booking.reject': 'ปฏิเสธการจอง', 'payout.save': 'ตั้งค่าบัญชีรับเงิน',
   'partner.approve': 'อนุมัติเจ้าของรีสอร์ท', 'partner.reject': 'ไม่อนุมัติเจ้าของรีสอร์ท', 'partner.suspend': 'ระงับเจ้าของรีสอร์ท', 'partner.activate': 'เปิดใช้เจ้าของรีสอร์ท',
@@ -2147,7 +2147,7 @@ function boFlags(main) {
       <div class="fg" style="margin:-4px 0 18px"><label class="small">ข้อความที่แสดงให้ลูกค้า</label><div class="row"><input id="fl-msg" value="${esc(fl.maintenanceMsg)}" style="flex:1"><button class="btn btn-outline btn-sm" id="fl-msg-save">บันทึก</button></div></div>
     </section>
     <section class="card">
-      ${sw('icalSync', 'ซิงก์ปฏิทิน Agoda / Booking.com (iCal)', 'เปิดแล้วเจ้าของรีสอร์ทจะเห็นกล่อง “ซิงก์อัตโนมัติ” ในหน้า “จองจากช่องทางอื่น” และระบบจะดึงปฏิทินทุก 20 นาที · ปิดอยู่ = กล่องซ่อน และระบบหยุดดึง (ลิงก์ที่เคยบันทึกไว้ไม่ถูกลบ)')}
+      ${sw('icalSync', 'ซิงก์ปฏิทิน Agoda / Booking.com (iCal) — เปิดให้ทุกรีสอร์ท · ฟีเจอร์ Plus (มีค่าบริการ)', 'เปิดแล้วเจ้าของ “ทุกรีสอร์ท” จะเห็นกล่อง “ซิงก์อัตโนมัติ” ในหน้า “จองจากช่องทางอื่น” และระบบจะดึงปฏิทินทุก 20 นาที · ถ้าอยากเปิดเฉพาะบางรีสอร์ท ให้ปิดสวิตช์นี้ แล้วติ๊ก “ซิงก์ iCal” รายรีสอร์ทที่เมนู “สไลด์ & รูปรีสอร์ท” · ปิดทั้งสองอย่าง = กล่องซ่อน และระบบหยุดดึง (ลิงก์ที่เคยบันทึกไว้ไม่ถูกลบ)')}
     </section>
     <div class="notice info"><i class="fa-solid fa-circle-info"></i><div>สิทธิ์ถูกบังคับที่ฐานข้อมูลด้วย Row Level Security (ตาราง <code>sd_role_perms</code> + ฟังก์ชัน <code>sd_can()</code>) — <code>ROLE_PERMS</code> ใน <code>js/store.js</code> ใช้ซ่อนเมนูเท่านั้น หากแก้สิทธิ์ต้องแก้ทั้งสองที่ให้ตรงกัน</div></div>`;
   $$('[data-fl]', main).forEach(c => c.onchange = () => { DB.saveFlags({ [c.dataset.fl]: c.checked }); DB.log('flags.save', `${c.dataset.fl} = ${c.checked}`); toast('อัปเดตแล้ว'); render(); });

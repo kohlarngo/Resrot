@@ -77,16 +77,25 @@ Deno.serve(async (req: Request) => {
 
   // สวิตช์จากนักพัฒนา: ปิดอยู่ = ไม่ดึงอะไรเลย
   const fl = await admin.from('sd_kv').select('value').eq('key', 'flags').maybeSingle();
-  if (fl.data?.value?.icalSync !== true) return json({ disabled: true, synced: 0, results: [] });
+  const allOn = fl.data?.value?.icalSync === true;
+  // ไม่ได้เปิดทั้งระบบ → ดึงเฉพาะรีสอร์ทที่ dev เปิดรายแห่ง (sd_hotels.data.icalOn)
+  let onHotels: string[] = [];
+  if (!allOn) {
+    const hs = await admin.from('sd_hotels').select('id').eq('data->>icalOn', 'true');
+    onHotels = (hs.data ?? []).map((x: { id: string }) => x.id);
+    if (!onHotels.length) return json({ disabled: true, synced: 0, results: [] });
+  }
 
   if (cron) {
     let q = admin.from('sd_ical_feeds').select('id, url').eq('active', true);
+    if (!allOn) q = q.in('hotel_id', onHotels);
     if (body.feedId) q = q.eq('id', body.feedId);
     const r = await q; if (r.error) return json({ error: r.error.message }, 500); feeds = r.data ?? [];
   } else {
     const auth = req.headers.get('Authorization') ?? '';
     const user = createClient(url, anon, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } });
     let q = user.from('sd_ical_feeds').select('id, url').eq('active', true); // RLS: เห็นเฉพาะฟีดของตัวเอง
+    if (!allOn) q = q.in('hotel_id', onHotels);
     if (body.feedId) q = q.eq('id', body.feedId);
     const r = await q; if (r.error) return json({ error: r.error.message }, 500); feeds = r.data ?? [];
   }

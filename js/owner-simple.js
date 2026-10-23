@@ -32,7 +32,7 @@ function ownerSetupCard() {
   const extras = [
     [+bz.targetMonthly > 0, 'ตั้งเป้ายอดขายต่อเดือน', 'ใส่หรือไม่ใส่ก็ได้ — ใช้ดูความคืบหน้าในหน้ายอดขายภาพรวม', '#/admin/payout?focus=targetMonthly'],
     [DB.coupons().some(c => c.ownerId === u.id), 'สร้างโค้ดส่วนลดแรก', 'ช่วยกระตุ้นการจอง เช่น ลด 10% เมื่อจองล่วงหน้า', '#/admin/coupons'],
-    ...(DB.flags().icalSync ? [[false, 'ขายที่ Agoda / Booking.com ด้วย? ตั้งซิงก์ปฏิทิน', 'ลดห้องบนเว็บอัตโนมัติ ไม่ให้จองซ้ำ', '#/admin/channels']] : []),
+    ...(hs.some(icalOn) ? [[false, 'ขายที่ Agoda / Booking.com ด้วย? ตั้งซิงก์ปฏิทิน', 'ลดห้องบนเว็บอัตโนมัติ ไม่ให้จองซ้ำ', '#/admin/channels']] : []),
   ];
   const todo = steps.filter(s => !s[0]).length, done = steps.length - todo;
   if (!todo) return '';
@@ -299,11 +299,13 @@ function boDevMedia(main) {
       <div class="sh-thumb">${imgTag(h.images[0], 200, '', h.id)}</div>
       <div class="sh-main"><b class="sh-name">${esc(h.name)}</b><div class="small muted">เจ้าของ: ${esc(ownerName(h))} · ${h.images.length} รูป${h.active === false ? ' · <span class="red">ปิดการขาย</span>' : ''}</div></div>
       <div class="sh-ctl"><label class="row" style="gap:6px"><input type="checkbox" data-sl-on="${h.id}" ${h.slideshow?.on === true ? 'checked' : ''} ${h.images.length < 2 ? 'disabled' : ''}> สไลด์</label>
-        <input type="range" data-sl-sec="${h.id}" min="2" max="15" step="1" value="${sec(h)}" style="width:110px" ${h.images.length < 2 ? 'disabled' : ''}><b data-sl-v="${h.id}" style="min-width:58px;font-size:13px">${sec(h)} วินาที</b></div>
+        <input type="range" data-sl-sec="${h.id}" min="2" max="15" step="1" value="${sec(h)}" style="width:110px" ${h.images.length < 2 ? 'disabled' : ''}><b data-sl-v="${h.id}" style="min-width:58px;font-size:13px">${sec(h)} วินาที</b>
+        <label class="row" style="gap:6px" title="ให้เจ้าของรีสอร์ทนี้ใช้ซิงก์ปฏิทิน Agoda / Booking.com (iCal)"><input type="checkbox" data-ic-on="${h.id}" ${h.icalOn === true ? 'checked' : ''} ${DB.flags().icalSync ? 'disabled' : ''}> ซิงก์ iCal (Plus)${DB.flags().icalSync ? ' <span class="small muted">(เปิดทั้งระบบ)</span>' : ''}</label></div>
       <div class="sh-act"><button class="btn btn-primary btn-sm" data-deco="${h.id}"><i class="fa-solid fa-paintbrush"></i> จัดการรูป</button>
         <a class="btn btn-outline btn-sm" href="${siteUrl('#/hotel/' + (h.slug || h.id))}" target="_blank" rel="noopener" title="ดูหน้าเว็บ"><i class="fa-solid fa-eye"></i></a></div></section>`).join('') || '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><p class="muted">ยังไม่มีรีสอร์ทในระบบ</p></div></section>'}</div>`;
   const save = (id, patch) => { const h = JSON.parse(JSON.stringify(DB.hotel(id))); h.slideshow = { on: h.slideshow?.on === true, seconds: sec(h), ...patch }; DB.saveHotel(h); DB.log('hotel.slideshow', `${h.name} → ${h.slideshow.on ? 'เปิด ' + h.slideshow.seconds + ' วินาที' : 'ปิด'}`); };
   $$('[data-sl-on]', main).forEach(c => c.onchange = () => { save(c.dataset.slOn, { on: c.checked }); toast(c.checked ? 'เปิดสไลด์แล้ว' : 'ปิดสไลด์แล้ว'); });
+  $$('[data-ic-on]', main).forEach(c => c.onchange = () => { const h = JSON.parse(JSON.stringify(DB.hotel(c.dataset.icOn))); h.icalOn = c.checked; DB.saveHotel(h); DB.log('hotel.ical', `${h.name} → ${c.checked ? 'เปิด' : 'ปิด'}ซิงก์ iCal`); toast(c.checked ? 'เปิดซิงก์ iCal ให้รีสอร์ทนี้แล้ว' : 'ปิดซิงก์ iCal ของรีสอร์ทนี้แล้ว'); });
   $$('[data-sl-sec]', main).forEach(r => {
     r.oninput = () => $(`[data-sl-v="${r.dataset.slSec}"]`, main).textContent = r.value + ' วินาที';
     r.onchange = () => { save(r.dataset.slSec, { seconds: +r.value }); toast(`ตั้งเวลาสไลด์ ${r.value} วินาทีแล้ว`); };
@@ -388,14 +390,17 @@ function slideSlotModal(slot, done) {
 
 // ================= จองจากช่องทางอื่น (Agoda / Booking.com / โทรศัพท์ ฯลฯ) =================
 // บันทึกการจองที่เกิดนอกระบบ → ลดห้องว่างบนเว็บทันที (ใช้ sd_block_rooms เดิม) · ยังไม่ดึงข้อมูลจาก OTA อัตโนมัติ
+// ซิงก์ปฏิทิน iCal: dev เปิดทั้งระบบ (flags.icalSync) หรือเปิดเฉพาะรีสอร์ท (h.icalOn — ตั้งที่หน้า "สไลด์ & รูปรีสอร์ท" ของ dev)
+const icalOn = h => !!h && (DB.flags().icalSync === true || h.icalOn === true);
 function boChannels(main) {
   const hotels = DB.hotels(true);
   const f = { ch: '', st: 'active', hid: hotels[0]?.id || '' };
   const chColor = c => ({ 'Agoda': '#c2410c', 'Booking.com': '#1d4ed8', 'Traveloka': '#0369a1', 'Trip.com': '#6d28d9', 'Airbnb': '#be123c' }[c] || '#475569');
   main.innerHTML = pageHead('จองจากช่องทางอื่น', 'บันทึกการจองจาก Agoda / Booking.com / โทรศัพท์ เพื่อลดห้องว่างบนเว็บของเรา ไม่ให้ลูกค้าจองซ้ำ', '<button class="btn btn-primary" id="ch-add"><i class="fa-solid fa-plus"></i> บันทึกการจองใหม่</button>') + `
-    ${DB.flags().icalSync
-      ? '<div class="notice info"><i class="fa-solid fa-circle-info"></i><div>มี 2 วิธีลดห้อง: <b>ซิงก์อัตโนมัติ</b> วางลิงก์ปฏิทิน iCal จาก Agoda / Booking.com ด้านล่าง ระบบดึงทุก 20 นาที (ไม่ใช่เรียลไทม์ จึงอาจจองซ้อนได้ในช่วงรอ) หรือ <b>บันทึกเอง</b> ด้วยปุ่ม “บันทึกการจองใหม่”</div></div><section class="card" id="ch-feeds"></section>'
-      : '<div class="notice info"><i class="fa-solid fa-circle-info"></i><div>เมื่อมีลูกค้าจองจาก Agoda / Booking.com / โทรศัพท์ กด <b>“บันทึกการจองใหม่”</b> เพื่อลดห้องที่นี่ทันที และกด <b>“เปิดห้องคืน”</b> เมื่อลูกค้ายกเลิก (การซิงก์ปฏิทินอัตโนมัติยังปิดอยู่)</div></div>'}
+    ${hotels.some(icalOn)
+      ? '<div class="notice info"><i class="fa-solid fa-circle-info"></i><div>มี 2 วิธีลดห้อง: <b>ซิงก์อัตโนมัติ (Plus)</b> วางลิงก์ปฏิทิน iCal จาก Agoda / Booking.com ด้านล่าง ระบบดึงทุก 20 นาที (ไม่ใช่เรียลไทม์ จึงอาจจองซ้อนได้ในช่วงรอ) หรือ <b>บันทึกเอง</b> ด้วยปุ่ม “บันทึกการจองใหม่”</div></div>'
+      : '<div class="notice info"><i class="fa-solid fa-circle-info"></i><div>เมื่อมีลูกค้าจองจาก Agoda / Booking.com / โทรศัพท์ กด <b>“บันทึกการจองใหม่”</b> เพื่อลดห้องที่นี่ทันที และกด <b>“เปิดห้องคืน”</b> เมื่อลูกค้ายกเลิก</div></div>'}
+    <section class="card" id="ch-feeds"></section>
     <div id="ch-sum" class="tl-sum"></div>
     <section class="card"><div class="ob-tool">
       ${hotels.length > 1 ? `<select id="ch-h" class="sel">${hotels.map(h => `<option value="${h.id}">${esc(h.name)}</option>`).join('')}</select>` : ''}
@@ -407,6 +412,14 @@ function boChannels(main) {
   const drawFeeds = async () => {
     const box = $('#ch-feeds'); if (!box) return;
     const h = DB.hotel(f.hid); if (!h) { box.innerHTML = ''; return; }
+    if (!icalOn(h)) {
+      const st = DB.settings();
+      box.innerHTML = `<div class="card-h"><h3><i class="fa-solid fa-arrows-rotate"></i> ซิงก์ปฏิทินอัตโนมัติ (iCal) <span class="pill" style="background:#f59e0b;color:#fff"><i class="fa-solid fa-crown"></i> Plus</span></h3></div>
+        <p style="margin:0 0 8px">ดึงปฏิทินจาก Agoda / Booking.com ทุก 20 นาที แล้วลดห้องบนเว็บให้อัตโนมัติ ไม่ต้องคอยกรอกเองทุกครั้ง · เป็นบริการเสริมแบบ <b>Plus</b> (มีค่าบริการ)</p>
+        <p class="small" style="margin:0 0 8px">สนใจสมัคร ติดต่อทีมงาน${st.phone ? ` โทร <a href="tel:${esc(st.phone)}">${esc(st.phone)}</a>` : ''}${st.line ? ` · LINE ${esc(st.line)}` : ''}</p>
+        <p class="small muted" style="margin:0">ระหว่างนี้ยังใช้ปุ่ม “บันทึกการจองใหม่” ลดห้องด้วยตัวเองได้ตามปกติ ไม่มีค่าใช้จ่าย</p>`;
+      return;
+    }
     const res = await supa.from('sd_ical_feeds').select('*').eq('hotel_id', h.id).order('created_at');
     const feeds = res.data || [], roomName = id => (h.rooms.find(r => r.id === id) || {}).name || '(ห้องถูกลบ)';
     box.innerHTML = `<div class="card-h"><h3><i class="fa-solid fa-arrows-rotate"></i> ซิงก์อัตโนมัติ (iCal)</h3><span class="small muted">ดึงทุก 20 นาที · ใช้ได้เมื่อ Agoda / Booking.com ให้ลิงก์ปฏิทิน</span></div>
@@ -456,11 +469,11 @@ function boChannels(main) {
       DB.log('booking.release', `${b.id} · ${b.roomName} × ${b.qty} · ${b.checkIn} → ${b.checkOut}`); toast('เปิดห้องคืนแล้ว'); draw();
     });
   };
-  $('#ch-h')?.addEventListener('change', e => { f.hid = e.target.value; draw(); if (DB.flags().icalSync) drawFeeds(); });
+  $('#ch-h')?.addEventListener('change', e => { f.hid = e.target.value; draw(); drawFeeds(); });
   $('#ch-c').onchange = e => { f.ch = e.target.value; draw(); };
   $('#ch-s').onchange = e => { f.st = e.target.value; draw(); };
   $('#ch-add').onclick = () => blockRoomsModal(DB.hotel(f.hid), { channel: 'Agoda' }, draw);
-  draw(); if (DB.flags().icalSync) drawFeeds();
+  draw(); drawFeeds();
 }
 
 // ---------- แจ้งเตือนการจอง (Telegram + Web Push) ----------
