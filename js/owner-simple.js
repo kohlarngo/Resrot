@@ -462,3 +462,162 @@ function boChannels(main) {
   $('#ch-add').onclick = () => blockRoomsModal(DB.hotel(f.hid), { channel: 'Agoda' }, draw);
   draw(); if (DB.flags().icalSync) drawFeeds();
 }
+
+// ---------- แจ้งเตือนการจอง (Telegram + Web Push) ----------
+const NOTIFY_VAPID_PUBLIC = 'BNZP8pEMnY_mtugVH_GhwhJiLI7mYn4npBpPhbeuHxWXzX9m0SQjM1E35uZ7UE4xxT_U81ugqTMNx8c6SzEhhtI';
+const NOTIFY_EVENTS = [['new', 'มีการจองใหม่'], ['slip', 'ลูกค้าส่งสลิปโอนเงิน'], ['cancel', 'ลูกค้าขอยกเลิก'], ['checkin', 'ลูกค้ากรอกเช็คอินเอง']];
+const b64ToBytes = s => Uint8Array.from(atob((s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+
+function boNotify(main) {
+  const uid = () => supa.auth.getUser().then(r => r.data.user?.id);
+  const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent), standalone = navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+  const pushOk = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  main.innerHTML = pageHead('การแจ้งเตือน', 'ให้ระบบส่งข้อความหาคุณทันทีเมื่อมีลูกค้าจอง ไม่ต้องเปิดเว็บมาดูเอง') + '<div id="nt-box"><div class="muted small">กำลังโหลด…</div></div>';
+
+  const soft = p => Promise.race([Promise.resolve(p), new Promise(r => setTimeout(() => r(null), 2500))]).catch(() => null); // service worker บางเครื่องไม่ตอบ — อย่าให้หน้าค้าง
+  const draw = async () => { try { await draw0(); } catch (err) { console.error(err); $('#nt-box').innerHTML = `<div class="notice warn"><i class="fa-solid fa-triangle-exclamation"></i><div>โหลดหน้านี้ไม่สำเร็จ: ${esc(err.message || err)}</div></div>`; } };
+  const draw0 = async () => {
+    const [subsR, prefR, tgR] = await Promise.all([supa.from('sd_notify_subs').select('id, kind, endpoint, label, created_at').order('created_at'), supa.from('sd_notify_prefs').select('prefs').maybeSingle(), supa.rpc('sd_notify_tg_status')]);
+    const subs = subsR.data || [], prefs = { new: true, slip: true, cancel: true, checkin: true, ...(prefR.data?.prefs || {}) };
+    const reg = pushOk ? await soft(navigator.serviceWorker.getRegistration()) : null, mine = reg ? await soft(reg.pushManager.getSubscription()) : null;
+    const thisOn = !!mine && subs.some(s => s.kind === 'webpush' && s.endpoint === mine.endpoint);
+    const tg = tgR.data || {}, pushes = subs.filter(s => s.kind === 'webpush');
+    $('#nt-box').innerHTML = `
+      <section class="card"><div class="card-h"><h3><i class="fa-solid fa-mobile-screen"></i> แจ้งเตือนบนเครื่องนี้ (Web Push)</h3>${thisOn ? '<span class="pill ok">เปิดอยู่</span>' : ''}</div>
+        <div style="padding:14px 20px">
+          ${!pushOk ? '<div class="notice warn"><i class="fa-solid fa-triangle-exclamation"></i><div>เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน' + (isIos ? ' — บน iPhone ต้องเปิดจากไอคอนบนหน้าจอโฮม (ดูด้านล่าง)' : '') + '</div></div>' : ''}
+          ${isIos && !standalone ? '<div class="notice info"><i class="fa-solid fa-circle-info"></i><div><b>iPhone:</b> กดปุ่มแชร์ใน Safari → <b>เพิ่มลงในหน้าจอโฮม</b> แล้วเปิดระบบจากไอคอนนั้น จึงจะเปิดแจ้งเตือนได้</div></div>' : ''}
+          <div class="row" style="gap:10px;flex-wrap:wrap">${thisOn
+            ? '<button class="btn btn-outline" id="nt-off"><i class="fa-solid fa-bell-slash"></i> ปิดบนเครื่องนี้</button><button class="btn btn-ghost" id="nt-test"><i class="fa-solid fa-paper-plane"></i> ส่งทดสอบ</button>'
+            : `<button class="btn btn-primary" id="nt-on" ${pushOk ? '' : 'disabled'}><i class="fa-solid fa-bell"></i> เปิดแจ้งเตือนบนเครื่องนี้</button>`}</div>
+          ${pushes.length ? `<div class="small muted" style="margin-top:10px">อุปกรณ์ที่เปิดไว้ ${pushes.length} เครื่อง ${pushes.length > 1 || !thisOn ? '<button class="btn btn-sm btn-ghost red" id="nt-clr">ลบทั้งหมด</button>' : ''}</div>` : ''}
+        </div></section>
+      <section class="card"><div class="card-h"><h3><i class="fa-brands fa-telegram"></i> Telegram</h3>${tg.connected ? '<span class="pill ok">เชื่อมแล้ว</span>' : ''}</div>
+        <div style="padding:14px 20px">
+          ${tg.connected ? `<div class="row between" style="padding:4px 0"><span><i class="fa-solid fa-circle-check" style="color:#0a8f3c"></i> ส่งไปที่ <b>${esc(tg.chat)}</b> ผ่านบอท @${esc(tg.bot)}</span><button class="btn btn-sm btn-ghost red" id="nt-tgx">ยกเลิกเชื่อม</button></div>`
+          : tg.bot ? `<div class="notice info"><i class="fa-solid fa-circle-info"></i><div><b>ขั้นตอนสุดท้าย:</b> เปิดบอท <a href="https://t.me/${esc(tg.bot)}" target="_blank" rel="noopener"><b>@${esc(tg.bot)}</b></a> ใน Telegram แล้วกด <b>Start</b> (ถ้าจะให้ส่งเข้ากลุ่ม ให้เพิ่มบอทเข้ากลุ่มแล้วพิมพ์ข้อความ 1 ครั้ง) จากนั้นกดปุ่มด้านล่าง</div></div>
+              <div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn btn-primary" id="nt-detect"><i class="fa-solid fa-magnifying-glass"></i> ตรวจสอบ</button><button class="btn btn-ghost red" id="nt-tgx">เริ่มใหม่</button></div>`
+          : `<ol class="small" style="margin:0 0 12px;padding-left:20px;line-height:1.8">
+              <li>เปิด Telegram แล้วค้นหา <a href="https://t.me/BotFather" target="_blank" rel="noopener"><b>@BotFather</b></a></li>
+              <li>พิมพ์ <b>/newbot</b> ตั้งชื่อบอทตามต้องการ (ชื่อผู้ใช้ต้องลงท้ายด้วย <b>bot</b>)</li>
+              <li>BotFather จะส่ง <b>token</b> มาให้ — คัดลอกมาวางด้านล่าง</li></ol>
+            <form id="nt-f" class="row" style="gap:10px;flex-wrap:wrap" novalidate><input id="nt-token" class="sel" style="flex:1;min-width:240px" placeholder="วาง token ที่นี่ เช่น 123456789:AAH…" autocomplete="off"><button class="btn btn-primary" id="nt-con"><i class="fa-brands fa-telegram"></i> เชื่อมต่อ</button></form>`}
+        </div></section>
+      <section class="card"><div class="card-h"><h3><i class="fa-solid fa-list-check"></i> แจ้งเตือนเรื่องอะไรบ้าง</h3></div>
+        <div style="padding:8px 20px 16px">${NOTIFY_EVENTS.map(([k, l]) => `<label style="display:flex;gap:10px;align-items:center;padding:8px 0"><input type="checkbox" data-pf="${k}" ${prefs[k] ? 'checked' : ''}> ${l}</label>`).join('')}</div></section>`;
+
+    const del = async ids => { const r = await supa.from('sd_notify_subs').delete().in('id', ids); if (r.error) toast(r.error.message, 'err'); draw(); };
+    $('#nt-on')?.addEventListener('click', async e => {
+      e.currentTarget.disabled = true;
+      try {
+        if (await Notification.requestPermission() !== 'granted') throw new Error('ยังไม่ได้อนุญาตการแจ้งเตือน — เปิดได้ที่การตั้งค่าเบราว์เซอร์');
+        const r = await navigator.serviceWorker.register('sw.js'); await navigator.serviceWorker.ready;
+        const sub = (await r.pushManager.getSubscription()) || await r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(NOTIFY_VAPID_PUBLIC) });
+        const j = sub.toJSON();
+        const ins = await supa.from('sd_notify_subs').upsert({ owner_id: await uid(), kind: 'webpush', endpoint: j.endpoint, keys: j.keys, label: (navigator.userAgent.match(/iPhone|iPad|Android|Windows|Mac/) || ['อุปกรณ์'])[0] }, { onConflict: 'kind,endpoint' });
+        if (ins.error) throw ins.error;
+        toast('เปิดแจ้งเตือนบนเครื่องนี้แล้ว');
+      } catch (err) { toast(err.message || 'เปิดแจ้งเตือนไม่สำเร็จ', 'err'); }
+      draw();
+    });
+    $('#nt-off')?.addEventListener('click', async () => { const id = subs.find(s => s.kind === 'webpush' && s.endpoint === mine.endpoint)?.id; await mine.unsubscribe().catch(() => {}); if (id) del([id]); else draw(); });
+    $('#nt-clr')?.addEventListener('click', () => del(pushes.map(p => p.id)));
+    $('#nt-test')?.addEventListener('click', () => reg.showNotification('ทดสอบแจ้งเตือน', { body: 'ถ้าเห็นข้อความนี้ แปลว่าเครื่องนี้พร้อมรับแจ้งเตือนแล้ว', icon: 'assets/icon-192.png' }));
+    const call = async (action, extra = {}) => { const r = await supa.functions.invoke('sd-notify', { body: { action, ...extra } }); let msg = r.error?.message; try { msg = (await r.error?.context?.json())?.error || msg; } catch {} return { ok: !r.error, msg, d: r.data }; };
+    $('#nt-f')?.addEventListener('submit', async e => {
+      e.preventDefault(); const btn = $('#nt-con'); btn.disabled = true;
+      const r = await call('tg-connect', { token: $('#nt-token').value }); toast(r.ok ? 'ตรวจ token ผ่านแล้ว' : r.msg || 'เชื่อมไม่สำเร็จ', r.ok ? 'ok' : 'err'); draw();
+    });
+    $('#nt-detect')?.addEventListener('click', async e => {
+      e.currentTarget.disabled = true; const r = await call('tg-detect'); toast(r.ok ? 'เชื่อม Telegram สำเร็จ — ส่งข้อความทดสอบแล้ว' : r.msg || 'ตรวจสอบไม่สำเร็จ', r.ok ? 'ok' : 'err'); draw();
+    });
+    $('#nt-tgx')?.addEventListener('click', async () => { const r = await supa.rpc('sd_notify_tg_remove'); if (r.error) toast(r.error.message, 'err'); draw(); });
+    $$('[data-pf]').forEach(c => c.onchange = async () => {
+      prefs[c.dataset.pf] = c.checked;
+      const r = await supa.from('sd_notify_prefs').upsert({ owner_id: await uid(), prefs }, { onConflict: 'owner_id' }); if (r.error) toast(r.error.message, 'err');
+    });
+  };
+  draw();
+}
+
+// ---------- พนักงานของฉัน (เจ้าของจ้างแอดมินส่วนตัว) ----------
+function boMyTeam(main) {
+  main.innerHTML = pageHead('พนักงานของฉัน', 'สร้างบัญชีให้พนักงานเข้ามาช่วยดูแลรีสอร์ท — เลือกได้ว่าแต่ละคนทำอะไรได้บ้าง เรื่องเงิน (บัญชีรับเงิน · รายงานการเงิน) เป็นของเจ้าของคนเดียว', '<button class="btn btn-primary" id="tm-add"><i class="fa-solid fa-user-plus"></i> เพิ่มพนักงาน</button>')
+    + '<section class="card flush"><div id="tm-list"><div class="muted small" style="padding:16px 20px">กำลังโหลด…</div></div></section>';
+  const form = u => {
+    const isNew = !u, pw = genPassword(), have = new Set(u?.perms || ['ops.view', 'frontdesk', 'bookings.view']);
+    const m = openModal(`<h2>${isNew ? 'เพิ่มพนักงาน' : 'แก้ไขพนักงาน'}</h2>
+      <form id="tf" class="form-grid" style="margin-top:14px" novalidate>
+        <div class="fg full"><label>ชื่อ-นามสกุล <span class="req">*</span></label><input name="name" value="${esc(u?.name || '')}"></div>
+        <div class="fg"><label>อีเมล (ใช้เข้าสู่ระบบ) <span class="req">*</span></label><input name="email" type="email" value="${esc(u?.email || '')}" ${isNew ? '' : 'disabled'}></div>
+        <div class="fg"><label>เบอร์โทร</label><input name="phone" value="${esc(u?.phone || '')}"></div>
+        ${isNew ? `<div class="fg full"><label>รหัสผ่านเริ่มต้น</label><div class="pw-wrap"><input name="pass" value="${pw}" class="mono"><button type="button" id="tf-gen" title="สุ่มใหม่"><i class="fa-solid fa-rotate"></i></button></div><div class="small muted" style="margin-top:4px">อย่างน้อย 8 ตัวอักษร — ส่งให้พนักงานเอง และให้เปลี่ยนรหัสหลังเข้าใช้ครั้งแรก</div></div>` : ''}
+        <div class="fg full"><label>สิทธิ์ของคนนี้</label>
+          <div class="row wrap" style="gap:8px;margin-bottom:6px"><button type="button" class="btn btn-sm btn-outline" id="tp-all">เลือกทั้งหมด</button><button type="button" class="btn btn-sm btn-ghost" id="tp-none">ล้าง</button></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px 14px">${Object.entries(STAFF_PERM_LABELS).map(([k, l]) => `<label class="small perm-opt"><input type="checkbox" name="perm" value="${k}" ${have.has(k) ? 'checked' : ''}> ${esc(l)}</label>`).join('')}</div>
+          <div class="small muted" style="margin-top:6px"><i class="fa-solid fa-lock"></i> พนักงานเข้าถึงบัญชีรับเงิน รายงานการเงิน และการตั้งค่าพนักงาน/แจ้งเตือนไม่ได้ ไม่ว่าจะติ๊กอะไร</div></div>
+        <div class="full row" style="justify-content:flex-end"><button type="button" class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary">บันทึก</button></div></form>`);
+    const perms = () => $$('input[name=perm]:checked', m).map(i => i.value);
+    $('#tp-all', m).onclick = () => $$('input[name=perm]', m).forEach(i => i.checked = true);
+    $('#tp-none', m).onclick = () => $$('input[name=perm]', m).forEach(i => i.checked = false);
+    $('#tf-gen', m)?.addEventListener('click', () => $('[name=pass]', m).value = genPassword());
+    $('#tf', m).onsubmit = async e => {
+      e.preventDefault();
+      const v = Object.fromEntries(new FormData(e.target));
+      if (!v.name.trim()) return toast('กรุณากรอกชื่อ', 'err');
+      const btn = $('button.btn-primary', e.target); btn.disabled = true;
+      let r;
+      if (isNew) {
+        const email = v.email.trim().toLowerCase();
+        if (!/^\S+@\S+\.\S+$/.test(email)) { btn.disabled = false; return toast('รูปแบบอีเมลไม่ถูกต้อง', 'err'); }
+        if ((v.pass || '').length < 8) { btn.disabled = false; return toast('รหัสผ่านอย่างน้อย 8 ตัวอักษร', 'err'); }
+        r = await DB.ownerStaffAdmin('create', { email, password: v.pass, name: v.name.trim(), phone: v.phone.trim(), perms: perms() });
+        btn.disabled = false;
+        if (r.error) return toast(r.error, 'err');
+        DB.log('team.add', email);
+        closeModal(); showCredential(email, v.pass, 'เพิ่มพนักงานเรียบร้อย', 'owner'); return load();
+      }
+      r = await DB.ownerStaffAdmin('update', { id: u.id, name: v.name.trim(), phone: v.phone.trim(), perms: perms() });
+      btn.disabled = false;
+      if (r.error) return toast(r.error, 'err');
+      DB.log('team.edit', u.email); closeModal(); toast('บันทึกแล้ว'); load();
+    };
+  };
+
+  let list = [];
+  const draw = () => {
+    $('#tm-list').innerHTML = list.length ? `<div class="table-scroll"><table class="tbl"><thead><tr><th>พนักงาน</th><th>ทำอะไรได้</th><th>สถานะ</th><th></th></tr></thead><tbody>
+      ${list.map(u => `<tr><td><b>${esc(u.name)}</b><div class="small muted">${esc(u.email)}${u.phone ? ' · ' + esc(u.phone) : ''}</div></td>
+        <td class="small">${(u.perms || []).filter(p => STAFF_PERM_LABELS[p]).map(p => `<span class="pill">${esc(STAFF_PERM_LABELS[p])}</span>`).join(' ') || '<span class="muted">ยังไม่ได้ให้สิทธิ์</span>'}</td>
+        <td>${u.active === false ? '<span class="pill bad">ระงับ</span>' : '<span class="pill ok">ใช้งานอยู่</span>'}</td>
+        <td style="text-align:right;white-space:nowrap"><button class="btn btn-sm btn-outline" data-te="${u.id}">แก้ไข</button> <button class="btn btn-sm btn-ghost" data-tpw="${u.id}" title="ตั้งรหัสผ่านใหม่"><i class="fa-solid fa-key"></i></button> <button class="btn btn-sm btn-ghost" data-tsus="${u.id}">${u.active === false ? 'เปิดใช้' : 'ระงับ'}</button> <button class="btn btn-sm btn-ghost red" data-tdel="${u.id}" title="ลบ"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('')}
+      </tbody></table></div>`
+      : '<div class="bo-empty" style="padding:28px 20px"><i class="fa-solid fa-user-group"></i><h3>ยังไม่มีพนักงาน</h3><p class="muted small">กด “เพิ่มพนักงาน” เพื่อสร้างบัญชีให้แอดมินที่คุณจ้างมาช่วยงาน</p></div>';
+    const by = id => list.find(x => x.id === id);
+    $$('[data-te]', main).forEach(b => b.onclick = () => form(by(b.dataset.te)));
+    $$('[data-tpw]', main).forEach(b => b.onclick = async () => {
+      const u = by(b.dataset.tpw), pw = genPassword();
+      if (!(await confirmBox(`ตั้งรหัสผ่านใหม่ให้ <b>${esc(u.name)}</b>?`, 'รีเซ็ตรหัสผ่าน'))) return;
+      const r = await DB.ownerStaffAdmin('resetpw', { id: u.id, password: pw });
+      if (r.error) return toast(r.error, 'err');
+      DB.log('team.resetpw', u.email); showCredential(u.email, pw, 'รีเซ็ตรหัสผ่านแล้ว', 'owner'); load();
+    });
+    $$('[data-tsus]', main).forEach(b => b.onclick = async () => {
+      const u = by(b.dataset.tsus), suspend = u.active !== false;
+      if (!(await confirmBox(`${suspend ? 'ระงับ' : 'เปิดใช้งาน'}บัญชี <b>${esc(u.name)}</b>?`, suspend ? 'ระงับบัญชี' : 'เปิดใช้งาน'))) return;
+      const r = await DB.ownerStaffAdmin('update', { id: u.id, active: !suspend });
+      if (r.error) return toast(r.error, 'err');
+      DB.log(suspend ? 'team.suspend' : 'team.activate', u.email); toast('อัปเดตแล้ว'); load();
+    });
+    $$('[data-tdel]', main).forEach(b => b.onclick = async () => {
+      const u = by(b.dataset.tdel);
+      if (!(await confirmBox(`ลบ <b>${esc(u.name)}</b> (${esc(u.email)})? บัญชีนี้จะเข้าสู่ระบบไม่ได้อีก`, 'ลบพนักงาน'))) return;
+      const r = await DB.ownerStaffAdmin('delete', { id: u.id });
+      if (r.error) return toast(r.error, 'err');
+      DB.log('team.delete', u.email); toast('ลบแล้ว'); load();
+    });
+  };
+  const load = async () => { list = await DB.ownerStaffList(); draw(); };
+  $('#tm-add').onclick = () => form(null);
+  load();
+}

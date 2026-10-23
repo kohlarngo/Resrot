@@ -20,6 +20,8 @@ const BO_NAV_BY_ROLE = {
       ['shop', 'fa-store', 'หน้ารีสอร์ท', 'hotels.edit', () => boShopPage],
       ['coupons', 'fa-ticket', 'โค้ดส่วนลด', 'coupons.edit', () => admCoupons],
       ['payout', 'fa-building-columns', 'บัญชีรับเงิน', 'payout.edit', () => boPayout],
+      ['notify', 'fa-bell', 'การแจ้งเตือน', 'team.manage', () => boNotify],
+      ['team', 'fa-user-group', 'พนักงานของฉัน', 'team.manage', () => boMyTeam],
     ] },
     { g: 'ยอดขาย & รายงาน', items: [
       ['overview', 'fa-chart-line', 'ยอดขายภาพรวม', 'exec.view', () => boOverview],
@@ -132,13 +134,13 @@ function pageAdmin(app, params, section) {
   document.body.dataset.portal = PORTAL || '';
   // สมัครเป็นเจ้าของรีสอร์ท (ยังไม่มีบัญชี / บัญชีลูกค้า / ใบสมัครไม่ผ่าน)
   if (PORTAL === 'owner' && section === 'signup' && (!u || u.role === 'user' || (u.role === 'owner' && u.ownerStatus === 'rejected'))) return boOwnerSignup(app, u);
-  if (!isStaff(u) || (PORTAL && u.role !== PORTAL)) return boLogin(app, u);
+  if (!isStaff(u) || (PORTAL && portalRole(u) !== PORTAL)) return boLogin(app, u);
   if (u.role === 'owner' && u.ownerStatus !== 'approved') return boOwnerPending(app, u);
-  const nav = navFor(u.role);
+  const nav = navFor(portalRole(u));
   const items = nav.flatMap(g => g.items);
   const allowed = items.filter(i => can(i[3]));
   const item = section === 'profile' ? BO_PROFILE : items.find(i => i[0] === section);
-  const home = PORTAL_INFO[u.role].home;
+  const home = PORTAL_INFO[portalRole(u)].home;
   if (!item) return go('/admin/' + (allowed.some(i => i[0] === home) ? home : allowed[0]?.[0] || 'profile'), true);
   const group = nav.find(g => g.items.includes(item))?.g || 'บัญชี';
   const r = ROLES[u.role];
@@ -146,7 +148,7 @@ function pageAdmin(app, params, section) {
   const sideTop = $('#bo-side')?.scrollTop || 0; // จำตำแหน่งเลื่อนของเมนูด้านข้าง
   app.innerHTML = `<div class="bo">
     <aside class="bo-side" id="bo-side">
-      <a href="#/admin" class="bo-brand"><span class="bo-logo"><img src="${esc(siteImgId('icon', 'assets/icon-192.png'))}" alt=""></span><div><b>${esc(u.role === 'owner' ? (u.biz?.resortName || u.name) : DB.settings().bizName)}</b><small>${PORTAL_INFO[u.role].title} · v${APP_VERSION}</small></div></a>
+      <a href="#/admin" class="bo-brand"><span class="bo-logo"><img src="${esc(siteImgId('icon', 'assets/icon-192.png'))}" alt=""></span><div><b>${esc(u.role === 'owner' ? (u.biz?.resortName || u.name) : DB.settings().bizName)}</b><small>${PORTAL_INFO[portalRole(u)].title} · v${APP_VERSION}</small></div></a>
       <div class="bo-me" style="--rc:${r.color}"><span class="bo-av" style="background:${r.color}">${esc(u.name[0] || '?')}</span><div><b>${esc(u.name)}</b><small><i class="fa-solid ${r.icon}"></i> ${r.label}</small></div></div>
       <nav class="bo-nav">${nav.map(g => { const its = g.items.filter(i => can(i[3]) && (!i[5] || i[5]() || i[0] === item[0])); return its.length ? `<div class="bo-g">${g.g}</div>${its.map(([k, ic, l]) => `<a href="#/admin/${k}" class="${k === item[0] ? 'active' : ''}"><i class="fa-solid ${ic}"></i><span>${l}</span>${k === 'sos' && alerts.sos ? `<em>${alerts.sos}</em>` : k === 'frontdesk' && alerts.arrivals ? `<em>${alerts.arrivals}</em>` : k === 'approvals' && alerts.approvals ? `<em>${alerts.approvals}</em>` : k === 'partners' && alerts.apps ? `<em>${alerts.apps}</em>` : ''}</a>`).join('')}` : ''; }).join('')}</nav>
     </aside>
@@ -305,7 +307,7 @@ function boLogin(app, current) {
       return err.textContent = r.error;
     }
     sessionStorage.removeItem('bo_fail');
-    if (PORTAL && r.user.role !== PORTAL) return go('/admin', true); // บทบาทไม่ตรงกับหน้านี้ — หน้าเข้าสู่ระบบจะแนะนำหน้าที่ถูกต้อง
+    if (PORTAL && portalRole(r.user) !== PORTAL) return go('/admin', true); // บทบาทไม่ตรงกับหน้านี้ — หน้าเข้าสู่ระบบจะแนะนำหน้าที่ถูกต้อง
     toast(`ยินดีต้อนรับ ${r.user.name}`); go('/admin', true);
   };
   f.onsubmit = e => { e.preventDefault(); const v = Object.fromEntries(new FormData(f)); if (!v.email || !v.pass) return err.textContent = 'กรุณากรอกอีเมลและรหัสผ่าน'; attempt(v.email, v.pass); };
@@ -996,7 +998,7 @@ function staffForm(u) {
       <div class="fg full"><label>รหัสผ่านเริ่มต้น</label><div class="pw-wrap"><input name="pass" value="${pw}" class="mono"><button type="button" id="sf-gen" title="สุ่มใหม่"><i class="fa-solid fa-rotate"></i></button></div><div class="small muted" style="margin-top:4px">เพิ่มเฉพาะคนที่ไว้ใจ — ผู้ดูแลแพลตฟอร์มเห็นข้อมูลการจองและลูกค้าทั้งระบบ</div></div>` : ''}
       ${isNew || u.role === 'admin' ? `<div class="fg full" id="sf-perms"><label>สิทธิ์การใช้งาน (เฉพาะผู้ดูแลแพลตฟอร์ม)</label>
         <div class="row wrap" style="gap:8px;margin-bottom:6px"><button type="button" class="btn btn-sm btn-outline" id="sp-all">เลือกทั้งหมด</button><button type="button" class="btn btn-sm btn-ghost" id="sp-none">ล้างทั้งหมด</button></div>
-        <div class="perm-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px 14px">${ROLE_PERMS.admin.map(k => `<label class="small" style="display:flex;gap:6px;align-items:flex-start"><input type="checkbox" name="perm" value="${k}" ${userPerms(u || { role: 'admin' }).includes(k) ? 'checked' : ''}><span>${esc(PERMS[k] || k)}<span class="muted mono" style="display:block;font-size:11px">${k}</span></span></label>`).join('')}</div>
+        <div class="perm-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px 14px">${ROLE_PERMS.admin.map(k => `<label class="small perm-opt"><input type="checkbox" name="perm" value="${k}" ${userPerms(u || { role: 'admin' }).includes(k) ? 'checked' : ''}><span>${esc(PERMS[k] || k)}<span class="muted mono" style="display:block;font-size:11px">${k}</span></span></label>`).join('')}</div>
         <div class="small muted" style="margin-top:4px">ติ๊กเฉพาะสิ่งที่คนนี้ทำได้ — ให้สิทธิ์เกินกว่าบทบาทผู้ดูแลแพลตฟอร์มไม่ได้</div></div>` : ''}
       <div class="full row" style="justify-content:flex-end"><button type="button" class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary">บันทึก</button></div></form>`);
   const permsOf = () => { const p = $$('input[name=perm]:checked', m).map(i => i.value); return p.length === ROLE_PERMS.admin.length ? null : p; }; // เลือกครบ = ตามบทบาท

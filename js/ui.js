@@ -48,6 +48,12 @@ function openModal(html, cls = '') {
   return bg;
 }
 function closeModal() { $('#modal')?.remove(); document.body.style.overflow = ''; }
+// กันหน้าค้างเลื่อนไม่ได้บนมือถือ: ถ้าไม่มี modal/หน้าเต็มจอเหลืออยู่ ให้ปลดล็อกการเลื่อนของ body เสมอ
+(() => {
+  const sync = () => { const b = document.body; if (b && b.style.overflow === 'hidden' && !b.querySelector('#modal, .ck-screen, #adp')) b.style.overflow = ''; };
+  const start = () => new MutationObserver(sync).observe(document.body, { childList: true, subtree: true });
+  document.body ? start() : document.addEventListener('DOMContentLoaded', start);
+})();
 function confirmBox(msg, okText = 'ยืนยัน') {
   return new Promise(res => {
     const m = openModal(`<h2>ยืนยันการทำรายการ</h2><p>${msg}</p><div class="row" style="justify-content:flex-end;margin-top:20px"><button class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary" id="cf-ok">${okText}</button></div>`);

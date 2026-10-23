@@ -49,7 +49,7 @@ function dbWrite(req, what) {
   });
 }
 const toUser = p => p && { id: p.id, name: p.name, email: p.email, phone: p.phone, role: p.role, active: p.active, lastLogin: p.last_login, createdAt: p.created_at, createdBy: p.created_by,
-  perms: p.perms ?? null, ownerStatus: p.owner_status, ownerNote: p.owner_note, appliedAt: p.applied_at, biz: p.biz || {}, payout: p.payout || {} };
+  perms: p.perms ?? null, employerId: p.employer_id || null, ownerStatus: p.owner_status, ownerNote: p.owner_note, appliedAt: p.applied_at, biz: p.biz || {}, payout: p.payout || {} };
 const toReview = r => ({ id: r.id, bookingId: r.booking_id, hotelId: r.hotel_id, userId: r.user_id, name: r.name, country: r.country, trip: r.trip, score: +r.score, title: r.title, text: r.text, room: r.room, date: r.date });
 const toCoupon = c => ({ code: c.code, type: c.type, value: +c.value, min: +c.min_amount, desc: c.description, active: c.active, ownerId: c.owner_id, image: c.image || '', maxUses: c.max_uses ?? null, hasMax: 'max_uses' in c });
 const fromCoupon = c => ({ code: c.code, type: c.type, value: +c.value, min_amount: +c.min || 0, description: c.desc || '', active: !!c.active, owner_id: c.ownerId || null, ...(c.image ? { image: c.image } : {}), ...(c.maxUses || c.hasMax ? { max_uses: c.maxUses || null } : {}) });
@@ -112,7 +112,7 @@ const DB = {
   // ---- Hotels ----
   // ในหน้าเจ้าของรีสอร์ท (owner.html) เห็นเฉพาะที่พักของตัวเอง
   hotels(all = false) {
-    const list = PORTAL === 'owner' && CACHE.me ? CACHE.hotels.filter(h => h.ownerId === CACHE.me.id) : CACHE.hotels;
+    const list = PORTAL === 'owner' && CACHE.me ? CACHE.hotels.filter(h => h.ownerId === bossId(CACHE.me)) : CACHE.hotels;
     return all ? list : list.filter(x => x.active !== false && !x.banned);
   },
   hotel(id) { return CACHE.hotels.find(h => h.id === id) || CACHE.hotels.find(h => h.slug && h.slug === id); },
@@ -420,6 +420,17 @@ const DB = {
     return data;
   },
 
+  // พนักงานของเจ้าของรีสอร์ท — Edge Function sd-owner-staff (service role) · รายชื่ออ่านตรงจากตาราง (RLS ให้เจ้าของเห็นเฉพาะพนักงานของตัวเอง)
+  async ownerStaffAdmin(action, payload) {
+    const { data, error } = await supa.functions.invoke('sd-owner-staff', { body: { action, ...payload } });
+    if (error) { const body = await error.context?.json?.().catch(() => null); return { error: body?.error || error.message }; }
+    return data || {};
+  },
+  async ownerStaffList() {
+    const r = await supa.from('sd_profiles').select('*').eq('role', 'staff').order('created_at');
+    return r.error ? [] : r.data.map(toUser);
+  },
+
   // ---- Audit log (บันทึกการใช้งานหลังบ้าน) — ชื่อ/บทบาทถูกประทับจากฐานข้อมูล ปลอมไม่ได้ ----
   audit() { return CACHE.audit; },
   log(action, target = '') {
@@ -569,6 +580,7 @@ const ROLES = {
   owner: { label: 'เจ้าของรีสอร์ท', en: 'Resort Owner', icon: 'fa-hotel', color: '#b7791f', bg: '#fdf3df' },
   admin: { label: 'ผู้ดูแลแพลตฟอร์ม', en: 'Platform Admin', icon: 'fa-user-shield', color: '#2067da', bg: '#e8f0fd' },
   dev: { label: 'นักพัฒนา', en: 'Developer', icon: 'fa-code', color: '#7c3aed', bg: '#f1eafd' },
+  staff: { label: 'พนักงานรีสอร์ท', en: 'Resort Staff', icon: 'fa-user-tie', color: '#0f766e', bg: '#e0f5f1' },
   user: { label: 'ลูกค้า', en: 'Customer', icon: 'fa-user', color: '#6b6f7a', bg: '#f0f1f4' },
 };
 const PERMS = {
@@ -604,12 +616,18 @@ const PERMS = {
 // นักพัฒนา = จัดการทีมงาน บันทึกการใช้งาน ตั้งค่าเว็บไซต์ และเครื่องมือเทคนิค (สถานะระบบ / ข้อมูลดิบ / Error logs / ฟีเจอร์)
 // ต้องตรงกับตาราง sd_role_perms
 const ROLE_PERMS = {
-  owner: ['exec.view', 'reports.view', 'ops.view', 'frontdesk', 'bookings.view', 'bookings.edit', 'inventory', 'hotels.edit', 'coupons.edit', 'reviews.view', 'customers.view', 'payout.edit'],
+  owner: ['exec.view', 'reports.view', 'ops.view', 'frontdesk', 'bookings.view', 'bookings.edit', 'inventory', 'hotels.edit', 'coupons.edit', 'reviews.view', 'customers.view', 'payout.edit', 'team.manage'],
+  staff: ['ops.view', 'frontdesk', 'bookings.view', 'bookings.edit', 'inventory', 'hotels.edit', 'coupons.edit', 'reviews.view', 'customers.view'], // เพดานสิทธิ์ · ของจริงตาม perms ที่เจ้าของติ๊กให้รายคน
   admin: ['exec.view', 'reports.view', 'partners.manage', 'bookings.view', 'bookings.edit', 'inventory', 'hotels.edit', 'coupons.edit', 'reviews.view', 'reviews.manage', 'customers.view', 'sos.manage', 'data.backup', 'data.reset'],
   dev: ['staff.manage', 'audit.view', 'settings.business', 'dev.console', 'flags.edit', 'hotels.media', 'ads.manage', 'checkin.view'],
   user: [],
 };
-const STAFF_ROLES = ['owner', 'admin', 'dev'];
+const STAFF_ROLES = ['owner', 'admin', 'dev', 'staff'];
+// พนักงานรีสอร์ททำงานในหน้าเจ้าของรีสอร์ท (owner.html) แทนเจ้าของที่จ้าง
+const portalRole = u => u?.role === 'staff' ? 'owner' : u?.role;
+const bossId = u => u?.role === 'staff' ? u.employerId : u?.id;
+// สิทธิ์ที่เจ้าของให้พนักงานได้ (ไม่รวมเรื่องเงินและการจัดการทีม) — ต้องตรงกับ sd_staff_perm_list()
+const STAFF_PERM_LABELS = { 'bookings.view': 'ดูรายการจอง', 'bookings.edit': 'แก้ไข / อนุมัติการจอง', 'frontdesk': 'แขกเข้า-ออก · ตรวจสลิป · เช็คอิน', 'inventory': 'ตารางห้องว่าง / ปิดห้อง / จองจากช่องทางอื่น', 'hotels.edit': 'แก้ไขห้องพักและหน้ารีสอร์ท', 'coupons.edit': 'โค้ดส่วนลด', 'ops.view': 'ภาพรวมวันนี้', 'reviews.view': 'ดูรีวิว', 'customers.view': 'ดูรายชื่อลูกค้า' };
 // หลังบ้านแยกไฟล์ — owner.html (เจ้าของรีสอร์ท) / admin.html (ผู้ดูแลแพลตฟอร์ม) / dev.html (นักพัฒนา) ตั้ง window.PORTAL ก่อนโหลดสคริปต์ · index.html = หน้าเว็บลูกค้า
 const PORTAL = STAFF_ROLES.includes(window.PORTAL) ? window.PORTAL : null;
 const SITE_URL = 'index.html';
@@ -664,7 +682,7 @@ const pubCoupon = code => (CACHE.pubCoupons || []).find(c => c.code === code);
 const isAdmin = u => !!u && u.role === 'admin' && u.active !== false;
 const ownerApproved = u => !!u && u.role === 'owner' && u.ownerStatus === 'approved';
 // สิทธิ์จริงของผู้ใช้: ผู้ดูแลแพลตฟอร์มที่นักพัฒนากำหนดสิทธิ์รายคนไว้ (perms) ใช้ชุดนั้น · ที่เหลือใช้ตามบทบาท (ถูกจำกัดไม่เกินสิทธิ์ของบทบาทผู้ดูแล)
-const userPerms = u => u.role === 'admin' && Array.isArray(u.perms) ? u.perms.filter(p => ROLE_PERMS.admin.includes(p)) : (ROLE_PERMS[u.role] || []);
+const userPerms = u => u.role === 'staff' ? (Array.isArray(u.perms) ? u.perms.filter(p => ROLE_PERMS.staff.includes(p)) : []) : u.role === 'admin' && Array.isArray(u.perms) ? u.perms.filter(p => ROLE_PERMS.admin.includes(p)) : (ROLE_PERMS[u.role] || []);
 const can = (perm, u = DB.currentUser()) => !!u && u.active !== false && (u.role !== 'owner' || u.ownerStatus === 'approved') && userPerms(u).includes(perm);
 
 const DEFAULT_SETTINGS = { bizName: 'ชมรมรีสอร์ท & ที่พัก เกาะล้าน', legalName: 'ชมรมรีสอร์ท & ที่พัก เกาะล้าน', taxId: '', phone: '', email: 'kohlarngo@gmail.com', line: '', address: 'เกาะล้าน อ.บางละมุง จ.ชลบุรี 20150', announceOn: false, announce: '', announceType: 'info', targetMonthly: 300000, promptpayId: '', promptpayName: '', bankInfo: '' };
