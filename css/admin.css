@@ -291,7 +291,7 @@ body.bo #header:empty { display: none; }
 
 /* ---- drawer ---- */
 .modal-bg:has(.drawer) { justify-content: flex-end; padding: 0; }
-.modal.drawer { max-width: 520px; height: 100vh; max-height: 100vh; border-radius: 0; padding: 24px; animation: drin .22s ease-out; }
+.modal.drawer { max-width: 520px; height: 100vh; height: 100dvh; max-height: 100vh; max-height: 100dvh; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; border-radius: 0; padding: 24px; animation: drin .22s ease-out; }
 @keyframes drin { from { transform: translateX(40px); opacity: .4; } }
 .dr-head { margin-bottom: 14px; padding-right: 40px; }
 .dr-head h2 { margin: 2px 0 8px; font-family: Inter, sans-serif; }

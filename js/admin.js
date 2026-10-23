@@ -9,6 +9,7 @@ const BO_NAV_BY_ROLE = {
   owner: [
     { g: 'งานประจำวัน', items: [
       ['bookings', 'fa-calendar-check', 'การจอง', 'bookings.view', () => boOwnerBookings],
+      ['allbookings', 'fa-table-list', 'รายการจองทั้งหมด / ส่งออก CSV', 'bookings.view', () => boBookings],
       ['frontdesk', 'fa-bell-concierge', 'แขกเข้า-ออกวันนี้', 'frontdesk', () => boFrontdesk],
       ['approvals', 'fa-clipboard-check', 'ตรวจสลิป (มุมมองการ์ด)', 'frontdesk', () => boApprovals],
       ['calendar', 'fa-table-cells', 'ตารางห้องว่าง / ปิดห้อง', 'inventory', () => admCalendar],
@@ -26,7 +27,6 @@ const BO_NAV_BY_ROLE = {
     { g: 'ยอดขาย & รายงาน', items: [
       ['overview', 'fa-chart-line', 'ยอดขายภาพรวม', 'exec.view', () => boOverview],
       ['reports', 'fa-file-invoice-dollar', 'รายงานการเงิน', 'reports.view', () => boReports],
-      ['allbookings', 'fa-table-list', 'ตารางการจอง / ส่งออก CSV', 'bookings.view', () => boBookings],
       ['properties', 'fa-ranking-star', 'เทียบผลงานแต่ละรีสอร์ท', 'exec.view', () => boProperties, () => DB.hotels(true).length > 1],
     ] },
     { g: 'ลูกค้า & รีวิว', items: [
