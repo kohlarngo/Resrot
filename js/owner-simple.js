@@ -621,3 +621,75 @@ function boMyTeam(main) {
   $('#tm-add').onclick = () => form(null);
   load();
 }
+
+// ================= ปิดรีสอร์ท & ปรับปรุง =================
+// 1) ปิดการขายทั้งรีสอร์ท (h.active) · 2) ปิดปรับปรุงเป็นช่วงวัน = ปิดห้องที่ว่างทุกประเภทด้วย sd_block_rooms (เหมือน "ปิดห้อง" ในตารางห้องว่าง)
+const CLOSE_CH = 'ปิดปรับปรุง';
+function boClosure(main) {
+  const hotels = DB.hotels(true), today = todayISO();
+  const closures = () => {
+    const g = {};
+    DB.bookings().filter(b => b.source === 'external' && b.channel === CLOSE_CH && b.status !== 'cancelled' && b.checkOut > today).forEach(b => {
+      const note = b.guest?.note || '', k = [b.hotelId, b.checkIn, b.checkOut, note].join('|');
+      (g[k] ||= { hotelId: b.hotelId, checkIn: b.checkIn, checkOut: b.checkOut, note, ids: [], rooms: 0 }).ids.push(b.id);
+      g[k].rooms += b.qty;
+    });
+    return Object.values(g).sort((a, b) => a.checkIn.localeCompare(b.checkIn));
+  };
+  const redraw = () => boClosure(main);
+  const all = closures();
+  main.innerHTML = pageHead('ปิดรีสอร์ท & ปรับปรุง', 'ปิดการขายชั่วคราว หรือปิดรับจองเป็นช่วงวันที่ เมื่อรีสอร์ทปิดซ่อม / ปรับปรุง') + (hotels.length ? hotels.map(h => {
+    const mine = all.filter(c => c.hotelId === h.id), open = h.active !== false;
+    return `<section class="card" data-h="${esc(h.id)}"><div class="card-h"><h3><i class="fa-solid fa-hotel"></i> ${esc(h.name)}</h3>
+        <label class="switch big"><input type="checkbox" data-cl-act ${open ? 'checked' : ''} ${h.banned ? 'disabled' : ''}><span></span>${h.banned ? 'ถูกแบน' : open ? 'เปิดขาย' : 'ปิดการขาย'}</label></div>
+      <p class="small muted" style="margin:0 0 14px">${open ? 'ปิดสวิตช์เพื่อปิดรีสอร์ททั้งหมด — ลูกค้าจะค้นหาและจองไม่ได้ (การจองที่มีอยู่ไม่ถูกยกเลิก)' : '<b class="red">รีสอร์ทปิดการขายอยู่</b> — ลูกค้าไม่เห็นรีสอร์ทนี้ เปิดสวิตช์เมื่อพร้อมรับจองอีกครั้ง'}</p>
+      <h4 style="margin:0 0 8px"><i class="fa-solid fa-screwdriver-wrench"></i> ปิดปรับปรุงเป็นช่วงวัน</h4>
+      <form class="form-grid cl-f" novalidate>
+        <div class="fg"><label>ปิดตั้งแต่วันที่</label><input name="from" type="date" min="${today}" value="${today}"></div>
+        <div class="fg"><label>เปิดรับจองอีกครั้งวันที่</label><input name="to" type="date" min="${addDays(today, 1)}" value="${addDays(today, 7)}"></div>
+        <div class="fg full"><label>เหตุผล / หมายเหตุ (เห็นเฉพาะคุณ)</label><input name="note" maxlength="200" placeholder="เช่น ทาสีห้องพัก ซ่อมระบบน้ำ"></div>
+        <div class="full"><button class="btn btn-primary" type="submit"><i class="fa-solid fa-ban"></i> ปิดทุกห้องในช่วงนี้</button></div>
+      </form>
+      <div class="small muted" style="margin-top:6px">ห้องที่มีลูกค้าจองอยู่แล้วในช่วงนี้จะไม่ถูกยกเลิก — ระบบปิดเฉพาะห้องที่ยังว่าง · ปิดได้ไม่เกิน 90 คืนต่อครั้ง</div>
+      <h4 style="margin:18px 0 8px">รายการที่ปิดอยู่ / กำลังจะปิด</h4>
+      ${mine.length ? mine.map(c => `<div class="row between wrap" style="gap:8px;padding:8px 0;border-top:1px solid var(--line,#e8ebf0)"><div><b>${fmtDate(c.checkIn, false)} – ${fmtDate(c.checkOut, false)}</b> <span class="small muted">(${diffDays(c.checkIn, c.checkOut)} คืน · ปิด ${c.rooms} ห้อง)</span>${c.note ? `<div class="small muted">${esc(c.note)}</div>` : ''}</div>
+        <button class="btn btn-outline btn-sm" data-cl-open="${esc(c.ids.join(','))}"><i class="fa-solid fa-lock-open"></i> เปิดรับจองคืน</button></div>`).join('') : '<p class="small muted" style="margin:0">ยังไม่มีรายการปิดปรับปรุง</p>'}
+    </section>`;
+  }).join('') : '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><h3>ยังไม่มีรีสอร์ท</h3></div></section>');
+
+  $$('[data-cl-act]', main).forEach(c => c.onchange = () => {
+    const h = DB.hotel(c.closest('[data-h]').dataset.h); h.active = c.checked; DB.saveHotel(h);
+    DB.log('hotel.toggle', `${h.name} → ${c.checked ? 'เปิดขาย' : 'ปิด'}`); toast(c.checked ? 'เปิดขายแล้ว' : 'ปิดรีสอร์ทแล้ว — ลูกค้าจะไม่เห็นรีสอร์ทนี้'); redraw();
+  });
+  $$('.cl-f', main).forEach(f => f.onsubmit = async e => {
+    e.preventDefault();
+    const h = DB.hotel(f.closest('[data-h]').dataset.h), ci = f.elements.from.value, co = f.elements.to.value, note = f.elements.note.value.trim();
+    if (!ci || !co || co <= ci) return toast('วันที่ไม่ถูกต้อง — วันเปิดรับจองต้องหลังวันที่เริ่มปิด', 'err');
+    if (ci < today) return toast('เริ่มปิดย้อนหลังไม่ได้', 'err');
+    if (diffDays(ci, co) > 90) return toast('ปิดได้ไม่เกิน 90 คืนต่อครั้ง', 'err');
+    if (!h.rooms?.length) return toast('รีสอร์ทนี้ยังไม่มีห้องพัก', 'err');
+    if (!(await confirmBox(`ปิด <b>${esc(h.name)}</b> ตั้งแต่ ${fmtDate(ci, false)} ถึง ${fmtDate(co, false)} (${diffDays(ci, co)} คืน)?<br>ลูกค้าจะจองห้องที่ว่างในช่วงนี้ไม่ได้`, 'ปิดรับจอง'))) return;
+    const btn = f.querySelector('button[type=submit]'); btn.disabled = true;
+    let closed = 0; const partial = [];
+    try {
+      for (const r of h.rooms) {
+        const free = DB.available(r, ci, co);
+        if (free < r.total) partial.push(r.name);
+        for (let left = free; left > 0; left -= 50) {
+          const qty = Math.min(50, left);
+          await DB.blockRooms({ hotelId: h.id, roomId: r.id, checkIn: ci, checkOut: co, qty, channel: CLOSE_CH, guestName: CLOSE_CH, note });
+          closed += qty;
+        }
+      }
+      DB.log('hotel.maintenance', `${h.name} · ${ci} → ${co} · ปิด ${closed} ห้อง`);
+      toast(closed ? `ปิดปรับปรุงแล้ว (${closed} ห้อง)${partial.length ? ` · ${partial.join(', ')} มีลูกค้าจองอยู่ ปิดได้เฉพาะห้องที่ว่าง` : ''}` : 'ไม่มีห้องว่างให้ปิดในช่วงนี้', closed ? undefined : 'err');
+      redraw();
+    } catch (err) { btn.disabled = false; toast('ปิดไม่สำเร็จ: ' + err.message, 'err'); if (closed) redraw(); }
+  });
+  $$('[data-cl-open]', main).forEach(b => b.onclick = async () => {
+    if (!(await confirmBox('เปิดรับจองช่วงนี้คืน? ลูกค้าจะจองห้องในช่วงนี้ได้อีกครั้ง', 'เปิดรับจองคืน'))) return;
+    const at = new Date().toISOString();
+    b.dataset.clOpen.split(',').forEach(id => DB.updateBooking(id, { status: 'cancelled', cancelledBy: 'เจ้าของ (เปิดรับจองคืน)', cancelledAt: at }));
+    DB.log('hotel.maintenance.release', b.dataset.clOpen); toast('เปิดรับจองคืนแล้ว'); redraw();
+  });
+}

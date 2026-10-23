@@ -382,6 +382,12 @@ body.bo #header:empty { display: none; }
   .bo-search { order: 3; position: static; flex: 1; }
   .bo-search input { padding-left: 32px; }
   .bo-sres { left: 8px; right: 8px; top: 58px; position: fixed; }
+  /* ป๊อปอัพแจ้งเตือน / บัญชี: กางเต็มความกว้างจอใต้แถบด้านบน (อ้างอิงแถบ .bo-top ที่เป็น sticky) เลื่อนดูได้ ปุ่มกดใหญ่พอสำหรับนิ้ว */
+  .bo-pop-wrap { position: static; }
+  .bo-pop { left: 8px; right: 8px; top: calc(100% + 6px); min-width: 0; max-width: none; max-height: calc(100vh - 80px); max-height: calc(100dvh - 80px); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 8px; }
+  .bo-pop > a, .bo-pop > button { padding: 13px 12px; font-size: 15px; }
+  .bo-alert { font-size: 14px !important; align-items: flex-start !important; }
+  .bo-alert .kpi-ic { width: 34px; height: 34px; }
   .bo-crumb { display: none; }
   .bo-user .hide-m, .bo-user .fa-chevron-down { display: none; }
   .bo-user { padding: 3px; }

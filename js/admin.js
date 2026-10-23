@@ -35,6 +35,7 @@ const BO_NAV_BY_ROLE = {
     ] },
     { g: 'อื่นๆ', items: [
       ['hotels', 'fa-hotel', 'ฟอร์มที่พักแบบเต็ม', 'hotels.edit', () => admHotels, () => false],
+      ['closure', 'fa-screwdriver-wrench', 'ปิดรีสอร์ท & ปรับปรุง', 'hotels.edit', () => boClosure],
     ] },
   ],
   // แอดมินแพลตฟอร์ม: โครงสร้างแบบ kohlardgo — แท็บหลัก การจอง · ที่พัก · เจ้าของรีสอร์ท แล้วค่อยเป็นภาพรวม/ช่วยเหลือ
@@ -145,6 +146,7 @@ function pageAdmin(app, params, section) {
   const group = nav.find(g => g.items.includes(item))?.g || 'บัญชี';
   const r = ROLES[u.role];
   const alerts = boAlerts();
+  const menuBadge = alerts.sos + alerts.arrivals + alerts.approvals + alerts.apps; // จุดแดงบนปุ่มเมนูมือถือ: มีงานค้างในเมนูด้านใน (ตัวเลขเท่ากับป้ายแดงข้างเมนู)
   const sideTop = $('#bo-side')?.scrollTop || 0; // จำตำแหน่งเลื่อนของเมนูด้านข้าง
   app.innerHTML = `<div class="bo">
     <aside class="bo-side" id="bo-side">
@@ -155,7 +157,7 @@ function pageAdmin(app, params, section) {
     <div class="bo-scrim" id="bo-scrim"></div>
     <div class="bo-body">
       <header class="bo-top">
-        <button class="bo-ib bo-menu" id="bo-menu" aria-label="เมนู"><i class="fa-solid fa-bars"></i></button>
+        <button class="bo-ib bo-menu" id="bo-menu" aria-label="เมนู"><i class="fa-solid fa-bars"></i>${menuBadge ? `<span class="dot">${menuBadge > 99 ? '99+' : menuBadge}</span>` : ''}</button>
         <div class="bo-crumb"><span>${group}</span><i class="fa-solid fa-chevron-right"></i><b>${item[2]}</b></div>
         ${can('bookings.view') ? `<div class="bo-search"><i class="fa-solid fa-magnifying-glass"></i><input id="bo-q" placeholder="ค้นหารหัสจอง / ชื่อแขก / เบอร์โทร" autocomplete="off"><div class="bo-sres" id="bo-sres"></div></div>` : '<div style="flex:1"></div>'}
         <div class="bo-top-r">
@@ -532,6 +534,12 @@ async function bkAction(id, act, refresh = () => render()) {
   return true;
 }
 
+// ใบยืนยันการจอง (Voucher) ในหลังบ้าน — หน้าลูกค้าต้องใช้ PIN และอยู่คนละเว็บ เจ้าของเปิดไม่ได้ จึงแสดงเป็นหน้าต่างจากข้อมูลที่เจ้าของเห็นอยู่แล้ว
+function bookingVoucher(b, back) {
+  const m = openModal(`${voucherHtml(b, bookingStatus(b))}
+    <div class="row" style="justify-content:flex-end;gap:8px;margin-top:14px"><button class="btn btn-ghost" id="vc-back">กลับ</button><button class="btn btn-outline" onclick="window.print()"><i class="fa-solid fa-print"></i> พิมพ์ / บันทึก PDF</button></div>`, 'wide');
+  $('#vc-back', m).onclick = back;
+}
 function bookingDrawer(id, refresh = () => render()) {
   const b = DB.booking(id);
   if (!b) return toast('ไม่พบการจอง', 'err');
@@ -552,7 +560,7 @@ function bookingDrawer(id, refresh = () => render()) {
   const row = (l, v) => `<div class="dl"><span>${l}</span><b>${v}</b></div>`;
   const m = openModal(`
     <div class="dr-head"><div class="small muted">การจอง</div><h2>${b.id}</h2><div class="row wrap" style="gap:8px">${stChip(b)} ${payChip(b)}</div></div>
-    ${acts.length ? `<div class="dr-acts">${acts.map(([k, ic, l, c]) => `<button class="btn btn-sm ${c}" data-dact="${k}"><i class="fa-solid ${ic}"></i> ${l}</button>`).join('')}<a class="btn btn-sm btn-ghost" href="${siteUrl('#/booking/' + b.id)}" target="_blank" rel="noopener"><i class="fa-solid fa-print"></i> ดูใบยืนยันการจอง</a></div>` : ''}
+    <div class="dr-acts">${acts.map(([k, ic, l, c]) => `<button class="btn btn-sm ${c}" data-dact="${k}"><i class="fa-solid ${ic}"></i> ${l}</button>`).join('')}<button class="btn btn-sm btn-ghost" id="dr-voucher"><i class="fa-solid fa-print"></i> ดูใบยืนยันการจอง</button></div>
     ${b.payment.slip ? `<div class="dr-sec"><h4><i class="fa-solid fa-receipt"></i> สลิปโอนเงิน <span class="muted small">ส่งเมื่อ ${fmtDateTime(b.payment.claimedAt)}</span></h4><div class="slip-full" data-slip="${esc(b.payment.slip)}"><i class="fa-solid fa-spinner fa-spin"></i></div>
       <div class="small muted" style="margin-top:6px">ยอดที่ต้องได้รับ <b>${money(b.price.total)}</b>${b.payment.payTo ? ` → พร้อมเพย์ ${esc(fmtPromptpay(b.payment.payTo))}` : ''} · อ้างอิง ${b.id}</div></div>` : ''}
     ${cancelReqSecHtml(b)}
@@ -570,6 +578,7 @@ function bookingDrawer(id, refresh = () => render()) {
       ${notes.length ? notes.map(n => `<div class="note"><div>${esc(n.text)}</div><small>${esc(n.by)} · ${fmtDateTime(n.at)}</small></div>`).join('') : '<p class="small muted">ยังไม่มีโน้ต</p>'}
       ${can('bookings.edit') || can('frontdesk') ? '<form id="dr-note" class="row" style="margin-top:8px"><input placeholder="เพิ่มโน้ต เช่น แขกขอเตียงเสริม" style="flex:1"><button class="btn btn-sm btn-outline">บันทึก</button></form>' : ''}</div>`, 'drawer');
   $$('[data-dact]', m).forEach(btn => btn.onclick = async () => { if (await bkAction(id, btn.dataset.dact, refresh)) bookingDrawer(id, refresh); });
+  $('#dr-voucher', m).onclick = () => bookingVoucher(b, () => bookingDrawer(id, refresh));
   loadSlips(m);
   if (typeof ckDrawer === 'function') ckDrawer(m, b);
   const nf = $('#dr-note', m);
@@ -1725,6 +1734,7 @@ function adForm(main, ad) {
     <div class="fg full"><label>ตำแหน่งที่แสดง</label><select name="kind">${Object.entries(AD_KINDS).map(([k, v]) => `<option value="${k}" ${a.kind === k ? 'selected' : ''}>${v[1]}</option>`).join('')}</select><div class="small muted" id="ad-kh" style="margin-top:4px"></div></div>
     <div class="fg full"><label>ชื่อผู้ลงโฆษณา (ร้าน / รีสอร์ท)</label><input name="advertiser" value="${esc(a.advertiser)}" maxlength="80"></div>
     <div class="fg full" id="ad-hotel"><label>รีสอร์ทที่ต้องการดัน</label><select name="hotelId"><option value="">— เลือกรีสอร์ท —</option>${DB.hotels(true).map(h => `<option value="${esc(h.id)}" ${a.hotelId === h.id ? 'selected' : ''}>${esc(h.name)}</option>`).join('')}</select></div>
+    <div class="fg full" id="ad-rank"><label>อันดับในผลค้นหา <span class="small muted" style="font-weight:400">(เว้นว่าง = ขึ้นบนสุด)</span></label><input name="rank" type="number" min="1" max="50" step="1" value="${a.fit?.rank || ''}" placeholder="เช่น 1, 5 หรือ 9"><div class="small muted" style="margin-top:4px">ใส่เลขอันดับที่ต้องการให้รีสอร์ทนี้อยู่ เช่น 5 = อันดับที่ 5 ส่วนอันดับอื่นเรียงตามจริงตามที่ลูกค้าเลือกเรียง · ถ้าห้องเต็มในวันที่ค้นหาจะอยู่ท้ายรายการ · ลูกค้าเห็นป้าย "แนะนำ · โฆษณา" กำกับ</div></div>
     <div class="fg full" id="ad-txt"><label>หัวข้อ</label><input name="title" value="${esc(a.title)}" maxlength="80"></div>
     <div class="fg full" id="ad-body"><label>ข้อความสั้นๆ</label><textarea name="body" rows="2" maxlength="200">${esc(a.body)}</textarea></div>
     <div class="fg full" id="ad-img"><label>รูปโฆษณา</label><div class="row" style="gap:10px;align-items:center"><div id="adf-prev" style="width:120px;height:64px;border-radius:8px;background:#f1f3f6;display:grid;place-items:center;overflow:hidden" class="muted small">ไม่มีรูป</div><button type="button" class="btn btn-outline btn-sm" id="adf-img"><i class="fa-regular fa-image"></i> เลือกรูป</button><button type="button" class="btn btn-ghost btn-sm red" id="adf-imgx" style="display:none">ลบรูป</button></div><input type="hidden" name="image" value="${esc(a.image)}"></div>
@@ -1746,7 +1756,7 @@ function adForm(main, ad) {
     <div class="full"><button class="btn btn-primary btn-block">บันทึก</button></div></form>`);
   const f = $('#adf', m);
   const SIDE_WHERE = 'ลอยติดขอบจอทุกหน้า: จอใหญ่ (≥1400px) เป็นแถบแนวตั้งกลางขอบจอ · จอเล็ก/มือถือเป็นการ์ดเล็กมุมล่าง · ลูกค้ากด “ปิด” ด้านล่างได้ (ไม่แสดงอีกจนกว่าจะเปิดเว็บใหม่)';
-  const AD_WHERE = { bottom_bar: 'เกาะขอบล่างของจอทุกหน้า เลื่อนหน้าไปไหนก็ลอยตาม มีปุ่มกดปิดสีแดงที่มุมบนขวาของแถบ (ไม่แสดงอีกจนกว่าจะเปิดเว็บใหม่) · จอเล็กจะย่อความสูงให้พอดี', side_left: SIDE_WHERE, side_right: SIDE_WHERE, banner: 'แสดงที่หน้าแรก ใต้ช่องค้นหา', popup: 'เด้งเป็นป๊อปอัพกลางจอที่หน้าแรกเมื่อลูกค้าเปิดเว็บ มีปุ่มปิด', card: 'แสดงที่หน้าแรก (ใต้ “รีสอร์ทแนะนำ”) แทรกในผลค้นหา (ทุก 6 รายการ เมื่อมีผลอย่างน้อย 3 รายการ)', featured: 'รีสอร์ทขึ้นอันดับบนสุดของผลค้นหา และอยู่ในส่วน "รีสอร์ทแนะนำ" หน้าแรก' };
+  const AD_WHERE = { bottom_bar: 'เกาะขอบล่างของจอทุกหน้า เลื่อนหน้าไปไหนก็ลอยตาม มีปุ่มกดปิดสีแดงที่มุมบนขวาของแถบ (ไม่แสดงอีกจนกว่าจะเปิดเว็บใหม่) · จอเล็กจะย่อความสูงให้พอดี', side_left: SIDE_WHERE, side_right: SIDE_WHERE, banner: 'แสดงที่หน้าแรก ใต้ช่องค้นหา', popup: 'เด้งเป็นป๊อปอัพกลางจอที่หน้าแรกเมื่อลูกค้าเปิดเว็บ มีปุ่มปิด', card: 'แสดงที่หน้าแรก (ใต้ “รีสอร์ทแนะนำ”) แทรกในผลค้นหา (ทุก 6 รายการ เมื่อมีผลอย่างน้อย 3 รายการ)', featured: 'รีสอร์ทขึ้นบนสุดของผลค้นหา (หรืออันดับที่กำหนด) และอยู่ในส่วน "รีสอร์ทแนะนำ" หน้าแรก' };
   const fitOf = v => ({ mode: v.fitMode === 'contain' ? 'contain' : 'cover', zoom: Math.max(1, Math.min(3, (+v.fitZoom || 100) / 100)), x: +v.fitX, y: +v.fitY });
   const preview = () => { try {
     const v = Object.fromEntries(new FormData(f)), k = v.kind, box = $('#ad-live', m);
@@ -1764,6 +1774,7 @@ function adForm(main, ad) {
   f.addEventListener('input', preview); f.addEventListener('change', preview);
   const sync = () => { const k = f.elements.kind.value; $('#ad-kh', m).textContent = AD_KINDS[k][2];
     $('#ad-hotel', m).style.display = k === 'featured' ? '' : 'none';
+    $('#ad-rank', m).style.display = k === 'featured' ? '' : 'none';
     $('#ad-fit', m).style.display = k === 'featured' || k === 'popup' ? 'none' : '';
     $('#ad-pos', m).style.display = k === 'popup' ? '' : 'none';
     if (k.startsWith('side_') && !ad && !f.elements.fitMode.dataset.touched) f.elements.fitMode.value = 'contain'; // แบนเนอร์ข้างจอ: ค่าตั้งต้นแสดงทั้งรูป
@@ -1796,7 +1807,7 @@ function adForm(main, ad) {
     if (!v.start || !v.end || v.end < v.start) return toast('ช่วงวันที่ไม่ถูกต้อง', 'err');
     const next = { ...a, kind: k, advertiser: v.advertiser.trim(), hotelId: k === 'featured' ? v.hotelId : '', title: k === 'featured' ? '' : v.title.trim(), body: k === 'featured' ? '' : v.body.trim(),
       image: k === 'featured' ? '' : v.image, link: k === 'featured' ? '' : v.link.trim(), phone: k === 'featured' ? '' : v.phone.trim(), line: k === 'featured' ? '' : v.line.trim(),
-      start: v.start, end: v.end, fee: +v.fee || 0, paid: !!v.paid, note: v.note.trim(), fit: k === 'banner' || k === 'card' || k.startsWith('side_') || k === 'bottom_bar' ? fitOf(v) : k === 'popup' ? { pos: v.popPos || 'center' } : {} };
+      start: v.start, end: v.end, fee: +v.fee || 0, paid: !!v.paid, note: v.note.trim(), fit: k === 'banner' || k === 'card' || k.startsWith('side_') || k === 'bottom_bar' ? fitOf(v) : k === 'popup' ? { pos: v.popPos || 'center' } : k === 'featured' && Math.floor(+v.rank) > 0 ? { rank: Math.min(50, Math.floor(+v.rank)) } : {} };
     if (k === 'featured' && !next.advertiser) next.advertiser = DB.hotel(v.hotelId)?.name || '';
     const saved = await DB.saveAd(next); if (!saved) return;
     DB.log(ad ? 'ad.edit' : 'ad.add', `${next.advertiser || next.title} (${k})`); closeModal(); toast('บันทึกโฆษณาแล้ว'); admAds(main);
@@ -1908,7 +1919,7 @@ function boSettings(main) {
 const AUDIT_TH = {
   'auth.login': 'เข้าสู่ระบบ', 'auth.logout': 'ออกจากระบบ', 'auth.fail': 'ใส่รหัสผ่านผิด',
   'booking.pay': 'รับชำระเงิน', 'checkin.register': 'ลงทะเบียนผู้เข้าพัก', 'checkin.print': 'พิมพ์ทะเบียนผู้เข้าพัก', 'checkin.view': 'เปิดดูรูปเอกสารผู้เข้าพัก', 'checkin.delete': 'ลบข้อมูลเอกสารผู้เข้าพัก', 'booking.confirm': 'ยืนยันการจอง', 'booking.checkin': 'เช็คอิน', 'booking.checkout': 'เช็คเอาท์', 'booking.cancel': 'ยกเลิกการจอง', 'booking.delete': 'ลบการจอง', 'booking.note': 'เพิ่มโน้ต', 'booking.export': 'ส่งออกการจอง',
-  'hotel.save': 'บันทึกที่พัก', 'hotel.delete': 'ลบที่พัก', 'hotel.toggle': 'เปิด/ปิดขาย', 'coupon.add': 'เพิ่มโค้ด', 'coupon.toggle': 'เปิด/ปิดโค้ด', 'coupon.delete': 'ลบโค้ด', 'review.delete': 'ลบรีวิว', 'sos.status': 'อัปเดตเหตุฉุกเฉิน', 'sos.contacts': 'แก้เบอร์ฉุกเฉิน',
+  'hotel.save': 'บันทึกที่พัก', 'hotel.delete': 'ลบที่พัก', 'hotel.toggle': 'เปิด/ปิดขาย', 'hotel.maintenance': 'ปิดปรับปรุงรีสอร์ท', 'hotel.maintenance.release': 'เปิดรับจองคืนหลังปรับปรุง','coupon.add': 'เพิ่มโค้ด', 'coupon.toggle': 'เปิด/ปิดโค้ด', 'coupon.delete': 'ลบโค้ด', 'review.delete': 'ลบรีวิว', 'sos.status': 'อัปเดตเหตุฉุกเฉิน', 'sos.contacts': 'แก้เบอร์ฉุกเฉิน',
   'staff.add': 'เพิ่มทีมงาน', 'staff.edit': 'แก้ไขทีมงาน', 'staff.suspend': 'ระงับบัญชี', 'staff.activate': 'เปิดใช้บัญชี', 'staff.delete': 'ลบทีมงาน', 'staff.resetpw': 'รีเซ็ตรหัสผ่าน',
   'booking.approve': 'อนุมัติการจอง', 'booking.reject': 'ปฏิเสธการจอง', 'payout.save': 'ตั้งค่าบัญชีรับเงิน',
   'partner.approve': 'อนุมัติเจ้าของรีสอร์ท', 'partner.reject': 'ไม่อนุมัติเจ้าของรีสอร์ท', 'partner.suspend': 'ระงับเจ้าของรีสอร์ท', 'partner.activate': 'เปิดใช้เจ้าของรีสอร์ท',

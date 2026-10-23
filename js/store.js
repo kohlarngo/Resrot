@@ -279,6 +279,8 @@ const DB = {
   ads() { return CACHE.ads; },
   publicAds(kind) { return CACHE.pubAds.filter(a => a.kind === kind); },
   featuredIds() { return CACHE.pubAds.filter(a => a.kind === 'featured').map(a => a.hotelId); },
+  // อันดับที่ dev กำหนดให้รีสอร์ทแนะนำในผลค้นหา (เก็บใน fit.rank) — 0 = ไม่กำหนด (ขึ้นบนสุด)
+  featuredRank(id) { const a = CACHE.pubAds.find(x => x.kind === 'featured' && x.hotelId === id); return Math.max(0, Math.floor(+a?.fit?.rank) || 0); },
   async saveAd(ad) {
     const row = fromAd(ad);
     const req = ad.id ? supa.from('sd_ads').update(row).eq('id', ad.id).select().single() : supa.from('sd_ads').insert(row).select().single();

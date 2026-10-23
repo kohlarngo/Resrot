@@ -346,10 +346,16 @@ function sortList(list) {
     stars: (a, b) => b.h.stars - a.h.stars || p(a) - p(b),
     deals: (a, b) => disc(b) - disc(a),
   }[sortBy];
-  // รีสอร์ทแนะนำ (โฆษณา) ขึ้นบนสุดในการเรียงแบบ "แนะนำ" — การเรียงตามราคา/คะแนนอื่นๆ ยังเป็นไปตามจริง
+  // รีสอร์ทแนะนำ (โฆษณา) ที่ไม่ได้กำหนดอันดับ ขึ้นบนสุดเสมอ ไม่ว่าเรียงแบบไหน — กลุ่มที่เหลือเรียงตามที่ลูกค้าเลือก
   // ที่พักที่เต็มในวันที่เลือกอยู่ท้ายรายการเสมอ ไม่ว่าเรียงแบบไหน
-  const cmp = sortBy === 'best' ? (a, b) => (isFeatured(b.h.id) - isFeatured(a.h.id)) || fn(a, b) : fn;
-  return list.sort((a, b) => (!!b.best - !!a.best) || cmp(a, b));
+  const rank = x => DB.featuredRank(x.h.id), pin = x => isFeatured(x.h.id) && !rank(x);
+  const rest = list.sort((a, b) => (!!b.best - !!a.best) || (pin(b) - pin(a)) || fn(a, b));
+  // รีสอร์ทแนะนำที่ dev กำหนดอันดับ (เช่น 1, 5, 9) ถูกแทรกลงตำแหน่งนั้น ส่วนตำแหน่งอื่นเป็นไปตามจริง · ไม่แทรกเลยท้ายรายการที่ยังว่าง
+  const fixed = rest.filter(x => x.best && rank(x)).sort((a, b) => rank(a) - rank(b));
+  if (!fixed.length) return rest;
+  const out = rest.filter(x => !fixed.includes(x));
+  fixed.forEach(x => { const sold = out.findIndex(y => !y.best); out.splice(Math.min(rank(x) - 1, sold < 0 ? out.length : sold), 0, x); });
+  return out;
 }
 function resultCard({ h, best }) {
   const r = best?.room;
@@ -867,22 +873,10 @@ const selfCheckinBannerHtml = b => b.selfCheckin && typeof b.selfCheckin === 'ob
   ? `<div class="panel" style="border:2px solid var(--primary,#1a5fd0);text-align:center"><h2 style="margin:0 0 6px"><i class="fa-solid fa-id-card"></i> กรอกทะเบียนผู้เข้าพัก</h2>
       <p class="small muted" style="margin:0 0 12px">ที่พักเปิดให้กรอกแล้ว — เตรียมบัตรประชาชนหรือพาสปอร์ตของผู้เข้าพัก ใช้เวลาไม่ถึง 2 นาที</p>
       <a class="btn btn-primary btn-lg" href="#/checkin/${esc(b.id)}"><i class="fa-solid fa-pen-to-square"></i> กรอกทะเบียนเข้าพัก</a></div>` : '';
-function pageBookingView(app, params, id) {
-  const b = DB.booking(id);
-  if (!b) { app.innerHTML = `<div class="container"><div class="empty" style="margin-top:30px"><h3>ไม่พบการจองนี้</h3><a href="#/my-bookings" class="btn btn-primary">การจองของฉัน</a></div></div>`; return; }
+// ใบยืนยันการจอง (Voucher) — ใช้ร่วมกันระหว่างหน้าลูกค้าและหน้าต่างดูใบยืนยันในหลังบ้าน
+function voucherHtml(b, st) {
   const h = DB.hotel(b.hotelId), o = DB.owner(b.ownerId || h?.ownerId);
-  const st = bookingStatus(b);
-  const isNew = params.get('new');
-  const rejected = b.status === 'cancelled' && b.cancelledBy && b.cancelledBy !== 'ลูกค้า';
-  app.innerHTML = `<div class="container" style="max-width:900px;padding-top:20px">
-    ${isNew ? `<div class="panel confirm-hero"><i class="fa-solid fa-paper-plane big"></i><h1>ส่งคำขอจองแล้ว — รอเจ้าของรีสอร์ทยืนยัน</h1>
-      <p class="muted">${['promptpay', 'bank'].includes(b.payment.method) ? 'ชำระเงินและแนบสลิปด้านล่าง เจ้าของรีสอร์ทจะตรวจสอบและยืนยันการจอง' : 'เจ้าของรีสอร์ทจะตรวจสอบห้องว่างและยืนยันการจองโดยเร็ว'}</p>
-      <div class="muted small">หมายเลขการจอง</div><div class="bk-id">${b.id}</div><div class="small muted">PIN: ${b.pin} — ใช้ค้นหาการจองได้ที่ "การจองของฉัน"</div></div>` : ''}
-    ${rejected ? `<div class="notice warn"><i class="fa-solid fa-circle-xmark"></i><div><b>เจ้าของรีสอร์ทปฏิเสธการจองนี้</b>${b.cancelReason ? ` — ${esc(b.cancelReason)}` : ''}<br>หากโอนเงินไปแล้ว กรุณาติดต่อเจ้าของรีสอร์ทเพื่อขอรับเงินคืน</div></div>` : ''}
-    ${st === 'pending' && b.payment.method === 'hotel' ? '<div class="notice info"><i class="fa-solid fa-hourglass-half"></i><div>รอเจ้าของรีสอร์ทยืนยันการจอง — ชำระเงินที่ที่พักในวันเข้าพัก</div></div>' : ''}
-    ${selfCheckinBannerHtml(b)}
-    ${payBoxHtml(b, st)}
-    <div class="panel" id="voucher">
+  return `<div class="panel" id="voucher">
       <div class="row between wrap"><h2 style="margin:0">ใบยืนยันการจอง (Voucher)</h2><span class="status ${st}">${STATUS_TH[st]}</span></div>
       <div class="row wrap" style="gap:20px;margin-top:16px;align-items:flex-start">
         ${h ? imgTag(h.images[0], 400, '', h.id).replace('<img', '<img style="width:200px;height:150px;object-fit:cover;border-radius:10px"') : ''}
@@ -907,7 +901,23 @@ function pageBookingView(app, params, id) {
         ${b.price.tax ? `<div class="sum-row"><span>ภาษีและค่าธรรมเนียม</span><span>${money(b.price.tax)}</span></div>` : ''}
         <div class="sum-row total"><span>รวมทั้งหมด</span><span>${money(b.price.total)}</span></div>
       </div>
-    </div>
+    </div>`;
+}
+function pageBookingView(app, params, id) {
+  const b = DB.booking(id);
+  if (!b) { app.innerHTML = `<div class="container"><div class="empty" style="margin-top:30px"><h3>ไม่พบการจองนี้</h3><a href="#/my-bookings" class="btn btn-primary">การจองของฉัน</a></div></div>`; return; }
+  const st = bookingStatus(b);
+  const isNew = params.get('new');
+  const rejected = b.status === 'cancelled' && b.cancelledBy && b.cancelledBy !== 'ลูกค้า';
+  app.innerHTML = `<div class="container" style="max-width:900px;padding-top:20px">
+    ${isNew ? `<div class="panel confirm-hero"><i class="fa-solid fa-paper-plane big"></i><h1>ส่งคำขอจองแล้ว — รอเจ้าของรีสอร์ทยืนยัน</h1>
+      <p class="muted">${['promptpay', 'bank'].includes(b.payment.method) ? 'ชำระเงินและแนบสลิปด้านล่าง เจ้าของรีสอร์ทจะตรวจสอบและยืนยันการจอง' : 'เจ้าของรีสอร์ทจะตรวจสอบห้องว่างและยืนยันการจองโดยเร็ว'}</p>
+      <div class="muted small">หมายเลขการจอง</div><div class="bk-id">${b.id}</div><div class="small muted">PIN: ${b.pin} — ใช้ค้นหาการจองได้ที่ "การจองของฉัน"</div></div>` : ''}
+    ${rejected ? `<div class="notice warn"><i class="fa-solid fa-circle-xmark"></i><div><b>เจ้าของรีสอร์ทปฏิเสธการจองนี้</b>${b.cancelReason ? ` — ${esc(b.cancelReason)}` : ''}<br>หากโอนเงินไปแล้ว กรุณาติดต่อเจ้าของรีสอร์ทเพื่อขอรับเงินคืน</div></div>` : ''}
+    ${st === 'pending' && b.payment.method === 'hotel' ? '<div class="notice info"><i class="fa-solid fa-hourglass-half"></i><div>รอเจ้าของรีสอร์ทยืนยันการจอง — ชำระเงินที่ที่พักในวันเข้าพัก</div></div>' : ''}
+    ${selfCheckinBannerHtml(b)}
+    ${payBoxHtml(b, st)}
+    ${voucherHtml(b, st)}
     <div class="row wrap" style="justify-content:center">
       <button class="btn btn-outline" onclick="window.print()"><i class="fa-solid fa-print"></i> พิมพ์ / บันทึก PDF</button>
       ${cancelBtnHtml(b, st)}
