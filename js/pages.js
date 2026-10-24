@@ -509,7 +509,7 @@ function pageHotel(app, params, id) {
           ${reviews.length > 5 ? '<button class="btn btn-outline btn-block" id="rev-more">ดูรีวิวเพิ่มเติม</button>' : ''}
         </div>
 
-        <div class="panel" id="loc"><h2>ที่ตั้ง</h2><p class="small"><i class="fa-solid fa-location-dot"></i> ${esc(h.address)}</p><div id="detail-map"></div></div>
+        <div class="panel" id="loc"><h2>ที่ตั้ง</h2><p class="small"><i class="fa-solid fa-location-dot"></i> ${esc(h.address)}</p><div id="detail-map"></div><a class="btn btn-outline btn-sm" style="margin-top:10px" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${h.lat},${h.lng}"><i class="fa-solid fa-map-location-dot"></i> เปิดใน Google Maps</a></div>
 
         <div class="panel" id="pol"><h2>นโยบายที่พัก</h2>
           <table class="policy-table">
@@ -560,7 +560,8 @@ function pageHotel(app, params, id) {
     $(`[data-total="${rid}|${oid}"]`).textContent = money(quoteOffer(r, o, +s.value).sub);
   });
   if (window.L) {
-    const m = L.map('detail-map', { scrollWheelZoom: false }).setView([h.lat, h.lng], 14);
+    // ล็อกแผนที่ให้อยู่กับที่ (ไม่เลื่อน/ซูมด้วยนิ้วหรือเมาส์ — กันแผนที่แย่งการเลื่อนหน้าบนมือถือ) · ดูแผนที่เต็มได้จากลิงก์ด้านล่าง
+    const m = L.map('detail-map', { scrollWheelZoom: false, dragging: false, touchZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, zoomControl: false, tap: false }).setView([h.lat, h.lng], 14);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(m);
     L.marker([h.lat, h.lng]).addTo(m).bindPopup(esc(h.name)).openPopup();
   }
@@ -729,7 +730,7 @@ function pageBook(app, params) {
   }
   const timerHtml = () => '';
 
-  // กล่อง "เลือกวิธีชำระเงิน" — แสดงที่หน้ากรอกข้อมูลผู้เข้าพัก เหนือปุ่ม "ถัดไป: ชำระเงิน" (และที่ขั้นชำระเงินด้วย) ใช้ st.pay ร่วมกัน
+  // กล่อง "เลือกวิธีชำระเงิน" — แสดงเฉพาะขั้นชำระเงิน (ขั้นกรอกข้อมูลผู้เข้าพักไม่มี) · st.pay ตั้งค่าเริ่มต้นไว้แล้ว
   const PAY_LABEL = {
     hotel: ['<b>ชำระเงินที่ที่พัก</b> <span class="tag-s green">ไม่ต้องชำระตอนนี้</span>', '<i class="fa-solid fa-hotel"></i>'],
     promptpay: ['<b>พร้อมเพย์ (PromptPay QR)</b> <span class="tag-s blue">สแกนจ่ายได้ทุกธนาคาร</span>', '<i class="fa-solid fa-qrcode"></i>'],
@@ -767,7 +768,7 @@ function pageBook(app, params) {
           ${fg('firstName', 'ชื่อ')}${fg('lastName', 'นามสกุล')}
           ${fg('email', 'อีเมล', 'email', true, false, 'กรุณากรอกอีเมลที่ถูกต้อง')}
           ${fg('phone', 'เบอร์โทรศัพท์', 'tel', true, false, 'กรุณากรอกเบอร์โทร 9-10 หลัก')}
-          <div class="fg full"><label>ประเทศที่พำนัก</label><select name="country">${['ไทย', 'ญี่ปุ่น', 'จีน', 'สหรัฐอเมริกา', 'สหราชอาณาจักร', 'อื่นๆ'].map(c => `<option ${g.country === c ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
+          <div class="fg full"><label>ประเทศของคุณ</label><select name="country">${['ไทย', 'ญี่ปุ่น', 'จีน', 'สหรัฐอเมริกา', 'สหราชอาณาจักร', 'อื่นๆ'].map(c => `<option ${g.country === c ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
         </div>
         <div class="notice" style="margin-top:14px"><i class="fa-solid fa-envelope"></i>เราจะส่งใบยืนยันการจองไปที่อีเมลนี้</div>
       </form>
@@ -779,10 +780,8 @@ function pageBook(app, params) {
           <div class="fg full"><label>ข้อความถึงที่พัก</label><textarea id="note" rows="3">${esc(g.note)}</textarea></div>
         </div>
       </div>
-      ${payPanelHtml()}
       <div class="row" style="justify-content:flex-end"><button class="btn btn-primary btn-lg" id="next1">ถัดไป: ชำระเงิน <i class="fa-solid fa-chevron-right"></i></button></div>`;
     $('#b-login')?.addEventListener('click', () => authModal('login', () => pageBook(app, params)));
-    bindPayPanel();
     $('#next1').onclick = () => {
       const f = $('#g-form');
       Object.assign(g, Object.fromEntries(new FormData(f)));
