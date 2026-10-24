@@ -73,7 +73,7 @@ const DB = {
       supa.auth.getSession(),
     ]);
     CACHE.pubAds = pubAds;
-    CACHE.owners = Object.fromEntries(owners.map(o => [o.id, { ...o, phone: cleanContact(o.phone), line: cleanContact(o.line) }]));
+    CACHE.owners = Object.fromEntries(owners.map(o => [o.id, { ...o, phone: cleanContact(o.phone), line: cleanContact(o.line), facebook: /^https:\/\//i.test(o.facebook || '') ? o.facebook : '' }]));
     if (kv.error) throw kv.error;
     CACHE.hotels = hotels.map(r => r.data).sort(byNaturalId);
     CACHE.kv = Object.fromEntries(kv.data.map(r => [r.key, r.value]));

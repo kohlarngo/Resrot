@@ -882,7 +882,7 @@ function voucherHtml(b, st) {
         ${h ? imgTag(h.images[0], 400, '', h.id).replace('<img', '<img style="width:200px;height:150px;object-fit:cover;border-radius:10px"') : ''}
         <div style="flex:1;min-width:220px"><h3 style="margin:0">${esc(b.hotelName)}</h3>${h ? starsHtml(h.stars) + `<div class="small muted">${esc(h.address)}</div>` : ''}
           <div class="small" style="margin-top:8px">หมายเลขการจอง: <b>${b.id}</b> · PIN: <b>${b.pin}</b><br>จองเมื่อ: ${fmtDateTime(b.createdAt)}</div>
-          ${o ? `<div class="small" style="margin-top:8px"><i class="fa-solid fa-hotel"></i> ดำเนินการโดย <b>${esc(o.name)}</b>${o.phone ? ` · <a href="tel:${esc(o.phone)}">${esc(o.phone)}</a>` : ''}${o.line ? ` · LINE ${esc(o.line)}` : ''}</div>` : ''}</div>
+          ${o ? `<div class="small" style="margin-top:8px"><i class="fa-solid fa-hotel"></i> ดำเนินการโดย <b>${esc(o.name)}</b>${o.phone ? ` · <a href="tel:${esc(o.phone)}">${esc(o.phone)}</a>` : ''}${o.line ? ` · LINE ${esc(o.line)}` : ''}${o.facebook ? ` · <a href="${esc(o.facebook)}" target="_blank" rel="noopener"><i class="fa-brands fa-facebook"></i> Facebook</a>` : ''}</div>` : ''}</div>
       </div>
       <div class="sum-dates" style="margin-top:16px"><div><div class="small muted">เช็คอิน</div><b>${fmtDate(b.checkIn)}</b><div class="small muted">ตั้งแต่ ${h?.checkIn || '14:00'}</div></div><div><div class="small muted">เช็คเอาท์</div><b>${fmtDate(b.checkOut)}</b><div class="small muted">ก่อน ${h?.checkOut || '12:00'}</div></div></div>
       <table class="policy-table">

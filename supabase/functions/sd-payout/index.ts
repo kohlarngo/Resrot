@@ -25,13 +25,16 @@ Deno.serve(async (req: Request) => {
   const jwt = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
   const user = jwt ? (await sb.auth.getUser(jwt)).data.user : null;
   if (!user?.email) return json({ error: 'กรุณาเข้าสู่ระบบ' }, 401);
-  const { data: prof } = await sb.from('sd_profiles').select('id, name, role, active, owner_status, payout').eq('id', user.id).maybeSingle();
+  const { data: prof } = await sb.from('sd_profiles').select('id, name, role, active, owner_status, payout, biz').eq('id', user.id).maybeSingle();
   if (!prof || prof.role !== 'owner' || prof.active === false || prof.owner_status !== 'approved') return json({ error: 'เฉพาะเจ้าของรีสอร์ทเท่านั้น' }, 403);
   const hasPassword = (user.app_metadata?.providers ?? []).includes('email');
 
   if (body.action === 'info') return json({ hasPassword, email: maskEmail(user.email) });
 
   if (body.action === 'send-otp') {
+    // ใส่ชื่อรีสอร์ทไว้ใน user_metadata เพื่อให้เทมเพลตอีเมลแสดงได้ด้วย {{ .Data.resortName }}
+    const resort = String(prof.biz?.resortName ?? '').trim().slice(0, 100) || 'StayDee';
+    await sb.auth.admin.updateUserById(user.id, { user_metadata: { ...(user.user_metadata ?? {}), resortName: resort } });
     const r = await createClient(url, anon, { auth: clean }).auth.signInWithOtp({ email: user.email, options: { shouldCreateUser: false } });
     if (r.error) return json({ error: /rate|seconds|too many/i.test(r.error.message) ? 'ขอรหัสถี่เกินไป — รอสักครู่แล้วลองใหม่' : 'ส่งรหัสไม่สำเร็จ: ' + r.error.message }, 429);
     return json({ ok: true, email: maskEmail(user.email) });

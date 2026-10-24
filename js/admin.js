@@ -666,8 +666,9 @@ function boPayout(main, params) {
       <form id="po-f"><section class="card"><div class="card-h"><h3><i class="fa-solid fa-store"></i> ข้อมูลรีสอร์ท (แสดงให้ลูกค้า)</h3></div><div class="form-grid">
         ${fg('resortName', 'ชื่อรีสอร์ท / ชื่อที่แสดง', b.resortName, 'maxlength="100"', true)}
         ${fg('phone', 'เบอร์ติดต่อ', b.phone, 'type="tel" maxlength="20"')}${fg('line', 'LINE', b.line, 'maxlength="60"')}
+        ${fg('facebook', 'ลิงก์ Facebook เพจ (https://...)', b.facebook, 'type="url" maxlength="200" placeholder="https://facebook.com/ชื่อเพจ"', true)}
         ${fg('targetMonthly', 'เป้ายอดขายต่อเดือน (฿)', b.targetMonthly || '', 'type="number" min="0" step="1000"', true)}</div>
-        <p class="small muted" style="margin-top:12px">ลูกค้าเห็นชื่อ เบอร์ และ LINE นี้ในใบยืนยันการจอง เพื่อติดต่อคุณโดยตรง</p>
+        <p class="small muted" style="margin-top:12px">ลูกค้าเห็นชื่อ เบอร์ LINE และลิงก์ Facebook นี้ในใบยืนยันการจอง เพื่อติดต่อคุณโดยตรง</p>
         <div class="save-bar"><button class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลรีสอร์ท</button></div></section></form>
     </div>`;
   $('#po-eye').onclick = e => { shown = !shown; $('#po-sum').innerHTML = sum(); e.currentTarget.innerHTML = shown ? '<i class="fa-regular fa-eye-slash"></i> ซ่อนเลข' : '<i class="fa-regular fa-eye"></i> แสดงเลขเต็ม'; };
@@ -719,7 +720,9 @@ function boPayout(main, params) {
     e.preventDefault();
     const v = Object.fromEntries(new FormData(e.currentTarget));
     if (!v.resortName.trim()) return toast('กรุณากรอกชื่อรีสอร์ท', 'err');
-    DB.saveBusiness({ resortName: v.resortName.trim(), phone: v.phone.trim(), line: v.line.trim(), targetMonthly: Math.max(0, +v.targetMonthly || 0) });
+    const fb = v.facebook.trim();
+    if (fb && !/^https:\/\/\S+$/i.test(fb)) return toast('ลิงก์ Facebook ต้องขึ้นต้นด้วย https:// เช่น https://facebook.com/ชื่อเพจ', 'err');
+    DB.saveBusiness({ resortName: v.resortName.trim(), phone: v.phone.trim(), line: v.line.trim(), facebook: fb, targetMonthly: Math.max(0, +v.targetMonthly || 0) });
     DB.log('payout.save', 'ข้อมูลรีสอร์ท');
     toast('บันทึกแล้ว'); setTimeout(() => DB.load().then(render), 600);
   };
