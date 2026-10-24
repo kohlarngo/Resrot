@@ -209,7 +209,7 @@ function pageHome(app) {
       <div class="card-grid" id="city-grid"></div>
     </section>
     <section class="block">
-      <h2 class="sec-title" data-edit="home.why.title">ทำไมต้องจองกับ ชมรมรีสอร์ท & ที่พัก เกาะล้าน</h2>
+      <h2 class="sec-title" data-edit="home.why.title">ทำไมต้องจองกับ kohlarngo</h2>
       <div class="why-grid">
         <div class="why"><i class="fa-solid fa-tags"></i><h4 data-edit="home.why1.title">จองตรงกับที่พักเกาะล้าน</h4><p data-edit="home.why1.text">ราคาตรงจากเจ้าของที่พัก ไม่ผ่านคนกลาง</p></div>
         <div class="why"><i class="fa-solid fa-calendar-xmark"></i><h4 data-edit="home.why2.title">ยกเลิกฟรี</h4><p data-edit="home.why2.text">เลือกห้องแบบยกเลิกฟรีได้ ดูเงื่อนไขของแต่ละห้องก่อนจอง</p></div>
@@ -701,7 +701,7 @@ function pageBook(app, params) {
   const steps = () => `<div class="steps">${['กรอกข้อมูลผู้เข้าพัก', 'ชำระเงิน', 'ยืนยันการจอง'].map((s, i) => `<div class="step ${st.step === i + 1 ? 'active' : st.step > i + 1 ? 'done' : ''}"><span class="n">${st.step > i + 1 ? '<i class="fa-solid fa-check"></i>' : i + 1}</span>${s}</div>`).join('')}</div>`;
 
   function draw() {
-    app.innerHTML = `<div class="container">${steps()}<div class="book-layout"><div id="book-main"></div><aside><div class="side-box" id="book-sum">${summary()}</div></aside></div></div>`;
+    app.innerHTML = `<div class="container">${steps()}<div class="book-layout"><div id="book-main"></div><aside><div class="side-box"><div id="book-sum">${summary()}</div>${st.step === 1 ? '<button class="btn btn-primary btn-lg" id="next1" style="width:100%;margin-top:12px">ถัดไป: ชำระเงิน <i class="fa-solid fa-chevron-right"></i></button>' : ''}</div></aside></div></div>`;
     st.step === 1 ? drawGuest() : drawPay();
     bindSum();
   }
@@ -779,8 +779,7 @@ function pageBook(app, params) {
           <div class="fg"><label>เวลาที่คาดว่าจะมาถึง</label><select id="arrival"><option value="">ไม่ระบุ</option>${Array.from({ length: 24 }, (_, i) => `<option ${g.arrival === pad(i) + ':00' ? 'selected' : ''}>${pad(i)}:00</option>`).join('')}</select></div>
           <div class="fg full"><label>ข้อความถึงที่พัก</label><textarea id="note" rows="3">${esc(g.note)}</textarea></div>
         </div>
-      </div>
-      <div class="row" style="justify-content:flex-end"><button class="btn btn-primary btn-lg" id="next1">ถัดไป: ชำระเงิน <i class="fa-solid fa-chevron-right"></i></button></div>`;
+      </div>`;
     $('#b-login')?.addEventListener('click', () => authModal('login', () => pageBook(app, params)));
     $('#next1').onclick = () => {
       const f = $('#g-form');
@@ -1057,7 +1056,7 @@ function pageProfile(app) {
     toast('บันทึกข้อมูลแล้ว'); render();
   };
 }
-// ช่องทางติดต่อ: เจ้าของรีสอร์ท (ถ้ามี) ไม่ก็ของชมรมจากหน้าตั้งค่า — ไม่มีค่าไหนก็ไม่แสดงปุ่ม
+// ช่องทางติดต่อ: เจ้าของรีสอร์ท (ถ้ามี) ไม่ก็ของ kohlarngo จากหน้าตั้งค่า — ไม่มีค่าไหนก็ไม่แสดงปุ่ม
 function contactOf(h) {
   const s = DB.settings(), o = h && DB.owner(h.ownerId);
   const tel = String((o && o.phone) || s.phone || '').replace(/[^\d+]/g, '');
@@ -1069,7 +1068,7 @@ function pageHelp(app) {
   const faq = [
     ['จะยกเลิกการจองได้อย่างไร?', 'ไปที่ "การจองของฉัน" เลือกการจองที่ต้องการ แล้วกด "ยกเลิกการจอง" หากห้องเป็นแบบยกเลิกฟรีและยังไม่ถึงวันก่อนเช็คอิน คุณจะได้รับเงินคืนเต็มจำนวน'],
     ['ราคาที่แสดงรวมภาษีหรือไม่?', 'ราคาที่แสดงเป็นราคาสุทธิ ไม่มีค่าธรรมเนียมหรือภาษีเพิ่ม ราคารวมทั้งหมดจะแสดงในขั้นตอนการจอง'],
-    ['ใครเป็นผู้ยืนยันการจองและรับเงิน?', 'ที่พักแต่ละแห่งดำเนินการโดยเจ้าของรีสอร์ทเอง — คุณโอนเงินตรงถึงเจ้าของรีสอร์ท แนบสลิป แล้วเจ้าของรีสอร์ทจะตรวจสอบและยืนยันการจอง หากมีปัญหาติดต่อทีมงาน ชมรมรีสอร์ท & ที่พัก เกาะล้าน ได้ตลอด'],
+    ['ใครเป็นผู้ยืนยันการจองและรับเงิน?', 'ที่พักแต่ละแห่งดำเนินการโดยเจ้าของรีสอร์ทเอง — คุณโอนเงินตรงถึงเจ้าของรีสอร์ท แนบสลิป แล้วเจ้าของรีสอร์ทจะตรวจสอบและยืนยันการจอง หากมีปัญหาติดต่อทีมงาน kohlarngo ได้ตลอด'],
     ['ชำระเงินด้วยวิธีใดได้บ้าง?', 'พร้อมเพย์ (สแกน QR จากแอปธนาคารใดก็ได้) โอนผ่านธนาคาร และชำระที่ที่พัก (เฉพาะห้องที่ระบุ) — ยังไม่รับบัตรเครดิต'],
     ['ค้นหาการจองโดยไม่มีบัญชีได้ไหม?', 'ได้ ใส่อีเมลและเบอร์โทรที่กรอกตอนจองในหน้า "การจองของฉัน"'],
   ];

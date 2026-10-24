@@ -687,7 +687,7 @@ function promoText(h, channel, extra = '', trip) {
   const NL = String.fromCharCode(10);
   const from = Math.min(...h.rooms.map(r => Math.round(r.price * (1 - (r.discount || 0) / 100))));
   const hl = (h.highlights || []).slice(0, 3).map(x => '✔ ' + x).join(NL);
-  const tags = channel === 'tiktok' || channel === 'instagram' ? NL + NL + `#เกาะล้าน #ที่พักเกาะล้าน #${h.name.replace(/\s+/g, '')} #StayDee` : '';
+  const tags = channel === 'tiktok' || channel === 'instagram' ? NL + NL + `#เกาะล้าน #ที่พักเกาะล้าน #${h.name.replace(/\s+/g, '')} #kohlarngo` : '';
   const line = h.social?.line ? NL + `💬 LINE: ${h.social.line}` : '';
   return [`🏝️ ${h.name} — ${h.type}${h.area ? ' ' + h.area : ''} เกาะล้าน`, `ห้องพักเริ่มต้น ${from.toLocaleString()} บาท/คืน`, hl, extra, '', '📲 จองตรงกับรีสอร์ท ยืนยันไว ไม่มีค่าธรรมเนียมเพิ่ม', `👉 ${resortLink(h, channel, trip)}`].filter((x, i) => x || i === 4).join(NL) + line + tags;
 }
@@ -702,7 +702,7 @@ const ownerApproved = u => !!u && u.role === 'owner' && u.ownerStatus === 'appro
 const userPerms = u => u.role === 'staff' ? (Array.isArray(u.perms) ? u.perms.filter(p => ROLE_PERMS.staff.includes(p)) : []) : u.role === 'admin' && Array.isArray(u.perms) ? u.perms.filter(p => ROLE_PERMS.admin.includes(p)) : (ROLE_PERMS[u.role] || []);
 const can = (perm, u = DB.currentUser()) => !!u && u.active !== false && (u.role !== 'owner' || u.ownerStatus === 'approved') && userPerms(u).includes(perm);
 
-const DEFAULT_SETTINGS = { bizName: 'ชมรมรีสอร์ท & ที่พัก เกาะล้าน', legalName: 'ชมรมรีสอร์ท & ที่พัก เกาะล้าน', taxId: '', phone: '', email: 'kohlarngo@gmail.com', line: '', address: 'เกาะล้าน อ.บางละมุง จ.ชลบุรี 20150', announceOn: false, announce: '', announceType: 'info', targetMonthly: 300000, promptpayId: '', promptpayName: '', bankInfo: '' };
+const DEFAULT_SETTINGS = { bizName: 'kohlarngo', legalName: 'kohlarngo', taxId: '', phone: '', email: 'kohlarngo@gmail.com', line: '', address: 'เกาะล้าน อ.บางละมุง จ.ชลบุรี 20150', announceOn: false, announce: '', announceType: 'info', targetMonthly: 300000, promptpayId: '', promptpayName: '', bankInfo: '' };
 // QR พร้อมเพย์จาก promptpay.io (สร้าง QR อย่างเดียว ไม่ยืนยันการชำระ) — id = เบอร์มือถือ 10 หลัก หรือเลขบัตร/เลขผู้เสียภาษี 13 หลัก
 const isPromptpayId = v => /^(0\d{9}|\d{13})$/.test(String(v || ''));
 const promptpayQr = (id, amount) => `https://promptpay.io/${encodeURIComponent(id)}${amount != null ? '/' + (+amount).toFixed(2) : ''}.png`;

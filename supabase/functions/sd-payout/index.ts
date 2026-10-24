@@ -33,7 +33,7 @@ Deno.serve(async (req: Request) => {
 
   if (body.action === 'send-otp') {
     // ใส่ชื่อรีสอร์ทไว้ใน user_metadata เพื่อให้เทมเพลตอีเมลแสดงได้ด้วย {{ .Data.resortName }}
-    const resort = String(prof.biz?.resortName ?? '').trim().slice(0, 100) || 'StayDee';
+    const resort = String(prof.biz?.resortName ?? '').trim().slice(0, 100) || 'kohlarngo';
     await sb.auth.admin.updateUserById(user.id, { user_metadata: { ...(user.user_metadata ?? {}), resortName: resort } });
     const r = await createClient(url, anon, { auth: clean }).auth.signInWithOtp({ email: user.email, options: { shouldCreateUser: false } });
     if (r.error) return json({ error: /rate|seconds|too many/i.test(r.error.message) ? 'ขอรหัสถี่เกินไป — รอสักครู่แล้วลองใหม่' : 'ส่งรหัสไม่สำเร็จ: ' + r.error.message }, 429);

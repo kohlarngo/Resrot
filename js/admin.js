@@ -274,7 +274,7 @@ function loginArt(role) {
   const P = PORTAL_INFO[role], R = ROLES[role];
   return `<div class="bo-login-art">
       <div class="bo-brand"><span class="bo-logo"><img src="${esc(siteImgId('icon', 'assets/icon-192.png'))}" alt=""></span><div><b>${esc(DB.settings().bizName)}</b><small>${P.en}</small></div></div>
-      <img class="bo-login-logo" src="${esc(siteImgId('logo', 'assets/logo-800.jpg'))}" alt="kohlarngo — ชมรมรีสอร์ท & ที่พัก เกาะล้าน" width="320" height="213">
+      <img class="bo-login-logo" src="${esc(siteImgId('logo', 'assets/logo-800.jpg'))}" alt="kohlarngo" width="320" height="213">
       <div><div class="portal-tag"><i class="fa-solid ${R.icon}"></i> ${P.title}</div><h1>${P.headline}</h1><p>${P.blurb}</p>
         <ul>${P.bullets.map(([ic, t]) => `<li><i class="fa-solid ${ic}"></i> ${t}</li>`).join('')}</ul></div>
       <small>© ${new Date().getFullYear()} ${esc(DB.settings().legalName)}</small>
@@ -1940,7 +1940,7 @@ function boSettings(main) {
   main.innerHTML = pageHead('ตั้งค่ากิจการ', 'ข้อมูลนี้ใช้ในเอกสาร หน้าเว็บ และหน้าเข้าสู่ระบบ') + `
     <form id="set-f"><div class="bo-grid g-1-1">
       <section class="card"><div class="card-h"><h3>ข้อมูลกิจการ</h3></div><div class="form-grid">
-        ${fg('bizName', 'ชื่อแบรนด์')}${fg('legalName', 'ชื่อนิติบุคคล')}${fg('taxId', 'เลขประจำตัวผู้เสียภาษี', 'inputmode="numeric" maxlength="13"')}${fg('phone', 'เบอร์โทรชมรม (แสดงท้ายเว็บ ศูนย์ช่วยเหลือ และหน้าที่พัก)', 'inputmode="tel" placeholder="รอกรอก เช่น 038-xxx-xxx"')}${fg('email', 'อีเมลชมรม (แสดงในศูนย์ช่วยเหลือ)', 'type="email" placeholder="รอกรอก เช่น info@โดเมนของชมรม"')}${fg('line', 'LINE Official ของชมรม (แสดงหัวเว็บ ท้ายเว็บ และหน้าที่พัก)', 'placeholder="รอกรอก เช่น @kohlarn หรือลิงก์ https://line.me/..."')}
+        ${fg('bizName', 'ชื่อแบรนด์')}${fg('legalName', 'ชื่อนิติบุคคล')}${fg('taxId', 'เลขประจำตัวผู้เสียภาษี', 'inputmode="numeric" maxlength="13"')}${fg('phone', 'เบอร์โทร kohlarngo (แสดงท้ายเว็บ ศูนย์ช่วยเหลือ และหน้าที่พัก)', 'inputmode="tel" placeholder="รอกรอก เช่น 038-xxx-xxx"')}${fg('email', 'อีเมล kohlarngo (แสดงในศูนย์ช่วยเหลือ)', 'type="email" placeholder="รอกรอก เช่น info@โดเมนของ kohlarngo"')}${fg('line', 'LINE Official ของ kohlarngo (แสดงหัวเว็บ ท้ายเว็บ และหน้าที่พัก)', 'placeholder="รอกรอก เช่น @kohlarn หรือลิงก์ https://line.me/..."')}
         ${!s.phone || !s.email || !s.line ? `<div class="fg full"><div class="small" style="background:#fff7e6;border:1px solid #f5c26b;border-radius:8px;padding:8px 12px"><i class="fa-solid fa-triangle-exclamation"></i> ยังไม่ได้กรอก: ${[!s.phone && 'เบอร์โทร', !s.email && 'อีเมล', !s.line && 'LINE'].filter(Boolean).join(' · ')} — ช่องที่ว่างจะไม่แสดงบนเว็บ กรอกแล้วกดบันทึกด้านล่าง</div></div>` : ''}
         <div class="fg full"><label>ที่อยู่</label><textarea name="address" rows="2">${esc(s.address)}</textarea></div>
         ${fg('targetMonthly', 'เป้ายอดขายต่อเดือน (฿)', 'type="number" min="0" step="1000"', true)}</div></section>
@@ -2015,7 +2015,7 @@ function boAudit(main) {
 
 // ================= Backup & tools =================
 const backupData = () => ({
-  app: 'staydee', version: APP_VERSION, exportedAt: new Date().toISOString(),
+  app: 'kohlarngo', version: APP_VERSION, exportedAt: new Date().toISOString(),
   hotels: DB.hotels(true), bookings: DB.bookings(), coupons: DB.coupons(), reviews: DB.reviewsAll(),
   settings: CACHE.kv.settings || null, flags: CACHE.kv.flags || null, sos_contacts: CACHE.kv.sos_contacts || null, sos: DB.sos(), audit: DB.audit(),
 });
@@ -2028,7 +2028,7 @@ function boTools(main) {
       <section class="card danger"><div class="card-h"><h3 class="red"><i class="fa-solid fa-triangle-exclamation"></i> รีเซ็ตระบบ</h3></div><p class="small muted">ลบการจอง รีวิว แจ้งเหตุ error logs ที่พัก โค้ดส่วนลด และการตั้งค่าทั้งหมด แล้วกลับสู่ข้อมูลตั้งต้น <b>ไม่สามารถย้อนกลับได้</b> (บัญชีผู้ใช้และ Audit log ยังอยู่)</p><button class="btn btn-danger" id="t-reset"><i class="fa-solid fa-rotate-left"></i> รีเซ็ตข้อมูลทั้งหมด</button></section>` : ''}
     </div>`;
   $('#t-exp').onclick = () => {
-    downloadFile(`staydee-backup-${todayISO()}.json`, JSON.stringify(backupData(), null, 2), 'application/json'); DB.log('data.export', 'ไฟล์สำรองทั้งระบบ');
+    downloadFile(`kohlarngo-backup-${todayISO()}.json`, JSON.stringify(backupData(), null, 2), 'application/json'); DB.log('data.export', 'ไฟล์สำรองทั้งระบบ');
   };
   $('#t-imp').onchange = async e => {
     const file = e.target.files[0]; e.target.value = '';

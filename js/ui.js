@@ -269,7 +269,7 @@ function headerHtml() {
   const a = (href, label) => `<a href="#${href}" class="${path === href ? 'active' : ''}">${label}</a>`;
   return `<header class="header"><div class="container header-inner">
     <button class="menu-toggle" id="menu-t"><i class="fa-solid fa-bars"></i></button>
-    <a href="#/" class="logo logo-img" data-img-slot="logo" aria-label="kohlarngo — ชมรมรีสอร์ทและที่พักเกาะล้าน"><img src="${esc(siteImgId('logo', 'assets/logo-800.jpg'))}" alt="kohlarngo — ชมรมรีสอร์ท & ที่พัก เกาะล้าน" width="108" height="72"></a>
+    <a href="#/" class="logo logo-img" data-img-slot="logo" aria-label="kohlarngo"><img src="${esc(siteImgId('logo', 'assets/logo-800.jpg'))}" alt="kohlarngo" width="108" height="72"></a>
     <nav class="nav" id="nav">
       ${a('/', 'หน้าแรก')}${a('/search', 'ค้นหาที่พัก')}${a('/deals', 'ดีลสุดคุ้ม')}${a('/my-bookings', 'การจองของฉัน')}${a('/favorites', 'รายการโปรด')}
     </nav>
@@ -329,7 +329,7 @@ function footerHtml() {
     ${sosFooterHtml()}
     <div><h4 data-edit="footer.dest.title">จุดหมายยอดนิยม</h4>${DESTINATIONS.slice(0, 5).map((d, i) => `<a href="#/search?q=${encodeURIComponent(d.name)}"><span data-edit="footer.dest${i}">ที่พัก${d.name}</span></a>`).join('')}</div>
     <div><h4 data-edit="footer.partner.title">พาร์ทเนอร์</h4><a href="owner.html#/admin/signup"><span data-edit="footer.partner1">ลงทะเบียนรีสอร์ทฟรี</span></a><a href="#/help"><span data-edit="footer.partner2">ร่วมเป็นพันธมิตร</span></a></div>
-  </div><div class="foot-bottom"><span data-edit="footer.copy" data-edit-n="${new Date().getFullYear()}">© ${new Date().getFullYear()} ชมรมรีสอร์ท & ที่พัก เกาะล้าน — ระบบจองที่พักเกาะล้าน · ราคาทั้งหมดเป็นสกุลเงินบาท (THB)</span></div></div></footer>`;
+  </div><div class="foot-bottom"><span data-edit="footer.copy" data-edit-n="${new Date().getFullYear()}">© ${new Date().getFullYear()} kohlarngo — ระบบจองที่พักเกาะล้าน · ราคาทั้งหมดเป็นสกุลเงินบาท (THB)</span></div></div></footer>`;
 }
 
 // ---------- Auth modal ----------

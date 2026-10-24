@@ -7,7 +7,7 @@ const CK_KEEP_DAYS = 45; // ต้องตรงกับ KEEP_DAYS ใน Edge
 const ckExpiry = reg => { const d = new Date(new Date(reg.registeredAt || reg.savedAt).getTime() + CK_KEEP_DAYS * 864e5); return { date: d, left: Math.max(0, Math.ceil((d - Date.now()) / 864e5)) }; };
 const CK_CONSENT = 'ข้าพเจ้ายินยอมให้รีสอร์ทเก็บสำเนาบัตรประชาชน/พาสปอร์ตและลายเซ็นของข้าพเจ้า เพื่อใช้ลงทะเบียนผู้เข้าพักตามที่กฎหมายกำหนดและเพื่อความปลอดภัย ข้อมูลจะถูกเก็บเป็นความลับ เข้าถึงได้เฉพาะรีสอร์ทนี้และผู้ดูแลระบบที่ได้รับมอบหมาย (ดูเพื่อดูแลระบบเท่านั้น) และจะถูกลบอัตโนมัติเมื่อครบ 45 วัน';
 
-// โลโก้บนหัวทะเบียน: ชมรม (ตั้งได้ที่ "รูปทั้งเว็บ") + โลโก้รีสอร์ท (เจ้าของอัปโหลดในหน้า "ตกแต่งหน้ารีสอร์ท") — แปลงเป็น URL เต็มเพื่อให้หน้าต่างพิมพ์โหลดได้
+// โลโก้บนหัวทะเบียน: kohlarngo (ตั้งได้ที่ "รูปทั้งเว็บ") + โลโก้รีสอร์ท (เจ้าของอัปโหลดในหน้า "ตกแต่งหน้ารีสอร์ท") — แปลงเป็น URL เต็มเพื่อให้หน้าต่างพิมพ์โหลดได้
 const ckAbs = u => { if (!u) return ''; try { return /^(https?:|data:)/.test(u) ? u : new URL(u, location.href).href; } catch { return ''; } };
 const ckLogos = hotelId => ({ club: ckAbs(siteImgId('logo', 'assets/logo-800.jpg')), resort: ckAbs(DB.hotel(hotelId)?.logo) });
 function ckDocOk(g) {
@@ -27,7 +27,7 @@ function ckForm(b, { allowSkip = false, self = null } = {}) { // self = { pin } 
     ov.className = 'ck-screen';
     const lg = ckLogos(b.hotelId);
     ov.innerHTML = `<div class="ck-wrap">
-      <div class="row between" style="gap:12px;align-items:center;margin-bottom:10px"><img src="${esc(lg.club)}" alt="ชมรมรีสอร์ท & ที่พัก เกาะล้าน" style="height:52px;max-width:48%;object-fit:contain">${lg.resort ? `<img src="${esc(lg.resort)}" alt="" style="height:52px;max-width:48%;object-fit:contain">` : ''}</div>
+      <div class="row between" style="gap:12px;align-items:center;margin-bottom:10px"><img src="${esc(lg.club)}" alt="kohlarngo" style="height:52px;max-width:48%;object-fit:contain">${lg.resort ? `<img src="${esc(lg.resort)}" alt="" style="height:52px;max-width:48%;object-fit:contain">` : ''}</div>
       <div class="ck-head"><div><h2><i class="fa-solid fa-id-card"></i> ลงทะเบียนผู้เข้าพัก</h2>
         <div class="small muted">${esc(b.id)} · ${esc(b.hotelName)} · ${b.qty} × ${esc(b.roomName)} · ${fmtDate(b.checkIn, false)} – ${fmtDate(b.checkOut, false)}</div></div>
         <button type="button" class="ck-x" data-ck="close" aria-label="ปิด"><i class="fa-solid fa-xmark"></i></button></div>
@@ -317,7 +317,7 @@ async function ckPrint(b, reg, w) {
       @media print { .noprint { display: none; } body { padding: 0; } }
     </style></head><body>
       <div class="noprint"><span>เลือก <b>พิมพ์</b> หรือเลือกปลายทางเป็น <b>บันทึกเป็น PDF</b> ในหน้าต่างพิมพ์</span><button onclick="window.print()">พิมพ์ / บันทึกเป็น PDF</button></div>
-      <div class="brand"><img src="${T(lg.club)}" alt="ชมรมรีสอร์ท & ที่พัก เกาะล้าน">${lg.resort ? `<img src="${T(lg.resort)}" alt="">` : ''}</div>
+      <div class="brand"><img src="${T(lg.club)}" alt="kohlarngo">${lg.resort ? `<img src="${T(lg.resort)}" alt="">` : ''}</div>
       <div class="top"><div><h1>ทะเบียนผู้เข้าพัก <span style="font-weight:400;font-size:14px">/ Guest Registration</span></h1><div>${T(b.hotelName)}</div>
         <div class="muted">${T(h.address || '')}${owner?.phone ? ' · โทร ' + T(owner.phone) : ''}</div></div>
         <div style="text-align:right"><div class="muted">รหัสการจอง</div><div style="font-size:20px;font-weight:700">${T(b.id)}</div></div></div>

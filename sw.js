@@ -5,7 +5,7 @@ self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 self.addEventListener('push', e => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data ? e.data.text() : '' }; }
-  e.waitUntil(self.registration.showNotification(d.title || 'StayDee', {
+  e.waitUntil(self.registration.showNotification(d.title || 'kohlarngo', {
     body: d.body || '', tag: d.tag, renotify: !!d.tag, icon: 'assets/icon-192.png', badge: 'assets/icon-192.png', data: { url: d.url || 'owner.html' },
   }));
 });
