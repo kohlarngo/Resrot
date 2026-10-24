@@ -728,3 +728,38 @@ function boClosure(main) {
     DB.log('hotel.maintenance.release', b.dataset.clOpen); toast('เปิดรับจองคืนแล้ว'); redraw();
   });
 }
+
+// ================= ลิงก์ส่งลูกค้า =================
+// สร้างลิงก์จองของรีสอร์ท (กำหนดวัน/จำนวนคนไว้ล่วงหน้าได้) แล้วคัดลอก / ส่งเข้า LINE / เปิดทดสอบ
+function boLinks(main) {
+  const hotels = DB.hotels(true), tdy = todayISO();
+  main.innerHTML = pageHead('ลิงก์ส่งลูกค้า', 'ส่งลิงก์ให้ลูกค้าจองตรงกับรีสอร์ท — กำหนดวันเข้าพักไว้ในลิงก์ได้ ลูกค้าเปิดแล้วเห็นราคาและห้องว่างของวันนั้นเลย ไม่ต้องเลือกวันเอง') + (hotels.length ? hotels.map(h => `
+    <section class="card" data-h="${esc(h.id)}"><div class="card-h"><h3><i class="fa-solid fa-link"></i> ${esc(h.name)}</h3></div>
+      <div class="fg"><label>ลิงก์รีสอร์ท <span class="small muted">— ใช้ได้ตลอด ลูกค้าเลือกวันเอง</span></label>
+        <div class="row" style="gap:8px"><input data-rlink readonly style="flex:1"><button class="btn btn-outline btn-sm" data-rcopy><i class="fa-regular fa-copy"></i> คัดลอก</button></div></div>
+      <div class="fg"><label>ลิงก์พร้อมวันเข้าพัก <span class="small muted">— เลือกวันด้านล่าง ลูกค้าเปิดแล้วเห็นราคา/ห้องว่างของวันนั้นเลย</span></label>
+        <div class="row wrap" style="gap:8px"><input type="date" data-in min="${tdy}" style="max-width:160px" title="เช็คอิน"><span class="muted">ถึง</span><input type="date" data-out min="${tdy}" style="max-width:160px" title="เช็คเอาท์"><input type="number" data-a min="1" max="20" value="2" style="max-width:80px" title="ผู้ใหญ่"><span class="small muted">คน</span><input type="number" data-r min="1" max="10" value="1" style="max-width:80px" title="จำนวนห้อง"><span class="small muted">ห้อง</span></div>
+        <div class="small" data-note style="margin-top:4px"></div></div>
+      <div class="fg"><input data-link readonly style="width:100%"></div>
+      <div class="row wrap" style="gap:8px"><button class="btn btn-primary" data-copy><i class="fa-regular fa-copy"></i> คัดลอกลิงก์พร้อมวัน</button>
+        <button class="btn btn-outline" data-line><i class="fa-brands fa-line"></i> ส่งเข้า LINE</button>
+        <button class="btn btn-ghost" data-promo><i class="fa-solid fa-share-nodes"></i> แชร์โปรโมต (Facebook / TikTok)</button></div>
+    </section>`).join('') : '<div class="empty"><i class="fa-solid fa-hotel"></i><h3>ยังไม่มีรีสอร์ท</h3><p class="muted">เพิ่มรีสอร์ทที่เมนู "หน้ารีสอร์ท" ก่อน</p></div>');
+  $$('section[data-h]', main).forEach(sec => {
+    const h = DB.hotel(sec.dataset.h), q = s => $(s, sec);
+    const trip = () => { const i = q('[data-in]').value, o = q('[data-out]').value; return i && o && o > i ? { in: i, out: o, a: Math.max(1, +q('[data-a]').value || 2), r: Math.max(1, +q('[data-r]').value || 1) } : null; };
+    const draw = () => {
+      const t = trip(), i = q('[data-in]').value, o = q('[data-out]').value;
+      q('[data-link]').value = resortLink(h, '', t);
+      q('[data-note]').innerHTML = t ? `<span class="green"><i class="fa-solid fa-check"></i> ลูกค้าจะเห็น ${fmtDate(i)} – ${fmtDate(o)} · ${diffDays(i, o)} คืน · ${t.a} คน ${t.r} ห้อง</span>` : (i || o ? '<span class="muted">เลือกเช็คอินและเช็คเอาท์ให้ครบ</span>' : '<span class="muted">ไม่กำหนดวัน — ลูกค้าเลือกวันเอง</span>');
+    };
+    q('[data-in]').onchange = () => { const i = q('[data-in]').value, o = q('[data-out]'); if (i && (!o.value || o.value <= i)) o.value = addDays(i, 1); o.min = i ? addDays(i, 1) : tdy; draw(); };
+    ['[data-out]', '[data-a]', '[data-r]'].forEach(s => q(s).onchange = draw);
+    q('[data-rlink]').value = resortLink(h);
+    q('[data-rcopy]').onclick = () => { copyText(q('[data-rlink]').value); toast('คัดลอกลิงก์รีสอร์ทแล้ว'); };
+    q('[data-copy]').onclick = () => { copyText(q('[data-link]').value); toast('คัดลอกลิงก์แล้ว'); };
+    q('[data-line]').onclick = () => window.open(`https://line.me/R/share?text=${encodeURIComponent(`จองห้องพัก ${h.name} ได้ที่นี่เลย 👇\n${q('[data-link]').value}`)}`, '_blank', 'noopener');
+    q('[data-promo]').onclick = () => sharePromo(h);
+    draw();
+  });
+}

@@ -542,7 +542,7 @@ function pageHotel(app, params, id) {
   initAds(app);
   $$('[data-go]', app).forEach(a => a.onclick = () => { const t = $('#' + a.dataset.go); scrollTo({ top: t.getBoundingClientRect().top + scrollY - ($('.header')?.offsetHeight || 64) - 66, behavior: 'smooth' }); });
   $('#chg').onclick = () => { scrollTo({ top: 0, behavior: 'smooth' }); setTimeout(() => $('.date-field').dispatchEvent(new MouseEvent('mousedown', { bubbles: true })), 300); };
-  $('#share').onclick = () => { copyText(resortLink(h)); toast('คัดลอกลิงก์รีสอร์ทแล้ว'); };
+  $('#share').onclick = () => { copyText(resortLink(h, '', { in: S.checkIn, out: S.checkOut, a: S.adults, r: S.rooms })); toast('คัดลอกลิงก์รีสอร์ทแล้ว (พร้อมวันที่ที่เลือกอยู่)'); };
   if (slideOn) initSlider($('#gallery'), h.slideshow?.seconds);
   $$('.room-slider', app).forEach(el => initSlider(el, el.dataset.rsl));
   const allImgs = [...h.images, ...h.rooms.map(r => r.img)];
@@ -912,7 +912,7 @@ function pageBookingView(app, params, id) {
   app.innerHTML = `<div class="container" style="max-width:900px;padding-top:20px">
     ${isNew ? `<div class="panel confirm-hero"><i class="fa-solid fa-paper-plane big"></i><h1>ส่งคำขอจองแล้ว — รอเจ้าของรีสอร์ทยืนยัน</h1>
       <p class="muted">${['promptpay', 'bank'].includes(b.payment.method) ? 'ชำระเงินและแนบสลิปด้านล่าง เจ้าของรีสอร์ทจะตรวจสอบและยืนยันการจอง' : 'เจ้าของรีสอร์ทจะตรวจสอบห้องว่างและยืนยันการจองโดยเร็ว'}</p>
-      <div class="muted small">หมายเลขการจอง</div><div class="bk-id">${b.id}</div><div class="small muted">PIN: ${b.pin} — ใช้ค้นหาการจองได้ที่ "การจองของฉัน"</div></div>` : ''}
+      <div class="muted small">หมายเลขการจอง</div><div class="bk-id">${b.id}</div><div class="small muted">PIN: ${b.pin} — ค้นหาการจองได้ที่ "การจองของฉัน" ด้วยอีเมลและเบอร์โทรที่กรอกตอนจอง</div></div>` : ''}
     ${rejected ? `<div class="notice warn"><i class="fa-solid fa-circle-xmark"></i><div><b>เจ้าของรีสอร์ทปฏิเสธการจองนี้</b>${b.cancelReason ? ` — ${esc(b.cancelReason)}` : ''}<br>หากโอนเงินไปแล้ว กรุณาติดต่อเจ้าของรีสอร์ทเพื่อขอรับเงินคืน</div></div>` : ''}
     ${st === 'pending' && b.payment.method === 'hotel' ? '<div class="notice info"><i class="fa-solid fa-hourglass-half"></i><div>รอเจ้าของรีสอร์ทยืนยันการจอง — ชำระเงินที่ที่พักในวันเข้าพัก</div></div>' : ''}
     ${selfCheckinBannerHtml(b)}
@@ -992,9 +992,10 @@ function pageMyBookings(app, params) {
   const groups = { upcoming: all.filter(b => ['confirmed', 'pending'].includes(bookingStatus(b))), completed: all.filter(b => bookingStatus(b) === 'completed'), cancelled: all.filter(b => b.status === 'cancelled') };
   app.innerHTML = `<div class="container" style="padding-top:24px;max-width:980px">
     <h1 class="sec-title">การจองของฉัน</h1>
-    ${!u ? `<div class="panel"><h3>ค้นหาการจอง</h3><p class="small muted">เข้าสู่ระบบเพื่อดูการจองทั้งหมด หรือค้นหาด้วยหมายเลขการจองและ PIN</p>
-      <div class="form-grid"><div class="fg"><label>หมายเลขการจอง</label><input id="f-id" placeholder="SD..."></div><div class="fg"><label>PIN</label><input id="f-pin" maxlength="6" inputmode="numeric"></div></div>
-      <div class="row" style="margin-top:14px"><button class="btn btn-primary" id="f-go">ค้นหา</button><button class="btn btn-outline" data-auth2>เข้าสู่ระบบ</button></div></div>` : `
+    ${!u ? `<div class="panel"><h3>ค้นหาการจอง</h3><p class="small muted">ใส่อีเมลและเบอร์โทรที่กรอกตอนจอง หรือเข้าสู่ระบบเพื่อดูการจองทั้งหมด</p>
+      <div class="form-grid"><div class="fg"><label>อีเมล</label><input id="f-email" type="email" autocomplete="email" placeholder="name@example.com"></div><div class="fg"><label>เบอร์โทร</label><input id="f-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="08x-xxx-xxxx"></div></div>
+      <div class="row" style="margin-top:14px"><button class="btn btn-primary" id="f-go">ค้นหา</button><button class="btn btn-outline" data-auth2>เข้าสู่ระบบ</button></div>
+      <div id="f-res" style="margin-top:14px"></div></div>` : `
     <div class="tabs-line">${[['upcoming', 'กำลังจะมาถึง'], ['completed', 'เข้าพักแล้ว'], ['cancelled', 'ยกเลิกแล้ว']].map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? 'active' : ''}">${l} (${groups[k].length})</button>`).join('')}</div>
     ${groups[tab].length ? groups[tab].map(b => {
       const h = DB.hotel(b.hotelId); const st = bookingStatus(b);
@@ -1014,9 +1015,10 @@ function pageMyBookings(app, params) {
   $('[data-auth2]', app)?.addEventListener('click', () => authModal('login'));
   $('#f-go', app)?.addEventListener('click', async () => {
     let err = '';
-    const b = await DB.lookupBooking($('#f-id').value.trim(), $('#f-pin').value.trim()).catch(e => { err = e.message; return null; });
-    if (!b) return toast(err || 'ไม่พบการจอง หรือ PIN ไม่ถูกต้อง', 'err');
-    go(`/booking/${b.id}`);
+    const list = await DB.findBookings($('#f-email').value.trim(), $('#f-phone').value.trim()).catch(e => { err = e.message; return null; });
+    if (!list?.length) return toast(err || 'ไม่พบการจอง กรุณาตรวจสอบอีเมลและเบอร์โทรที่กรอกตอนจอง', 'err');
+    if (list.length === 1) return go(`/booking/${list[0].id}`);
+    $('#f-res').innerHTML = list.map(b => `<a class="bk-card" href="#/booking/${b.id}" style="text-decoration:none;color:inherit"><div><div class="row" style="gap:8px"><span class="status ${bookingStatus(b)}">${STATUS_TH[bookingStatus(b)]}</span><span class="small muted">#${b.id}</span></div><h3 style="margin:6px 0 2px">${esc(b.hotelName)}</h3><div class="small"><i class="fa-regular fa-calendar"></i> ${fmtDate(b.checkIn)} – ${fmtDate(b.checkOut)} · ${b.nights} คืน</div></div></a>`).join('');
   });
   $$('[data-review]', app).forEach(btn => btn.onclick = () => reviewModal(DB.booking(btn.dataset.review), () => pageMyBookings(app, params)));
 }
@@ -1070,7 +1072,7 @@ function pageHelp(app) {
     ['ราคาที่แสดงรวมภาษีหรือไม่?', 'ราคาที่แสดงเป็นราคาสุทธิ ไม่มีค่าธรรมเนียมหรือภาษีเพิ่ม ราคารวมทั้งหมดจะแสดงในขั้นตอนการจอง'],
     ['ใครเป็นผู้ยืนยันการจองและรับเงิน?', 'ที่พักแต่ละแห่งดำเนินการโดยเจ้าของรีสอร์ทเอง — คุณโอนเงินตรงถึงเจ้าของรีสอร์ท แนบสลิป แล้วเจ้าของรีสอร์ทจะตรวจสอบและยืนยันการจอง หากมีปัญหาติดต่อทีมงาน ชมรมรีสอร์ท & ที่พัก เกาะล้าน ได้ตลอด'],
     ['ชำระเงินด้วยวิธีใดได้บ้าง?', 'พร้อมเพย์ (สแกน QR จากแอปธนาคารใดก็ได้) โอนผ่านธนาคาร และชำระที่ที่พัก (เฉพาะห้องที่ระบุ) — ยังไม่รับบัตรเครดิต'],
-    ['ค้นหาการจองโดยไม่มีบัญชีได้ไหม?', 'ได้ ใช้หมายเลขการจองและ PIN ที่ได้รับในหน้า "การจองของฉัน"'],
+    ['ค้นหาการจองโดยไม่มีบัญชีได้ไหม?', 'ได้ ใส่อีเมลและเบอร์โทรที่กรอกตอนจองในหน้า "การจองของฉัน"'],
   ];
   app.innerHTML = `<div class="container" style="max-width:800px;padding-top:24px"><h1 class="sec-title">ศูนย์ช่วยเหลือ</h1>
     ${faq.map(([q, a]) => `<details class="panel"><summary class="bold" style="cursor:pointer">${q}</summary><p style="margin:10px 0 0">${a}</p></details>`).join('')}

@@ -15,6 +15,7 @@ const BO_NAV_BY_ROLE = {
       ['calendar', 'fa-table-cells', 'ตารางห้องว่าง / ปิดห้อง', 'inventory', () => admCalendar],
       ['channels', 'fa-arrows-rotate', 'จองจากช่องทางอื่น', 'inventory', () => boChannels],
       ['today', 'fa-sun', 'ภาพรวมวันนี้', 'ops.view', () => boToday],
+      ['links', 'fa-link', 'ลิงก์ส่งลูกค้า', 'hotels.edit', () => boLinks],
     ] },
     { g: 'ตั้งค่ารีสอร์ท', items: [
       ['rooms', 'fa-bed', 'ห้องพัก', 'hotels.edit', () => boRoomsPage],
@@ -1474,19 +1475,26 @@ function hotelDetailModal(h) {
 
 // แชร์โปรโมต: สร้างข้อความ + ลิงก์ประจำรีสอร์ท ส่งเข้า Facebook / TikTok / Instagram / LINE
 function sharePromo(h) {
-  let ch = 'facebook', extra = '';
+  let ch = 'facebook', extra = '', trip = null;
+  const tdy = todayISO();
   const m = openModal(`<h2><i class="fa-solid fa-share-nodes"></i> แชร์โปรโมต — ${esc(h.name)}</h2>
     <p class="muted small" style="margin:4px 0 12px">ข้อความมีลิงก์ประจำรีสอร์ท ลูกค้ากดแล้วจองผ่านเราได้ทันที · แก้ข้อความก่อนส่งได้</p>
     <div class="row wrap" style="gap:8px">${Object.entries(SOCIALS).map(([k, c]) => `<button type="button" class="btn btn-sm" data-ch="${k}"><i class="${c.icon}"></i> ${c.label}</button>`).join('')}</div>
-    <div class="fg" style="margin-top:12px"><label>โปรโมชันเพิ่มเติม (ไม่บังคับ)</label><input id="sp-extra" placeholder="เช่น 🔥 จองวันนี้ลด 10% ถึงสิ้นเดือน"></div>
+    <div class="fg" style="margin-top:12px"><label>กำหนดวันเข้าพักในลิงก์ (ไม่บังคับ) <span class="small muted">— ลูกค้าเปิดลิงก์แล้วเห็นราคา/ห้องว่างของวันนั้นเลย ไม่ต้องเลือกวันเอง เหมาะกับคนที่ไม่คุ้นกับการจอง</span></label>
+      <div class="row wrap" style="gap:8px"><input type="date" id="sp-in" min="${tdy}" style="max-width:160px" title="เช็คอิน"><span class="muted">ถึง</span><input type="date" id="sp-out" min="${tdy}" style="max-width:160px" title="เช็คเอาท์"><input type="number" id="sp-a" min="1" max="20" value="2" style="max-width:80px" title="ผู้ใหญ่"><span class="small muted">คน</span><input type="number" id="sp-r" min="1" max="10" value="1" style="max-width:80px" title="จำนวนห้อง"><span class="small muted">ห้อง</span></div>
+      <div class="small" id="sp-trip-note" style="margin-top:4px"></div></div>
+    <div class="fg"><label>โปรโมชันเพิ่มเติม (ไม่บังคับ)</label><input id="sp-extra" placeholder="เช่น 🔥 จองวันนี้ลด 10% ถึงสิ้นเดือน"></div>
     <div class="fg"><label>ข้อความ</label><textarea id="sp-text" rows="9"></textarea></div>
     <div class="fg"><label>ลิงก์ประจำรีสอร์ท</label><div class="row" style="gap:8px"><input id="sp-link" readonly style="flex:1"><button type="button" class="btn btn-outline btn-sm" id="sp-copylink"><i class="fa-regular fa-copy"></i> คัดลอกลิงก์</button></div></div>
     <div class="row wrap" style="gap:8px;margin-top:6px"><button type="button" class="btn btn-primary" id="sp-copy"><i class="fa-regular fa-copy"></i> คัดลอกข้อความ</button><button type="button" class="btn btn-outline" id="sp-open"></button></div>
     <div class="small muted" id="sp-note" style="margin-top:10px"></div>`, 'wide');
   const t = $('#sp-text', m);
   const draw = () => {
-    t.value = promoText(h, ch, extra);
-    $('#sp-link', m).value = resortLink(h, ch);
+    const i = $('#sp-in', m).value, o = $('#sp-out', m).value;
+    trip = i && o && o > i ? { in: i, out: o, a: Math.max(1, +$('#sp-a', m).value || 2), r: Math.max(1, +$('#sp-r', m).value || 1) } : null;
+    $('#sp-trip-note', m).innerHTML = trip ? `<span class="green"><i class="fa-solid fa-check"></i> ลิงก์จะเปิดที่ ${fmtDate(i)} – ${fmtDate(o)} · ${diffDays(i, o)} คืน · ${trip.a} คน ${trip.r} ห้อง</span>` : (i || o ? '<span class="muted">เลือกเช็คอินและเช็คเอาท์ให้ครบ (เช็คเอาท์ต้องหลังเช็คอิน)</span>' : '');
+    t.value = promoText(h, ch, extra, trip);
+    $('#sp-link', m).value = resortLink(h, ch, trip);
     $$('[data-ch]', m).forEach(b => { const on = b.dataset.ch === ch; b.classList.toggle('btn-primary', on); b.classList.toggle('btn-outline', !on); });
     const has = !!socialUrl(ch, h.social?.[ch]);
     $('#sp-open', m).innerHTML = ch === 'facebook' ? '<i class="fa-brands fa-facebook"></i> แชร์ขึ้น Facebook' : ch === 'line' ? '<i class="fa-brands fa-line"></i> ส่งเข้า LINE' : `<i class="${SOCIALS[ch].icon}"></i> คัดลอก & เปิด ${SOCIALS[ch].label}${has ? '' : ' (ยังไม่ได้ใส่ลิงก์โปรไฟล์)'}`;
@@ -1494,10 +1502,12 @@ function sharePromo(h) {
   };
   $$('[data-ch]', m).forEach(b => b.onclick = () => { ch = b.dataset.ch; draw(); });
   $('#sp-extra', m).oninput = e => { extra = e.target.value.trim(); draw(); };
+  $('#sp-in', m).onchange = () => { const i = $('#sp-in', m).value, o = $('#sp-out', m); if (i && (!o.value || o.value <= i)) o.value = addDays(i, 1); o.min = i ? addDays(i, 1) : tdy; draw(); };
+  ['#sp-out', '#sp-a', '#sp-r'].forEach(s => $(s, m).onchange = draw);
   $('#sp-copy', m).onclick = () => { copyText(t.value); toast('คัดลอกข้อความแล้ว'); };
   $('#sp-copylink', m).onclick = () => { copyText($('#sp-link', m).value); toast('คัดลอกลิงก์แล้ว'); };
   $('#sp-open', m).onclick = () => {
-    if (ch === 'facebook') { copyText(t.value); window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(resortLink(h, ch))}`, '_blank', 'noopener'); }
+    if (ch === 'facebook') { copyText(t.value); window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(resortLink(h, ch, trip))}`, '_blank', 'noopener'); }
     else if (ch === 'line') window.open(`https://line.me/R/share?text=${encodeURIComponent(t.value)}`, '_blank', 'noopener');
     else { copyText(t.value); toast('คัดลอกข้อความแล้ว — วางในโพสต์ของคุณ'); const u = socialUrl(ch, h.social?.[ch]); if (u) window.open(u, '_blank', 'noopener'); }
   };

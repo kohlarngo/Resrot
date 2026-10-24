@@ -276,6 +276,14 @@ const DB = {
     return this._replaceBooking(b);
   },
 
+  // ค้นหาด้วยอีเมล + เบอร์โทรที่กรอกตอนจอง (ไม่ต้องใช้รหัส SD... / PIN) — จำไว้ในเครื่องนี้ด้วย
+  async findBookings(email, phone) {
+    const list = await rpc('sd_find_bookings', { p_email: email, p_phone: phone });
+    if (!Array.isArray(list) || !list.length) return [];
+    LS.set('mybk', [...list.map(b => ({ id: b.id, pin: b.pin })), ...LS.get('mybk', []).filter(x => !list.some(b => b.id === x.id))].slice(0, 30));
+    return list.map(b => this._replaceBooking(b));
+  },
+
   // ---- Ads (โฆษณา) ----
   ads() { return CACHE.ads; },
   publicAds(kind) { return CACHE.pubAds.filter(a => a.kind === kind); },
@@ -648,9 +656,14 @@ const SOCIALS = {
 const normSlug = v => String(v || '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
 // ลิงก์ให้ลูกค้ากรอกทะเบียนผู้เข้าพักเองบนมือถือ (ลูกค้าต้องใส่ PIN ของการจอง)
 function selfCheckinLink(id) { return location.href.split('#')[0].replace(/[^/]*$/, '') + SITE_URL + '#/checkin/' + id; }
-function resortLink(h, src) {
+// trip = { in, out, a, r } (ไม่บังคับ): ลิงก์ที่กำหนดวันเข้าพัก/จำนวนผู้เข้าพักไว้ล่วงหน้า — ลูกค้าเปิดแล้วเห็นราคาและห้องว่างของวันนั้นทันที ไม่ต้องเลือกวันเอง
+function resortLink(h, src, trip) {
   const base = location.href.split('#')[0].replace(/[^/]*$/, '') + SITE_URL;
-  return `${base}#/hotel/${h.slug || h.id}${src ? '?src=' + src : ''}`;
+  const p = new URLSearchParams();
+  if (src) p.set('src', src);
+  if (trip?.in && trip?.out && trip.out > trip.in) { p.set('in', trip.in); p.set('out', trip.out); if (trip.a) p.set('a', trip.a); if (trip.r) p.set('r', trip.r); }
+  const qs = p.toString();
+  return `${base}#/hotel/${h.slug || h.id}${qs ? '?' + qs : ''}`;
 }
 // ลิงก์เปิดโปรไฟล์โซเชียลของรีสอร์ท (รับทั้ง URL เต็ม @ไอดี หรือชื่อเฉยๆ)
 // เบอร์/LINE ตัวอย่างที่หลุดมาจากข้อมูลทดลอง (เช่น 081-888-8888, @demo-h8) — ถือว่าไม่มีค่า จะได้ไม่โทร/แชทไปหาคนที่ไม่เกี่ยวข้อง
@@ -670,13 +683,13 @@ function socialUrl(key, v) {
   const id = v.replace(/^@/, '');
   return { facebook: `https://facebook.com/${id}`, tiktok: `https://tiktok.com/@${id}`, instagram: `https://instagram.com/${id}`, line: `https://line.me/R/ti/p/@${id}` }[key];
 }
-function promoText(h, channel, extra = '') {
+function promoText(h, channel, extra = '', trip) {
   const NL = String.fromCharCode(10);
   const from = Math.min(...h.rooms.map(r => Math.round(r.price * (1 - (r.discount || 0) / 100))));
   const hl = (h.highlights || []).slice(0, 3).map(x => '✔ ' + x).join(NL);
   const tags = channel === 'tiktok' || channel === 'instagram' ? NL + NL + `#เกาะล้าน #ที่พักเกาะล้าน #${h.name.replace(/\s+/g, '')} #StayDee` : '';
   const line = h.social?.line ? NL + `💬 LINE: ${h.social.line}` : '';
-  return [`🏝️ ${h.name} — ${h.type}${h.area ? ' ' + h.area : ''} เกาะล้าน`, `ห้องพักเริ่มต้น ${from.toLocaleString()} บาท/คืน`, hl, extra, '', '📲 จองตรงกับรีสอร์ท ยืนยันไว ไม่มีค่าธรรมเนียมเพิ่ม', `👉 ${resortLink(h, channel)}`].filter((x, i) => x || i === 4).join(NL) + line + tags;
+  return [`🏝️ ${h.name} — ${h.type}${h.area ? ' ' + h.area : ''} เกาะล้าน`, `ห้องพักเริ่มต้น ${from.toLocaleString()} บาท/คืน`, hl, extra, '', '📲 จองตรงกับรีสอร์ท ยืนยันไว ไม่มีค่าธรรมเนียมเพิ่ม', `👉 ${resortLink(h, channel, trip)}`].filter((x, i) => x || i === 4).join(NL) + line + tags;
 }
 const isStaff = u => !!u && STAFF_ROLES.includes(u.role);
 // ข้อความเงื่อนไขของโค้ดส่วนลด (ใช้ทั้งหน้าแรก หน้าจอง และหน้าแอดมิน)
