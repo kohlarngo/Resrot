@@ -20,8 +20,8 @@ function fmtDate(iso, withDow = true) {
 const fmtDateTime = iso => { const d = new Date(iso); return `${fmtDate(isoOf(d), false)} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 function scoreWord(s) { return s >= 9 ? 'ยอดเยี่ยม' : s >= 8.5 ? 'ดีเยี่ยม' : s >= 8 ? 'ดีมาก' : s >= 7 ? 'ดี' : 'พอใช้'; }
 const starsHtml = n => `<span class="stars">${'<i class="fa-solid fa-star"></i>'.repeat(n)}</span>`;
-// ที่พักที่ยังไม่มีรีวิวจริง แสดงเป็น "ที่พักใหม่" แทนคะแนน 0
-const scoreHtml = (s, c) => !+s && !c ? '<span class="score new"><b><i class="fa-solid fa-seedling"></i></b><span><span class="w">ที่พักใหม่</span><br><span class="c">ยังไม่มีรีวิว</span></span></span>' : `<span class="score"><b>${(+s).toFixed(1)}</b><span><span class="w">${scoreWord(s)}</span>${c != null ? `<br><span class="c">${c.toLocaleString()} รีวิว</span>` : ''}</span></span>`;
+// ที่พักที่ยังไม่มีรีวิว ไม่แสดงคะแนน (ไม่มีป้าย "ที่พักใหม่")
+const scoreHtml = (s, c) => !+s && !c ? '' : `<span class="score"><b>${(+s).toFixed(1)}</b><span><span class="w">${scoreWord(s)}</span>${c != null ? `<br><span class="c">${c.toLocaleString()} รีวิว</span>` : ''}</span></span>`;
 const fallback = seed => `this.onerror=null;this.src='https://picsum.photos/seed/${seed}/800/600'`;
 const imgTag = (id, w = 800, cls = '', seed = id) => `<img src="${imgUrl(id, w)}" class="${cls}" loading="lazy" alt="" onerror="${fallback(String(seed).replace(/[^a-z0-9]/gi, '').slice(-12))}">`;
 const isMobile = () => innerWidth <= 820; // ตรงกับ breakpoint ใน style.css

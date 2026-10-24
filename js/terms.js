@@ -70,7 +70,7 @@ function termsHtml(who = 'all') {
 }
 function openTermsModal(who = 'all') {
   const m = openModal(`<h2><i class="fa-solid fa-file-contract"></i> เงื่อนไขการใช้งาน</h2><div style="max-height:62vh;overflow:auto;margin-top:10px;font-size:14px">${termsHtml(who)}</div>
-    <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn btn-primary" data-close>ปิด</button></div>`, 'wide');
+    <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn btn-primary" data-close><i class="fa-solid fa-arrow-left"></i> ย้อนกลับ</button></div>`, 'wide');
   return m;
 }
 function pageTerms(app) {

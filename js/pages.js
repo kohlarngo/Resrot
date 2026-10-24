@@ -502,7 +502,7 @@ function pageHotel(app, params, id) {
 
         <div class="panel" id="rev"><h2>รีวิวจากผู้เข้าพักจริง</h2>
           <div class="row wrap" style="gap:30px;align-items:flex-start;margin-bottom:10px">
-            ${!h.reviews ? '<p class="muted"><i class="fa-solid fa-seedling"></i> ที่พักใหม่ — ยังไม่มีรีวิว ผู้เข้าพักจะรีวิวได้หลังเช็คเอาท์</p>' : `<div class="score-big"><b>${h.rating.toFixed(1)}</b><div><div class="bold" style="font-size:20px;color:var(--primary)">${scoreWord(h.rating)}</div><div class="muted small">จาก ${h.reviews.toLocaleString()} รีวิว</div></div></div>
+            ${!h.reviews ? '<p class="muted"><i class="fa-solid fa-seedling"></i> ยังไม่มีรีวิว ผู้เข้าพักจะรีวิวได้หลังเช็คเอาท์</p>' : `<div class="score-big"><b>${h.rating.toFixed(1)}</b><div><div class="bold" style="font-size:20px;color:var(--primary)">${scoreWord(h.rating)}</div><div class="muted small">จาก ${h.reviews.toLocaleString()} รีวิว</div></div></div>
             <div class="bars" style="flex:1;min-width:260px">${cats.map(([c, d]) => { const v = Math.min(10, h.rating + d); return `<div class="bar-row"><span>${c}</span><div class="bar"><span style="width:${v * 10}%"></span></div><b>${v.toFixed(1)}</b></div>`; }).join('')}</div>`}
           </div>
           <div id="rev-list">${reviews.slice(0, 5).map(reviewHtml).join('')}</div>
@@ -621,7 +621,7 @@ function roomHtml(h, r, guestsPerRoom) {
           return `<div class="offer">
             <div class="ben">
               ${o.breakfast ? '<div class="green"><i class="fa-solid fa-mug-saucer"></i><b>รวมอาหารเช้า</b></div>' : '<div class="muted"><i class="fa-solid fa-mug-saucer"></i>ไม่รวมอาหารเช้า</div>'}
-              ${o.freeCancel ? `<div class="green"><i class="fa-solid fa-check"></i><span><b>ยกเลิกได้</b> ล่วงหน้า ${CANCEL_MIN_DAYS} วัน (ได้ถึงวันที่ ${fmtDate(addDays(S.checkIn, -CANCEL_MIN_DAYS), false)})</span></div>` : '<div class="muted"><i class="fa-solid fa-xmark"></i>ไม่สามารถคืนเงินได้</div>'}
+              ${o.freeCancel ? (addDays(S.checkIn, -CANCEL_MIN_DAYS) >= todayISO() ? `<div class="green"><i class="fa-solid fa-check"></i><span><b>ยกเลิกได้</b> ล่วงหน้า ${CANCEL_MIN_DAYS} วัน (ได้ถึงวันที่ ${fmtDate(addDays(S.checkIn, -CANCEL_MIN_DAYS), false)})</span></div>` : `<div class="muted"><i class="fa-solid fa-xmark"></i>ไม่สามารถยกเลิกได้ — เลยกำหนดยกเลิกล่วงหน้า ${CANCEL_MIN_DAYS} วันแล้ว</div>`) : '<div class="muted"><i class="fa-solid fa-xmark"></i>ไม่สามารถคืนเงินได้</div>'}
               ${o.payAtHotel ? '<div class="green"><i class="fa-solid fa-check"></i><b>ชำระเงินที่ที่พัก</b></div>' : '<div><i class="fa-solid fa-credit-card"></i>ชำระเงินล่วงหน้า</div>'}
               <div><i class="fa-solid fa-wifi green"></i>Wi-Fi ฟรี</div>
             </div>
@@ -966,7 +966,7 @@ async function cancelBooking(b, done) {
       <div class="fg"><label>เลขบัญชี <span class="req">*</span></label><input name="account" inputmode="numeric" autocomplete="off" maxlength="20" placeholder="เฉพาะตัวเลข 10-15 หลัก"></div>
       <div class="fg"><label>ชื่อบัญชี <span class="req">*</span></label><input name="name" autocomplete="off" maxlength="100" placeholder="ชื่อ-นามสกุลตามสมุดบัญชี"></div>
     </form>
-    <div class="row" style="justify-content:flex-end;gap:8px;margin-top:16px"><button class="btn btn-ghost" data-close>ปิด</button><button class="btn btn-danger" id="cq-ok"><i class="fa-solid fa-paper-plane"></i> ส่งคำขอยกเลิก</button></div>`);
+    <div class="row" style="justify-content:flex-end;gap:8px;margin-top:16px"><button class="btn btn-ghost" data-close><i class="fa-solid fa-arrow-left"></i> ย้อนกลับ</button><button class="btn btn-danger" id="cq-ok"><i class="fa-solid fa-paper-plane"></i> ส่งคำขอยกเลิก</button></div>`);
   $('#cq-ok', m).onclick = () => {
     const f = $('#cq-f', m).elements, acct = { bank: f.bank.value, account: f.account.value.replace(/\D/g, ''), name: f.name.value.trim() };
     if (!acct.bank) return toast('กรุณาเลือกธนาคาร', 'err');

@@ -208,10 +208,10 @@ body.bo #header:empty { display: none; }
 .tl-day.td { background: var(--primary); color: #fff; } .tl-day.td b { color: #fff; }
 .tl-room .tl-name { background: #f4f7fb; } .tl-room { background: #f4f7fb; }
 .tl-av { grid-row: 1; text-align: center; font-size: 12px; font-weight: 700; padding: 10px 2px; border-left: 1px solid #fff; }
-.tl-av.ok { background: #e6f6ec; color: #0a8f3c; } .tl-av.low { background: #fff4e5; color: #b35c00; } .tl-av.full { background: #fdecec; color: var(--bad); }
+.tl-av.ok { background: #dbe8fd; color: #1a56b8; } .tl-av.low { background: #fff4e5; color: #b35c00; } .tl-av.full { background: #fdecec; color: var(--bad); }
 .tl-unit { min-height: 40px; }
 .tl-unit .tl-name { font-weight: 600; }
-.tl-c { grid-row: 1; border-left: 1px solid var(--bo-line); } .tl-c.we { background: #fafbfc; } .tl-c.td { background: #eef4ff; }
+.tl-c { grid-row: 1; border-left: 1px solid #c9dcf7; background: #eaf2ff; } .tl-c.we { background: #dbe8fd; } .tl-c.td { background: #c5daf9; }
 .tl-bar { grid-row: 1; z-index: 2; margin: 4px 2px; padding: 3px 8px; border: 0; border-radius: 8px; color: #fff; text-align: left; cursor: pointer; display: flex; flex-direction: column; justify-content: center; overflow: hidden; white-space: nowrap; font: inherit; font-size: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
 .tl-bar b { overflow: hidden; text-overflow: ellipsis; font-size: 12px; } .tl-bar small { opacity: .9; font-size: 10.5px; }
 .tl-bar:hover { filter: brightness(1.08); transform: translateY(-1px); }
@@ -219,7 +219,7 @@ body.bo #header:empty { display: none; }
 .tl-pending { background: #f59e0b; } .tl-confirmed { background: #2067da; } .tl-inhouse { background: #0a8f3c; } .tl-completed { background: #8b95a5; }
 .tl-unit.over { background: #fdecec; }
 .tl-ext { background: repeating-linear-gradient(135deg, #5b4b8a 0 8px, #6b5a9e 8px 16px); }
-.tl-c[data-day] { cursor: pointer; } .tl-c[data-day]:hover { background: #dbe8ff; }
+.tl-c[data-day] { cursor: pointer; } .tl-c[data-day]:hover { background: #b9d1f7; }
 .tl-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; } .tl-detail small { display: block; color: var(--muted); font-size: 12px; }
 .pager { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--bo-line); flex-wrap: wrap; }
 .bo-list { display: flex; flex-direction: column; }

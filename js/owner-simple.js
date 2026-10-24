@@ -13,9 +13,12 @@ function boFocus(root, sel) {
 }
 const boClearParams = () => { try { history.replaceState(null, '', location.pathname + location.search + location.hash.split('?')[0]); } catch {} };
 
+// จุดเด่นตัวอย่าง — เจ้าของกดเลือก/ยกเลิก แล้วพิมพ์เพิ่มหรือแก้ข้อความเองได้
+const HIGHLIGHT_SAMPLES = ['ติดชายหาด เดินลงทะเลได้เลย', 'วิวทะเลสวย', 'มีสระว่ายน้ำ', 'มีอาหารเช้า', 'Wi-Fi ฟรี', 'ห้องแอร์ ห้องน้ำในตัว', 'มีที่จอดรถ', 'ใกล้ท่าเรือ เดินทางสะดวก', 'รับส่งท่าเรือ', 'เช่ารถมอเตอร์ไซค์ได้', 'ห้องใหม่ สะอาด', 'เลี้ยงสัตว์เลี้ยงได้', 'เหมาะกับครอบครัว', 'เหมาะกับกลุ่มเพื่อน', 'ใกล้ร้านอาหารและร้านสะดวกซื้อ', 'มีอุปกรณ์ปิ้งย่าง / BBQ'];
+
 // ---------- ขั้นตอนเริ่มต้น (แสดงจนกว่าจะทำครบ) ----------
 // ขั้นที่ต้องทำก่อนเปิดขาย: แต่ละขั้นบอกชัดว่า "ยังขาดอะไร" · ขั้นเสริม (ไม่นับคะแนน) แสดงท้ายการ์ด
-function ownerSetupCard() {
+function ownerSetupData() {
   const u = DB.currentUser(), po = u.payout || {}, bz = u.biz || {}, hs = DB.hotels(true);
   const rooms = hs.reduce((n, h) => n + (h.rooms || []).length, 0), maxImg = Math.max(0, ...hs.map(h => (h.images || []).length));
   const hasPay = isPromptpayId(po.promptpayId) || !!(po.bankInfo || '').trim();
@@ -34,6 +37,10 @@ function ownerSetupCard() {
     [DB.coupons().some(c => c.ownerId === u.id), 'สร้างโค้ดส่วนลดแรก', 'ช่วยกระตุ้นการจอง เช่น ลด 10% เมื่อจองล่วงหน้า', '#/admin/coupons'],
     ...(hs.some(icalOn) ? [[false, 'ขายที่ Agoda / Booking.com ด้วย? ตั้งซิงก์ปฏิทิน', 'ลดห้องบนเว็บอัตโนมัติ ไม่ให้จองซ้ำ', '#/admin/channels']] : []),
   ];
+  return { steps, extras, hs, u };
+}
+function ownerSetupCard() {
+  const { steps, extras, hs, u } = ownerSetupData();
   const todo = steps.filter(s => !s[0]).length, done = steps.length - todo;
   if (!todo) return '';
   const first = steps.findIndex(s => !s[0]), h0 = hs[0];
@@ -208,8 +215,7 @@ function boShopPage(main, params) {
         <div class="row wrap small" style="gap:10px;margin-top:10px">${soc.length ? soc.map(([k, c]) => `<span><i class="${c.icon}" style="color:${c.color}"></i> ${c.label}</span>`).join('') : '<span class="muted">ยังไม่ได้ใส่ลิงก์โซเชียล</span>'}<span class="muted">· ลิงก์: <code>${esc(resortLink(h).replace(/^https?:\/\//, ''))}</code></span><button type="button" class="btn btn-outline btn-sm" data-copylink="${h.id}"><i class="fa-regular fa-copy"></i> คัดลอกลิงก์</button></div>
         <div class="row wrap" style="gap:8px;margin-top:14px"><button class="btn btn-primary" data-deco="${h.id}"><i class="fa-solid fa-paintbrush"></i> แก้ไขรีสอร์ท</button>
           <a class="btn btn-outline" href="${siteUrl('#/hotel/' + (h.slug || h.id))}" target="_blank" rel="noopener"><i class="fa-solid fa-eye"></i> ดูหน้าเว็บ</a>
-          <button class="btn btn-outline" data-share="${h.id}"><i class="fa-solid fa-share-nodes"></i> แชร์โปรโมต</button>
-          <button class="btn btn-ghost" data-edit="${h.id}"><i class="fa-solid fa-gear"></i> ตั้งค่าเพิ่มเติม (แผนที่ สิ่งอำนวยความสะดวก)</button></div></div></section>`;
+          <button class="btn btn-outline" data-share="${h.id}"><i class="fa-solid fa-share-nodes"></i> แชร์โปรโมต</button></div></div></section>`;
   }).join('') : '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><h3>ยังไม่มีรีสอร์ท</h3><p class="muted">เพิ่มข้อมูลรีสอร์ท รูป ห้องพัก และราคา แล้วลูกค้าจะจองได้ทันที</p></div></section>');
   const redraw = () => boShopPage(main);
   const deco = params?.get('deco');
@@ -228,6 +234,7 @@ function boShopPage(main, params) {
   $$('[data-copylink]', main).forEach(b => b.onclick = () => { copyText(resortLink(DB.hotel(b.dataset.copylink))); toast('คัดลอกลิงก์แล้ว'); });
   $$('[data-act]', main).forEach(c => c.onchange = () => { const h = DB.hotel(c.dataset.act); h.active = c.checked; DB.saveHotel(h); DB.log('hotel.toggle', `${h.name} → ${c.checked ? 'เปิดขาย' : 'ปิด'}`); toast(c.checked ? 'เปิดขายแล้ว' : 'ปิดการขายแล้ว'); redraw(); });
 }
+const HIDDEN_AMEN = ['ev', 'frontdesk', 'shuttle', 'sunset', 'parking']; // ไม่ให้เลือกในฟอร์ม (ค่าเดิมที่บันทึกไว้ยังคงอยู่)
 function shopModal(h, done) {
   const imgs = [...h.images];
   const m = openModal(`<h2><i class="fa-solid fa-paintbrush"></i> แก้ไขรีสอร์ท <span class="small muted">· ${esc(h.name)}</span></h2>
@@ -242,7 +249,19 @@ function shopModal(h, done) {
         <div class="small muted" style="margin-top:4px">ลูกค้าเอาเมาส์ชี้หรือแตะรูป สไลด์จะหยุดชั่วคราว · ต้องมีรูปอย่างน้อย 2 รูป</div></div>` : ''}
       <div class="fg full"><label>ชื่อรีสอร์ท <span class="req">*</span></label><input name="name" value="${esc(h.name)}"></div>
       <div class="fg full"><label>คำอธิบาย</label><textarea name="description" rows="3">${esc(h.description || '')}</textarea></div>
-      <div class="fg full"><label>จุดเด่น (บรรทัดละ 1 ข้อ)</label><textarea name="highlights" rows="3">${esc((h.highlights || []).join('\n'))}</textarea></div>
+      <div class="fg full"><label>จุดเด่น (บรรทัดละ 1 ข้อ)</label>
+        <div class="small muted" style="margin:2px 0 6px">กดเลือกจุดเด่นที่ตรงกับรีสอร์ท (กดซ้ำเพื่อเอาออก) หรือพิมพ์เพิ่มเองในช่องด้านล่างก็ได้</div>
+        <div id="sh-hl-chips" class="row wrap" style="gap:6px;margin-bottom:8px"></div>
+        <textarea name="highlights" rows="4" placeholder="เช่น&#10;ติดชายหาด เดินลงทะเลได้เลย&#10;มีสระว่ายน้ำ">${esc((h.highlights || []).join('\n'))}</textarea></div>
+      <div class="fg full"><label>สิ่งอำนวยความสะดวก</label><div class="row wrap small">${Object.entries(AMENITIES).filter(([k]) => !HIDDEN_AMEN.includes(k)).map(([k, [ic, l]]) => `<label class="row" style="gap:6px;min-width:170px"><input type="checkbox" name="amen" value="${k}" ${(h.amenities || []).includes(k) ? 'checked' : ''}> <i class="fa-solid ${ic} muted"></i> ${l}</label>`).join('')}${(h.amenities || []).filter(a => a.startsWith('x:')).map(a => `<label class="row" style="gap:6px;min-width:170px"><input type="checkbox" name="amen" value="${esc(a)}" checked> <i class="fa-solid fa-circle-check muted"></i> ${esc(a.slice(2))}</label>`).join('')}<span id="amen-custom" class="row wrap" style="gap:6px;width:100%"></span></div>
+        <div class="row" style="gap:8px;margin-top:8px"><input id="amen-new" maxlength="40" placeholder="พิมพ์สิ่งอำนวยความสะดวกเพิ่มเอง เช่น ร้านนวด" style="flex:1"><button type="button" class="btn btn-outline btn-sm" id="amen-add"><i class="fa-solid fa-plus"></i> เพิ่ม</button></div></div>
+      <div class="fg"><label>ประเภท</label><select name="type">${['โรงแรม', 'รีสอร์ท', 'วิลล่า', 'บังกะโล', 'เกสต์เฮาส์', 'โฮสเทล', 'แกลมปิ้ง'].map(t => `<option ${h.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+      <div class="fg"><label>หาด / ย่าน</label><select name="city">${DESTINATIONS.map(d => `<option ${h.city === d.name ? 'selected' : ''}>${d.name}</option>`).join('')}</select></div>
+      <div class="fg full"><label>ตำแหน่งบนแผนที่ — คลิกบนแผนที่ หรือลากหมุดไปที่รีสอร์ท</label><div id="h-map" class="pick-map"></div>
+        <div class="row between wrap small" style="margin-top:6px;gap:8px"><span class="muted"><i class="fa-solid fa-location-dot"></i> <span id="h-coord"></span></span><button type="button" class="btn btn-ghost btn-sm" id="h-gps"><i class="fa-solid fa-location-crosshairs"></i> ใช้ตำแหน่งปัจจุบันของฉัน</button></div></div>
+      <div class="fg"><label>ระยะจากท่าเรือหน้าบ้าน (กม.)</label><input name="distance" type="number" step="0.1" min="0" value="${h.distance ?? 1}"><div class="small muted" style="margin-top:4px">คำนวณให้อัตโนมัติเมื่อปักหมุด (แก้ได้)</div></div>
+      <div class="fg"><label>เวลาเช็คอิน</label><input name="checkIn" value="${esc(h.checkIn || '14:00')}"></div>
+      <div class="fg"><label>เวลาเช็คเอาท์</label><input name="checkOut" value="${esc(h.checkOut || '12:00')}"></div>
       <div class="fg full"><label><i class="fa-solid fa-scale-balanced"></i> กฎของรีสอร์ท (บรรทัดละ 1 ข้อ) — แสดงให้ผู้เข้าพักอ่านและเซ็นรับทราบตอนลงทะเบียนเช็คอิน และพิมพ์ในเอกสาร</label>
         <div class="small muted" style="margin:2px 0 6px">กดเลือกกฎตัวอย่างที่ต้องการ (กดซ้ำเพื่อเอาออก) แล้วแก้ข้อความ เพิ่ม หรือลบได้เองในช่องด้านล่าง</div>
         <div id="sh-rule-chips" class="row wrap" style="gap:6px;margin-bottom:8px"></div>
@@ -265,6 +284,41 @@ function shopModal(h, done) {
   const drawChips = () => { const on = new Set(ruleLines()); ruleChips.innerHTML = HOUSE_RULE_SAMPLES.map(([lbl, t], i) => `<button type="button" class="btn btn-sm ${on.has(t) ? 'btn-primary' : 'btn-outline'}" data-rs="${i}"><i class="fa-solid ${on.has(t) ? 'fa-check' : 'fa-plus'}"></i> ${esc(lbl)}</button>`).join(''); };
   ruleChips.onclick = e => { const b = e.target.closest('[data-rs]'); if (!b) return; const t = HOUSE_RULE_SAMPLES[+b.dataset.rs][1], ls = ruleLines(); ruleTa.value = (ls.includes(t) ? ls.filter(x => x !== t) : [...ls, t]).join('\n'); drawChips(); };
   ruleTa.addEventListener('input', drawChips); drawChips();
+  const hlTa = $('[name=highlights]', m), hlChips = $('#sh-hl-chips', m), hlLines = () => hlTa.value.split('\n').map(x => x.trim()).filter(Boolean);
+  const drawHl = () => { const on = new Set(hlLines()); hlChips.innerHTML = HIGHLIGHT_SAMPLES.map((t, i) => `<button type="button" class="btn btn-sm ${on.has(t) ? 'btn-primary' : 'btn-outline'}" data-hs="${i}"><i class="fa-solid ${on.has(t) ? 'fa-check' : 'fa-plus'}"></i> ${esc(t)}</button>`).join(''); };
+  hlChips.onclick = e => { const b = e.target.closest('[data-hs]'); if (!b) return; const t = HIGHLIGHT_SAMPLES[+b.dataset.hs], ls = hlLines(); hlTa.value = (ls.includes(t) ? ls.filter(x => x !== t) : [...ls, t]).join('\n'); drawHl(); };
+  hlTa.addEventListener('input', drawHl); drawHl();
+  // แผนที่เลือกตำแหน่ง + สิ่งอำนวยความสะดวก (ย้ายมาจาก "ตั้งค่าเพิ่มเติม")
+  const pos = { lat: +h.lat, lng: +h.lng }, PIER = DESTINATIONS[0];
+  let map = null, pin = null;
+  const setPos = (lat, lng, pan) => {
+    pos.lat = +lat.toFixed(6); pos.lng = +lng.toFixed(6);
+    pin?.setLatLng([pos.lat, pos.lng]); if (pan) map?.setView([pos.lat, pos.lng], 16);
+    $('[name=distance]', m).value = geoKm(PIER, pos).toFixed(1); $('#h-coord', m).textContent = `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;
+    const z = onKohLarn(pos.lat, pos.lng) && nearestZone(pos.lat, pos.lng); if (z) $('[name=city]', m).value = z.d.name;
+  };
+  $('#h-coord', m).textContent = `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;
+  if (window.L) {
+    map = L.map($('#h-map', m), { scrollWheelZoom: false }).setView([pos.lat, pos.lng], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+    pin = L.marker([pos.lat, pos.lng], { draggable: true, icon: L.divIcon({ className: '', html: '<div class="sos-pin pick-pin"><i class="fa-solid fa-location-dot"></i></div>', iconSize: [36, 36], iconAnchor: [18, 34] }) }).addTo(map);
+    pin.on('dragend', () => { const p = pin.getLatLng(); setPos(p.lat, p.lng); });
+    map.on('click', e => setPos(e.latlng.lat, e.latlng.lng));
+    setTimeout(() => map.invalidateSize(), 250);
+    $('[name=city]', m).addEventListener('change', e => { const d = DESTINATIONS.find(x => x.name === e.target.value); if (d) map.setView([d.lat, d.lng], 16); });
+  } else $('#h-map', m).innerHTML = '<div class="muted small" style="padding:20px">โหลดแผนที่ไม่ได้ — ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต</div>';
+  $('#h-gps', m).onclick = () => {
+    if (!navigator.geolocation) return toast('อุปกรณ์นี้ไม่รองรับการระบุตำแหน่ง', 'err');
+    gpsOnce($('#h-gps', m), p => { setPos(p.coords.latitude, p.coords.longitude, true); toast('ปักหมุดที่ตำแหน่งปัจจุบันแล้ว'); }, () => toast('ระบุตำแหน่งไม่ได้ — กรุณาอนุญาตการเข้าถึงตำแหน่ง', 'err'), { enableHighAccuracy: true, timeout: 10000 });
+  };
+  const addAmen = () => { const inp = $('#amen-new', m), t = inp.value.trim().slice(0, 40); if (!t) return;
+    const key = 'x:' + t;
+    if ($$('[name=amen]', m).some(c => c.value === key || (AMENITIES[c.value]?.[1] === t))) { inp.value = ''; return toast('มีรายการนี้อยู่แล้ว', 'err'); }
+    const lb = document.createElement('label'); lb.className = 'row'; lb.style.cssText = 'gap:6px;min-width:170px';
+    lb.innerHTML = `<input type="checkbox" name="amen" checked> <i class="fa-solid fa-circle-check muted"></i> <span></span>`;
+    $('input', lb).value = key; $('span', lb).textContent = t; $('#amen-custom', m).before(lb); inp.value = ''; };
+  $('#amen-add', m).onclick = addAmen;
+  $('#amen-new', m).onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); addAmen(); } };
   const f = $('#sh-f', m), link = () => $('#sh-link', m).textContent = resortLink({ id: h.id, slug: normSlug(f.elements.slug.value) });
   if (f.elements.slug) { f.elements.slug.oninput = link; link(); $('#sh-copy', m).onclick = () => { copyText($('#sh-link', m).textContent); toast('คัดลอกลิงก์แล้ว'); }; }
   if (f.elements.slide_sec) { const secLbl = () => $('#sl-sec-v', m).textContent = f.elements.slide_sec.value + ' วินาที';
@@ -274,7 +328,10 @@ function shopModal(h, done) {
     if (!v('name').trim()) return toast('กรุณาใส่ชื่อรีสอร์ท', 'err');
     const sl = f.elements.slug ? normSlug(v('slug')) : h.slug;
     if (sl && DB.hotels(true).some(x => x.id !== h.id && (x.slug === sl || x.id === sl))) return toast('ชื่อลิงก์นี้ถูกใช้แล้ว กรุณาเลือกชื่ออื่น', 'err');
-    Object.assign(h, { name: v('name').trim(), description: v('description'), images: imgs.length ? imgs : h.images, logo: logo || undefined, slug: sl || undefined,
+    const area = (h.area || '').trim() || v('city');
+    Object.assign(h, { name: v('name').trim(), description: v('description'),
+      type: v('type'), city: v('city'), area, lat: pos.lat, lng: pos.lng, distance: Math.max(0, +v('distance') || 0), checkIn: v('checkIn'), checkOut: v('checkOut'),
+      amenities: new FormData(f).getAll('amen'), address: `${area}, ${v('city')}, เกาะล้าน จ.ชลบุรี`, images: imgs.length ? imgs : h.images, logo: logo || undefined, slug: sl || undefined,
       slideshow: f.elements.slide_on ? { on: f.elements.slide_on.checked, seconds: Math.min(15, Math.max(2, Math.round(+v('slide_sec')) || 4)) } : h.slideshow,
       highlights: v('highlights').split('\n').map(s => s.trim()).filter(Boolean),
       houseRules: v('houseRules').split('\n').map(s => s.trim()).filter(Boolean).join('\n').slice(0, 2000),
@@ -761,5 +818,60 @@ function boLinks(main) {
     q('[data-line]').onclick = () => window.open(`https://line.me/R/share?text=${encodeURIComponent(`จองห้องพัก ${h.name} ได้ที่นี่เลย 👇\n${q('[data-link]').value}`)}`, '_blank', 'noopener');
     q('[data-promo]').onclick = () => sharePromo(h);
     draw();
+  });
+}
+
+// ================= ราคาตามวัน =================
+// แท็บ 1 "ใช้กับวัน": ราคาตามวันในสัปดาห์ต่อห้อง (rooms[].dayPrices = { 0..6: ราคา }, 0=อาทิตย์ · ว่าง = ราคาปกติ)
+// แท็บ 2 "ช่วงวันที่": ราคาเป็นช่วงวันที่ เช่น ปีใหม่ สงกรานต์ (rooms[].priceRules = [{from,to,price}])
+// ลำดับ: ช่วงวันที่ > ราคาตามวันในสัปดาห์ > ราคาปกติ · ต้องตรงกับ sd_price / DB.nightPrice
+const DOW_TH = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+let pricesTab = 'week';
+function boPrices(main) {
+  const hotels = DB.hotels(true), today = todayISO();
+  const live = r => (r.priceRules || []).filter(x => x.to >= today);
+  const tabs = `<div class="tabs-line" style="margin-bottom:14px">${[['week', 'ใช้กับวัน (ราคาตามวันในสัปดาห์)'], ['range', 'ช่วงวันที่ (ปีใหม่ สงกรานต์ ฯลฯ)']].map(([k, l]) => `<button data-ptab="${k}" class="${pricesTab === k ? 'active' : ''}">${l}</button>`).join('')}</div>`;
+  const sub = pricesTab === 'week' ? 'ตั้งราคาแยกตามวันในสัปดาห์ เช่น คืนศุกร์–เสาร์แพงกว่า — ช่องที่เว้นว่างใช้ราคาปกติ · ส่วนลดของห้องคิดต่อจากราคานี้' : 'ตั้งราคาเฉพาะช่วงวันที่ เช่น ปีใหม่ สงกรานต์ วันหยุดยาว — ชนะราคาตามวันในสัปดาห์ · ส่วนลดของห้องคิดต่อจากราคานี้';
+  const roomHtml = r => pricesTab === 'week'
+    ? `<div class="rm-row" data-r="${esc(r.id)}" style="padding:12px 0;border-top:1px solid var(--border)"><div class="row between wrap" style="gap:8px"><div><b>${esc(r.name)}</b><div class="small muted">ราคาปกติ ${money(r.price)}/คืน</div></div><button class="btn btn-primary btn-sm" data-wsave>บันทึก</button></div>
+        <div class="row wrap" style="gap:8px;margin-top:8px">${DOW_TH.map((n, d) => `<label class="small" style="display:flex;flex-direction:column;gap:2px;width:78px"><span>${n}</span><input type="number" min="0" data-dp="${d}" value="${r.dayPrices?.[d] > 0 ? r.dayPrices[d] : ''}" placeholder="${r.price}"></label>`).join('')}</div></div>`
+    : `<div class="rm-row" data-r="${esc(r.id)}" style="padding:12px 0;border-top:1px solid var(--border)"><div class="row between wrap" style="gap:8px"><div><b>${esc(r.name)}</b><div class="small muted">ราคาปกติ ${money(r.price)}/คืน</div></div><button class="btn btn-outline btn-sm" data-add><i class="fa-solid fa-plus"></i> เพิ่มช่วงวัน</button></div>
+        ${live(r).length ? live(r).map(x => `<div class="row between small" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;margin-top:6px"><span><b>${fmtDate(x.from)}</b> – <b>${fmtDate(x.to)}</b> · ${money(x.price)}/คืน</span><button class="btn btn-ghost btn-sm" data-del="${r.priceRules.indexOf(x)}" title="ลบ"><i class="fa-solid fa-trash"></i></button></div>`).join('') : '<div class="small muted" style="margin-top:6px">ยังไม่ได้ตั้งราคาตามช่วงวันที่</div>'}</div>`;
+  main.innerHTML = pageHead('ราคาตามวัน', sub) + tabs + (hotels.length ? hotels.map(h => `
+    <section class="card" data-h="${esc(h.id)}"><div class="card-h"><h3><i class="fa-solid fa-tags"></i> ${esc(h.name)}</h3></div>
+      ${h.rooms.length ? h.rooms.map(roomHtml).join('') : '<p class="muted">ยังไม่มีห้องพัก — เพิ่มห้องที่เมนู "ห้องพัก" ก่อน</p>'}</section>`).join('') : '<div class="empty"><i class="fa-solid fa-hotel"></i><h3>ยังไม่มีรีสอร์ท</h3></div>');
+  $$('[data-ptab]', main).forEach(b => b.onclick = () => { pricesTab = b.dataset.ptab; boPrices(main); });
+  const save = (h, msg) => { DB.saveHotel(h); toast(msg); boPrices(main); };
+  $$('section[data-h]', main).forEach(sec => {
+    const h = DB.hotel(sec.dataset.h);
+    $$('[data-r]', sec).forEach(row => {
+      const r = h.rooms.find(x => x.id === row.dataset.r);
+      $('[data-wsave]', row)?.addEventListener('click', () => {
+        const dp = {};
+        $$('[data-dp]', row).forEach(i => { const v = Math.round(+i.value); if (v > 0) dp[i.dataset.dp] = v; });
+        r.dayPrices = dp;
+        DB.log('room.price', `${h.name} / ${r.name} ราคาตามวันในสัปดาห์`); save(h, 'บันทึกราคาตามวันแล้ว');
+      });
+      $$('[data-del]', row).forEach(b => b.onclick = () => {
+        const x = r.priceRules[+b.dataset.del];
+        r.priceRules = r.priceRules.filter(y => y !== x);
+        DB.log('room.price', `${h.name} / ${r.name} ลบราคาช่วง ${x.from}–${x.to}`); save(h, 'ลบแล้ว');
+      });
+      $('[data-add]', row)?.addEventListener('click', () => {
+        const m = openModal(`<h2><i class="fa-solid fa-tags"></i> เพิ่มราคาตามช่วงวันที่ <span class="small muted">· ${esc(r.name)}</span></h2>
+          <div class="form-grid" style="margin-top:12px"><div class="fg"><label>ตั้งแต่วันที่ <span class="req">*</span></label><input type="date" id="pr-from" min="${today}"></div>
+            <div class="fg"><label>ถึงวันที่ (คืนสุดท้าย) <span class="req">*</span></label><input type="date" id="pr-to" min="${today}"></div>
+            <div class="fg full"><label>ราคาต่อคืน (฿) <span class="req">*</span> <span class="small muted">— ปกติ ${money(r.price)}</span></label><input type="number" id="pr-price" min="1" placeholder="เช่น ${Math.round(r.price * 1.5 / 50) * 50}"></div></div>
+          <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary" id="pr-save">บันทึก</button></div>`);
+        $('#pr-from', m).onchange = () => { const i = $('#pr-from', m).value, o = $('#pr-to', m); if (i && (!o.value || o.value < i)) o.value = i; o.min = i || today; };
+        $('#pr-save', m).onclick = () => {
+          const from = $('#pr-from', m).value, to = $('#pr-to', m).value, price = Math.round(+$('#pr-price', m).value);
+          if (!from || !to || to < from) return toast('เลือกวันที่เริ่มและวันที่สิ้นสุดให้ครบ', 'err');
+          if (!(price > 0)) return toast('ใส่ราคาต่อคืนให้มากกว่า 0', 'err');
+          r.priceRules = [...live(r), { from, to, price }].sort((x, y) => x.from.localeCompare(y.from));
+          DB.log('room.price', `${h.name} / ${r.name} ราคา ${from}–${to} = ${price}`); closeModal(); save(h, 'บันทึกราคาตามช่วงวันที่แล้ว');
+        };
+      });
+    });
   });
 }

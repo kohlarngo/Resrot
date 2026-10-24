@@ -136,7 +136,11 @@ const DB = {
   nightPrice(room, date) {
     const d = new Date(date + 'T00:00:00').getDay();
     const weekend = d === 5 || d === 6;
-    const orig = Math.round(room.price * (weekend ? 1.15 : 1));
+    // ลำดับความสำคัญ: ช่วงวันที่ (priceRules · กฎหลังสุดชนะ) > ราคาตามวันในสัปดาห์ (dayPrices) > ราคาคืนศุกร์–เสาร์ (weekendPrice · ข้อมูลเดิม) > ราคาปกติ — ต้องตรงกับ sd_price ในฐานข้อมูล
+    const dow = new Date(date + 'T00:00:00').getDay();
+    const rule = (room.priceRules || []).filter(x => x.from <= date && date <= x.to && +x.price > 0 && (!Array.isArray(x.days) || x.days.includes(dow))).pop();
+    const dp = +room.dayPrices?.[dow];
+    const orig = Math.round(rule ? +rule.price : dp > 0 ? dp : weekend && +room.weekendPrice > 0 ? +room.weekendPrice : room.price);
     const final = Math.round(orig * (1 - (room.discount || 0) / 100));
     return { orig, final };
   },

@@ -738,3 +738,17 @@ body.has-bottom-ad { padding-bottom: 92px; } body.has-bottom-ad #ed-fab { bottom
 .ad-side.inline.desk .ad-side-img.fit-contain { height: auto; max-height: 520px; } .ad-side.inline.desk .ad-side-img.fit-contain img { max-height: 520px; }
 /* ตัวอย่างในฟอร์มโฆษณา: กรอบ "มือถือ" ต้องแคบเสมอ แม้หน้าจอแอดมินกว้าง */
 .ad-side.inline:not(.desk) { width: 96px; } .ad-side.inline:not(.desk) .ad-side-img:not(.fit-contain) { height: 136px; } .ad-side.inline:not(.desk) .ad-side-img.fit-contain, .ad-side.inline:not(.desk) .ad-side-img.fit-contain img { max-height: 240px; }
+
+/* แถบเมนูหน้ารีสอร์ท (ภาพรวม/ห้องพัก/…) ไม่ลอยตามตอนเลื่อนหน้า */
+.d-tabs { position: static; }
+
+/* ปฏิทินห้องว่าง: มุมมองรายเดือน / รายห้อง */
+.mc-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; padding: 0 12px 14px; }
+.mc-h { text-align: center; font-weight: 600; font-size: 13px; color: var(--muted, #6b7280); padding: 4px 0; }
+.mc-d { border: 1px solid var(--border); border-radius: 8px; min-height: 76px; padding: 6px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; font-size: 12px; background: #fff; overflow: hidden; }
+.mc-d b { font-size: 14px; }
+.mc-d.ok { background: #e3eefe; border-color: #c9dcf7; } .mc-d.low { background: #fff4e5; } .mc-d.full { background: #fdecec; }
+.mc-d.past { opacity: .55; } .mc-d.td { outline: 2px solid var(--primary); }
+.mc-d.blank { border: 0; background: transparent; cursor: default; }
+.mc-p { color: #444; font-size: 11px; }
+@media (max-width: 768px) { .mc-d { min-height: 62px; padding: 4px; font-size: 11px; } .mc-grid { gap: 3px; padding: 0 6px 10px; } }
