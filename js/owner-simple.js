@@ -340,15 +340,39 @@ function shopModal(h, done) {
   };
 }
 
+// ================= นักพัฒนา: ซิงก์ปฏิทิน iCal (Plus) รายรีสอร์ท =================
+// เลือกเปิดให้เฉพาะรีสอร์ทที่ซื้อบริการ (h.icalOn) · ถ้าเปิดสวิตช์ "ทั้งระบบ" ที่หน้าฟีเจอร์ ทุกรีสอร์ทใช้ได้ ยกเว้นที่ติ๊กออก (h.icalOff)
+function boDevIcal(main) {
+  const hotels = DB.hotels(true), all = DB.flags().icalSync === true;
+  const ownerName = h => { const o = h.ownerId ? DB.owner(h.ownerId) : null; return o ? (o.biz?.resortName || o.name) : 'แพลตฟอร์ม'; };
+  const reqOf = h => DB.serviceRequests().find(r => r.hotel_id === h.id && r.service === 'ical');
+  const reqHtml = h => { const r = reqOf(h); return r ? `<div class="small" style="margin-top:4px;color:#b45309"><i class="fa-solid fa-arrows-rotate"></i> <b>ขอใช้ซิงก์ iCal (Plus)</b> · ${fmtDateTime(r.created_at)} · ${[r.phone && `โทร <a href="tel:${esc(r.phone)}">${esc(r.phone)}</a>`, r.line && 'LINE ' + esc(r.line)].filter(Boolean).join(' · ')}${r.note ? ` · “${esc(r.note)}”` : ''} <button type="button" class="btn btn-ghost btn-sm" data-req-x="${r.id}">ปิดคำขอ</button></div>` : ''; };
+  const closeReq = async (id, status) => { const r = await supa.from('sd_service_requests').update({ status }).eq('id', id); if (r.error) return toast('บันทึกไม่สำเร็จ: ' + r.error.message, 'err'); CACHE.svcReq = (CACHE.svcReq || []).filter(x => x.id !== id); };
+  const n = hotels.filter(icalOn).length;
+  main.innerHTML = pageHead('ซิงก์ปฏิทิน iCal (Plus)', `ซิงก์ปฏิทิน Agoda / Booking.com · ฟีเจอร์ Plus (มีค่าบริการ) · เปิดแล้ว ${n} จาก ${hotels.length} รีสอร์ท`) + `
+    ${all ? '<section class="card"><div class="small"><i class="fa-solid fa-circle-info"></i> ตอนนี้ <b>เปิดทั้งระบบ</b> (สวิตช์ที่หน้า “ฟีเจอร์ & โหมดปิดปรับปรุง”) — ทุกรีสอร์ทใช้ได้ ติ๊กออกเฉพาะรีสอร์ทที่ไม่ให้ใช้ หรือปิดสวิตช์ทั้งระบบแล้วติ๊กเปิดเฉพาะรีสอร์ทที่ต้องการ</div></section>' : ''}
+    <div class="card sh-find"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="ic-q" placeholder="ค้นหารีสอร์ท หรือชื่อเจ้าของ..." autocomplete="off"><span class="small muted" id="ic-n">${hotels.length} แห่ง</span></div>
+    <div id="ic-list">${hotels.map(h => `<section class="card sh-row" data-q="${esc((h.name + ' ' + ownerName(h)).toLowerCase())}">
+      <div class="sh-thumb">${imgTag(h.images[0], 200, '', h.id)}</div>
+      <div class="sh-main"><b class="sh-name">${esc(h.name)}</b><div class="small muted">เจ้าของ: ${esc(ownerName(h))}${h.active === false ? ' · <span class="red">ปิดการขาย</span>' : ''}</div>${reqHtml(h)}</div>
+      <div class="sh-ctl"><label class="switch"><input type="checkbox" data-ic-on="${h.id}" ${icalOn(h) ? 'checked' : ''}><span></span>${icalOn(h) ? 'เปิดใช้' : 'ปิด'}</label></div></section>`).join('') || '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><p class="muted">ยังไม่มีรีสอร์ทในระบบ</p></div></section>'}</div>`;
+  $$('[data-ic-on]', main).forEach(c => c.onchange = async () => {
+    const h = JSON.parse(JSON.stringify(DB.hotel(c.dataset.icOn)));
+    if (DB.flags().icalSync) { h.icalOff = !c.checked; if (c.checked) h.icalOn = true; } else { h.icalOn = c.checked; if (c.checked) delete h.icalOff; }
+    DB.saveHotel(h); DB.log('hotel.ical', `${h.name} → ${c.checked ? 'เปิด' : 'ปิด'}ซิงก์ iCal`); toast(c.checked ? 'เปิดซิงก์ iCal ให้รีสอร์ทนี้แล้ว' : 'ปิดซิงก์ iCal ของรีสอร์ทนี้แล้ว');
+    const r = c.checked && reqOf(h); if (r) await closeReq(r.id, 'done'); // เปิดให้แล้ว = ปิดคำขอที่ค้างอยู่
+    boDevIcal(main);
+  });
+  $$('[data-req-x]', main).forEach(b => b.onclick = async () => { if (!(await confirmBox('ปิดคำขอนี้โดยไม่เปิดบริการให้?', 'ปิดคำขอ'))) return; await closeReq(b.dataset.reqX, 'rejected'); boDevIcal(main); });
+  const q = $('#ic-q', main); if (q) q.oninput = () => { const t = q.value.trim().toLowerCase(); let k = 0; $$('.sh-row', main).forEach(r => { const ok = !t || r.dataset.q.includes(t); r.style.display = ok ? '' : 'none'; if (ok) k++; }); $('#ic-n', main).textContent = k + ' แห่ง'; };
+}
+
 // ================= นักพัฒนา: สไลด์ & รูปของทุกรีสอร์ท =================
 // เปิด/ปิดสไลด์ ตั้งเวลา จัดการรูป ของรีสอร์ททุกแห่ง (ต้องมีสิทธิ์ hotels.media — ตรวจที่ฐานข้อมูลด้วย RLS)
 function boDevMedia(main) {
   const hotels = DB.hotels(true);
   const sec = h => Math.min(15, Math.max(2, Math.round(+h.slideshow?.seconds || 4)));
   const ownerName = h => { const o = h.ownerId ? DB.owner(h.ownerId) : null; return o ? (o.biz?.resortName || o.name) : 'แพลตฟอร์ม'; };
-  const reqOf = h => DB.serviceRequests().find(r => r.hotel_id === h.id && r.service === 'ical');
-  const reqHtml = h => { const r = reqOf(h); return r ? `<div class="small" style="margin-top:4px;color:#b45309"><i class="fa-solid fa-arrows-rotate"></i> <b>ขอใช้ซิงก์ iCal (Plus)</b> · ${fmtDateTime(r.created_at)} · ${[r.phone && `โทร <a href="tel:${esc(r.phone)}">${esc(r.phone)}</a>`, r.line && 'LINE ' + esc(r.line)].filter(Boolean).join(' · ')}${r.note ? ` · “${esc(r.note)}”` : ''} <button type="button" class="btn btn-ghost btn-sm" data-req-x="${r.id}">ปิดคำขอ</button></div>` : ''; };
-  const closeReq = async (id, status) => { const r = await supa.from('sd_service_requests').update({ status }).eq('id', id); if (r.error) return toast('บันทึกไม่สำเร็จ: ' + r.error.message, 'err'); CACHE.svcReq = (CACHE.svcReq || []).filter(x => x.id !== id); };
   main.innerHTML = pageHead('สไลด์ & รูปรีสอร์ท', `${hotels.length} รีสอร์ท · เปิด/ปิดสไลด์ ตั้งเวลา และจัดการรูปของรีสอร์ททุกแห่ง (เจ้าของรีสอร์ทยังแก้ของตัวเองได้เหมือนเดิม)`) + `
     <section class="card"><div class="card-h"><h3><i class="fa-solid fa-wand-magic-sparkles"></i> ตั้งค่าให้ทุกรีสอร์ทพร้อมกัน</h3></div>
       <div class="row wrap" style="gap:12px;align-items:center"><label class="row" style="gap:8px"><input type="checkbox" id="bulk-on" checked> เปิดสไลด์อัตโนมัติ</label>
@@ -357,19 +381,13 @@ function boDevMedia(main) {
     <div class="card sh-find"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="dm-q" placeholder="ค้นหารีสอร์ท หรือชื่อเจ้าของ..." autocomplete="off"><span class="small muted" id="dm-n">${hotels.length} แห่ง</span></div>
     <div id="dm-list">${hotels.map(h => `<section class="card sh-row" data-h="${h.id}" data-q="${esc((h.name + ' ' + ownerName(h)).toLowerCase())}">
       <div class="sh-thumb">${imgTag(h.images[0], 200, '', h.id)}</div>
-      <div class="sh-main"><b class="sh-name">${esc(h.name)}</b><div class="small muted">เจ้าของ: ${esc(ownerName(h))} · ${h.images.length} รูป${h.active === false ? ' · <span class="red">ปิดการขาย</span>' : ''}</div>${reqHtml(h)}</div>
+      <div class="sh-main"><b class="sh-name">${esc(h.name)}</b><div class="small muted">เจ้าของ: ${esc(ownerName(h))} · ${h.images.length} รูป${h.active === false ? ' · <span class="red">ปิดการขาย</span>' : ''}</div></div>
       <div class="sh-ctl"><label class="row" style="gap:6px"><input type="checkbox" data-sl-on="${h.id}" ${h.slideshow?.on === true ? 'checked' : ''} ${h.images.length < 2 ? 'disabled' : ''}> สไลด์</label>
-        <input type="range" data-sl-sec="${h.id}" min="2" max="15" step="1" value="${sec(h)}" style="width:110px" ${h.images.length < 2 ? 'disabled' : ''}><b data-sl-v="${h.id}" style="min-width:58px;font-size:13px">${sec(h)} วินาที</b>
-        <label class="row" style="gap:6px" title="ให้เจ้าของรีสอร์ทนี้ใช้ซิงก์ปฏิทิน Agoda / Booking.com (iCal)"><input type="checkbox" data-ic-on="${h.id}" ${h.icalOn === true ? 'checked' : ''} ${DB.flags().icalSync ? 'disabled' : ''}> ซิงก์ iCal (Plus)${DB.flags().icalSync ? ' <span class="small muted">(เปิดทั้งระบบ)</span>' : ''}</label></div>
+        <input type="range" data-sl-sec="${h.id}" min="2" max="15" step="1" value="${sec(h)}" style="width:110px" ${h.images.length < 2 ? 'disabled' : ''}><b data-sl-v="${h.id}" style="min-width:58px;font-size:13px">${sec(h)} วินาที</b></div>
       <div class="sh-act"><button class="btn btn-primary btn-sm" data-deco="${h.id}"><i class="fa-solid fa-paintbrush"></i> จัดการรูป</button>
         <a class="btn btn-outline btn-sm" href="${siteUrl('#/hotel/' + (h.slug || h.id))}" target="_blank" rel="noopener" title="ดูหน้าเว็บ"><i class="fa-solid fa-eye"></i></a></div></section>`).join('') || '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><p class="muted">ยังไม่มีรีสอร์ทในระบบ</p></div></section>'}</div>`;
   const save = (id, patch) => { const h = JSON.parse(JSON.stringify(DB.hotel(id))); h.slideshow = { on: h.slideshow?.on === true, seconds: sec(h), ...patch }; DB.saveHotel(h); DB.log('hotel.slideshow', `${h.name} → ${h.slideshow.on ? 'เปิด ' + h.slideshow.seconds + ' วินาที' : 'ปิด'}`); };
   $$('[data-sl-on]', main).forEach(c => c.onchange = () => { save(c.dataset.slOn, { on: c.checked }); toast(c.checked ? 'เปิดสไลด์แล้ว' : 'ปิดสไลด์แล้ว'); });
-  $$('[data-ic-on]', main).forEach(c => c.onchange = async () => {
-    const h = JSON.parse(JSON.stringify(DB.hotel(c.dataset.icOn))); h.icalOn = c.checked; DB.saveHotel(h); DB.log('hotel.ical', `${h.name} → ${c.checked ? 'เปิด' : 'ปิด'}ซิงก์ iCal`); toast(c.checked ? 'เปิดซิงก์ iCal ให้รีสอร์ทนี้แล้ว' : 'ปิดซิงก์ iCal ของรีสอร์ทนี้แล้ว');
-    const r = c.checked && reqOf(h); if (r) { await closeReq(r.id, 'done'); boDevMedia(main); } // เปิดให้แล้ว = ปิดคำขอที่ค้างอยู่
-  });
-  $$('[data-req-x]', main).forEach(b => b.onclick = async () => { if (!(await confirmBox('ปิดคำขอนี้โดยไม่เปิดบริการให้?', 'ปิดคำขอ'))) return; await closeReq(b.dataset.reqX, 'rejected'); boDevMedia(main); });
   $$('[data-sl-sec]', main).forEach(r => {
     r.oninput = () => $(`[data-sl-v="${r.dataset.slSec}"]`, main).textContent = r.value + ' วินาที';
     r.onchange = () => { save(r.dataset.slSec, { seconds: +r.value }); toast(`ตั้งเวลาสไลด์ ${r.value} วินาทีแล้ว`); };
@@ -454,8 +472,8 @@ function slideSlotModal(slot, done) {
 
 // ================= จองจากช่องทางอื่น (Agoda / Booking.com / โทรศัพท์ ฯลฯ) =================
 // บันทึกการจองที่เกิดนอกระบบ → ลดห้องว่างบนเว็บทันที (ใช้ sd_block_rooms เดิม) · ยังไม่ดึงข้อมูลจาก OTA อัตโนมัติ
-// ซิงก์ปฏิทิน iCal: dev เปิดทั้งระบบ (flags.icalSync) หรือเปิดเฉพาะรีสอร์ท (h.icalOn — ตั้งที่หน้า "สไลด์ & รูปรีสอร์ท" ของ dev)
-const icalOn = h => !!h && (DB.flags().icalSync === true || h.icalOn === true);
+// ซิงก์ปฏิทิน iCal: dev เปิดทั้งระบบ (flags.icalSync — ยกเว้นรายรีสอร์ทด้วย h.icalOff) หรือเปิดเฉพาะรีสอร์ท (h.icalOn — ตั้งที่หน้า "สไลด์ & รูปรีสอร์ท" ของ dev)
+const icalOn = h => !!h && h.icalOff !== true && (DB.flags().icalSync === true || h.icalOn === true);
 function boChannels(main) {
   const hotels = DB.hotels(true);
   const f = { ch: '', st: 'active', hid: hotels[0]?.id || '' };

@@ -66,6 +66,7 @@ const BO_NAV_BY_ROLE = {
   dev: [
     { g: 'รีสอร์ททุกแห่ง', items: [
       ['media', 'fa-images', 'สไลด์ & รูปรีสอร์ท', 'hotels.media', () => boDevMedia],
+      ['ical', 'fa-arrows-rotate', 'ซิงก์ปฏิทิน iCal (Plus)', 'hotels.media', () => boDevIcal],
       ['devrooms', 'fa-bed', 'ห้อง & รูปห้อง', 'hotels.media', () => boRoomsPage],
       ['content', 'fa-pen-to-square', 'แก้หน้าเว็บ (ข้อความ / สี / รูป)', 'hotels.media', () => boDevContent],
       ['siteimg', 'fa-image', 'รูปทั้งเว็บ (โลโก้ แบนเนอร์ ชายหาด)', 'hotels.media', () => boDevSiteImages],
@@ -2253,7 +2254,7 @@ function boFlags(main) {
       <div class="fg" style="margin:-4px 0 18px"><label class="small">ข้อความที่แสดงให้ลูกค้า</label><div class="row"><input id="fl-msg" value="${esc(fl.maintenanceMsg)}" style="flex:1"><button class="btn btn-outline btn-sm" id="fl-msg-save">บันทึก</button></div></div>
     </section>
     <section class="card">
-      ${sw('icalSync', 'ซิงก์ปฏิทิน Agoda / Booking.com (iCal) — เปิดให้ทุกรีสอร์ท · ฟีเจอร์ Plus (มีค่าบริการ)', 'เปิดแล้วเจ้าของ “ทุกรีสอร์ท” จะเห็นกล่อง “ซิงก์อัตโนมัติ” ในหน้า “จองจากช่องทางอื่น” และระบบจะดึงปฏิทินทุก 20 นาที · ถ้าอยากเปิดเฉพาะบางรีสอร์ท ให้ปิดสวิตช์นี้ แล้วติ๊ก “ซิงก์ iCal” รายรีสอร์ทที่เมนู “สไลด์ & รูปรีสอร์ท” · ปิดทั้งสองอย่าง = กล่องซ่อน และระบบหยุดดึง (ลิงก์ที่เคยบันทึกไว้ไม่ถูกลบ)')}
+      ${sw('icalSync', 'ซิงก์ปฏิทิน Agoda / Booking.com (iCal) — เปิดให้ทุกรีสอร์ท · ฟีเจอร์ Plus (มีค่าบริการ)', 'เปิดแล้วเจ้าของ “ทุกรีสอร์ท” จะเห็นกล่อง “ซิงก์อัตโนมัติ” ในหน้า “จองจากช่องทางอื่น” และระบบจะดึงปฏิทินทุก 20 นาที · เลือกรายรีสอร์ทได้ที่เมนู “ซิงก์ปฏิทิน iCal (Plus)” — เปิดสวิตช์นี้แล้วติ๊ก “ซิงก์ iCal” ออกเพื่อยกเว้นรีสอร์ทนั้น · หรือปิดสวิตช์นี้แล้วติ๊กเปิดเฉพาะรีสอร์ทที่ต้องการ · ปิดทั้งสองอย่าง = กล่องซ่อน และระบบหยุดดึง (ลิงก์ที่เคยบันทึกไว้ไม่ถูกลบ)')}
     </section>
     <div class="notice info"><i class="fa-solid fa-circle-info"></i><div>สิทธิ์ถูกบังคับที่ฐานข้อมูลด้วย Row Level Security (ตาราง <code>sd_role_perms</code> + ฟังก์ชัน <code>sd_can()</code>) — <code>ROLE_PERMS</code> ใน <code>js/store.js</code> ใช้ซ่อนเมนูเท่านั้น หากแก้สิทธิ์ต้องแก้ทั้งสองที่ให้ตรงกัน</div></div>`;
   $$('[data-fl]', main).forEach(c => c.onchange = () => { DB.saveFlags({ [c.dataset.fl]: c.checked }); DB.log('flags.save', `${c.dataset.fl} = ${c.checked}`); toast('อัปเดตแล้ว'); render(); });
