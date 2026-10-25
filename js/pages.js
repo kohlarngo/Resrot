@@ -597,7 +597,7 @@ function roomImgHtml(h, r, idx) {
     <div class="sl-dots">${list.map((_, i) => `<button type="button" class="sl-dot ${i ? '' : 'on'}" data-d="${i}" aria-label="รูปที่ ${i + 1}"></button>`).join('')}</div></div>`;
 }
 function roomHtml(h, r, guestsPerRoom) {
-  const avail = DB.available(r, S.checkIn, S.checkOut);
+  const rmsg = restrictMsg(h, r.id, S.checkIn, S.checkOut), avail = rmsg ? 0 : DB.available(r, S.checkIn, S.checkOut);
   const fits = r.maxGuests >= guestsPerRoom;
   const idx = h.rooms.indexOf(r);
   return `<div class="room">
@@ -613,7 +613,7 @@ function roomHtml(h, r, guestsPerRoom) {
       </div>
       <div>
         <div class="offer-head"><div>สิ่งที่รวมในราคา</div><div>ผู้เข้าพัก</div><div style="text-align:right">ราคาต่อคืน</div><div>จำนวนห้อง</div></div>
-        ${avail <= 0 ? '<div style="padding:24px;text-align:center" class="red bold">ห้องประเภทนี้เต็มในวันที่เลือก</div>' : offersFor(r).map(o => {
+        ${avail <= 0 ? soldRoomHtml(h, r, rmsg) : offersFor(r).map(o => {
           const q = quoteOffer(r, o, 1);
           const off = Math.round((1 - q.perNight / q.perNightOrig) * 100);
           const maxQ = Math.min(avail, 8);
@@ -666,7 +666,7 @@ function pageBook(app, params) {
   const offer = room && offersFor(room).find(o => o.id === params.get('o'));
   const qty = Math.max(1, +params.get('n') || 1);
   if (!h || !room || !offer) { app.innerHTML = '<div class="container"><div class="empty" style="margin-top:30px"><h3>ข้อมูลการจองไม่ถูกต้อง</h3><a href="#/" class="btn btn-primary">กลับหน้าแรก</a></div></div>'; return; }
-  if (DB.available(room, S.checkIn, S.checkOut) < qty) { app.innerHTML = `<div class="container"><div class="empty" style="margin-top:30px"><h3>ขออภัย ห้องว่างไม่เพียงพอแล้ว</h3><a href="#/hotel/${h.id}?${searchQuery()}" class="btn btn-primary">เลือกห้องอื่น</a></div></div>`; return; }
+  if (restrictMsg(h, room.id, S.checkIn, S.checkOut) || DB.available(room, S.checkIn, S.checkOut) < qty) { app.innerHTML = `<div class="container"><div class="empty" style="margin-top:30px"><h3>ขออภัย ห้องว่างไม่เพียงพอแล้ว</h3><a href="#/hotel/${h.id}?${searchQuery()}" class="btn btn-primary">เลือกห้องอื่น</a></div></div>`; return; }
 
   const u = DB.currentUser();
   const q = quoteOffer(room, offer, qty);
@@ -812,6 +812,7 @@ function pageBook(app, params) {
     $('#confirm').onclick = () => {
       if (!st.pay) return;
       if (!$('#tc-ok').checked) return toast('กรุณาติ๊กยอมรับเงื่อนไขการใช้งานและการรับส่วนลดก่อนยืนยันการจอง', 'err');
+      { const rm = restrictMsg(h, room.id, S.checkIn, S.checkOut); if (rm) return toast(rm, 'err'); }
       if (DB.available(room, S.checkIn, S.checkOut) < qty) return toast('ขออภัย ห้องเพิ่งถูกจองไป กรุณาเลือกห้องอื่น', 'err');
       const btn = $('#confirm'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังดำเนินการ...';
       // ราคา โค้ดส่วนลด และห้องว่างถูกคำนวณ/ตรวจซ้ำที่เซิร์ฟเวอร์ (sd_create_booking)

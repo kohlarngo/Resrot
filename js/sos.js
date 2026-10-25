@@ -30,8 +30,7 @@ const sosOrdered = () => { const l = sosContacts(); return sosForeign() ? [...l.
 
 function sosFooterHtml() {
   return `<div class="foot-sos"><h4 data-edit="footer.sos.title">ติดต่อความช่วยเหลือ</h4>
-    ${sosOrdered().map(c => `<a href="javascript:" data-sos="${c.id}"><i class="fa-solid ${c.icon}"></i><span>${esc(c.name)}</span><b>${esc(c.hotline)}${c.local ? ` / ${fmtPhone(c.local)}` : ''}</b></a>`).join('')}
-    <button class="btn btn-sos btn-sm" data-sos=""><i class="fa-solid fa-bell"></i> <span data-edit="footer.sos.btn">แจ้งเหตุพร้อมปักหมุดพิกัด</span></button></div>`;
+    ${sosOrdered().map(c => `<a href="javascript:" data-sos="${c.id}"><i class="fa-solid ${c.icon}"></i><span>${esc(c.name)}</span><b>${esc(c.hotline)}${c.local ? ` / ${fmtPhone(c.local)}` : ''}</b></a>`).join('')}</div>`;
 }
 function bindSosLinks(root = document) {
   $$('[data-sos]', root).forEach(a => a.onclick = e => { e.preventDefault(); openSos(a.dataset.sos); });

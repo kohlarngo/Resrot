@@ -9,17 +9,21 @@ const BO_NAV_BY_ROLE = {
   owner: [
     { g: 'งานประจำวัน', items: [
       ['today', 'fa-sun', 'ภาพรวมวันนี้', 'ops.view', () => boToday],
+      ['housekeeping', 'fa-broom', 'งานแม่บ้าน · สถานะห้อง', 'housekeeping', () => boHousekeeping],
+      ['tape', 'fa-table-cells-large', 'ผังห้อง · ลากย้ายห้อง', 'bookings.view', () => boTape],
       ['bookings', 'fa-calendar-check', 'การจอง', 'bookings.view', () => boOwnerBookings],
-      ['allbookings', 'fa-table-list', 'รายการจองทั้งหมด / ส่งออก CSV', 'bookings.view', () => boBookings],
+      ['allbookings', 'fa-table-list', 'รายการจองทั้งหมด / ส่งออก Excel', 'bookings.view', () => boBookings],
       ['frontdesk', 'fa-bell-concierge', 'แขกเข้า-ออกวันนี้', 'frontdesk', () => boFrontdesk],
       ['approvals', 'fa-clipboard-check', 'ตรวจสลิป (มุมมองการ์ด)', 'frontdesk', () => boApprovals],
       ['calendar', 'fa-table-cells', 'ตารางห้องว่าง / ปิดห้อง', 'inventory', () => admCalendar],
       ['channels', 'fa-arrows-rotate', 'จองจากช่องทางอื่น', 'inventory', () => boChannels],
+      ['waitlist', 'fa-hourglass-half', 'คิวรอห้อง', 'bookings.view', () => boWaitlist],
       ['links', 'fa-link', 'ลิงก์ส่งลูกค้า', 'hotels.edit', () => boLinks],
     ] },
     { g: 'ตั้งค่ารีสอร์ท', items: [
       ['rooms', 'fa-bed', 'ห้องพัก', 'hotels.edit', () => boRoomsPage],
       ['prices', 'fa-tags', 'ราคาตามวัน', 'hotels.edit', () => boPrices],
+      ['restrict', 'fa-ban', 'ข้อจำกัดการขาย (MinLOS / CTA / CTD)', 'hotels.edit', () => boRestrict],
       ['shop', 'fa-store', 'หน้ารีสอร์ท', 'hotels.edit', () => boShopPage],
       ['coupons', 'fa-ticket', 'โค้ดส่วนลด', 'coupons.edit', () => admCoupons],
       ['payout', 'fa-building-columns', 'บัญชีรับเงิน', 'payout.edit', () => boPayout],
@@ -29,6 +33,7 @@ const BO_NAV_BY_ROLE = {
     { g: 'ยอดขาย & รายงาน', items: [
       ['overview', 'fa-chart-line', 'ยอดขายภาพรวม', 'exec.view', () => boOverview],
       ['reports', 'fa-file-invoice-dollar', 'รายงานการเงิน', 'reports.view', () => boReports],
+      ['docs', 'fa-receipt', 'ใบเสร็จ & ใบกำกับภาษี', 'reports.view', () => boDocs],
       ['properties', 'fa-ranking-star', 'เทียบผลงานแต่ละรีสอร์ท', 'exec.view', () => boProperties, () => DB.hotels(true).length > 1],
     ] },
     { g: 'ลูกค้า & รีวิว', items: [
@@ -38,6 +43,7 @@ const BO_NAV_BY_ROLE = {
     { g: 'อื่นๆ', items: [
       ['hotels', 'fa-hotel', 'ฟอร์มที่พักแบบเต็ม', 'hotels.edit', () => admHotels, () => false],
       ['closure', 'fa-screwdriver-wrench', 'ปิดรีสอร์ท & ปรับปรุง', 'hotels.edit', () => boClosure],
+      ['menuset', 'fa-bars-staggered', 'ปรับแต่งเมนูด้านข้าง', null, () => boMenuSettings],
     ] },
   ],
   // แอดมินแพลตฟอร์ม: โครงสร้างแบบ kohlardgo — แท็บหลัก การจอง · ที่พัก · เจ้าของรีสอร์ท แล้วค่อยเป็นภาพรวม/ช่วยเหลือ
@@ -87,6 +93,16 @@ const BO_NAV_BY_ROLE = {
   ],
 };
 const navFor = role => BO_NAV_BY_ROLE[role] || [];
+// เจ้าของเลือกเองว่าเมนูข้างไหนแสดง/ซ่อน และเรียงลำดับอย่างไร (เก็บในเบราว์เซอร์ รายบัญชี) — 'menuset' ซ่อนไม่ได้ เพื่อให้กลับมาแก้ได้เสมอ
+const NAV_KEY = () => 'bo_nav_' + (DB.currentUser()?.id || '');
+const navPref = () => { try { return JSON.parse(localStorage.getItem(NAV_KEY()) || '{}') || {}; } catch { return {}; } };
+const navSavePref = p => { try { p && (p.hidden?.length || p.order?.length) ? localStorage.setItem(NAV_KEY(), JSON.stringify(p)) : localStorage.removeItem(NAV_KEY()); } catch { /* เบราว์เซอร์ไม่ให้เก็บ */ } };
+function navArrange(items, cur, keepHidden = false) {
+  if (portalRole(DB.currentUser()) !== 'owner') return items;
+  const p = navPref(), hid = new Set(p.hidden || []), ord = p.order || [];
+  const rank = k => { const i = ord.indexOf(k); return i < 0 ? 1e6 : i; };
+  return items.filter(i => keepHidden || !hid.has(i[0]) || i[0] === cur || i[0] === 'menuset').sort((a, b) => rank(a[0]) - rank(b[0]));
+}
 const BO_PROFILE = ['profile', 'fa-user-gear', 'บัญชีของฉัน', null, () => boProfile];
 
 // ---------- helpers ----------
@@ -121,6 +137,39 @@ function downloadFile(name, content, type = 'text/plain') {
   a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 const toCsv = rows => '﻿' + rows.map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+
+// ส่งออกเป็นไฟล์ Excel (.xlsx) จริง — สร้างเองในเบราว์เซอร์ ไม่ใช้ไลบรารีภายนอก · ตัวเลขเป็นเซลล์ตัวเลข ข้อความไทยไม่เพี้ยน แถวแรกตัวหนา
+function downloadXlsx(name, rows) {
+  const enc = new TextEncoder(), X = v => String(v ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const col = n => { let s = ''; for (n++; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + (n - 1) % 26) + s; return s; };
+  const widths = rows.reduce((w, r) => { r.forEach((c, i) => { w[i] = Math.min(50, Math.max(w[i] || 8, String(c ?? '').length * 1.3 + 2)); }); return w; }, []);
+  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>${widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w.toFixed(1)}" customWidth="1"/>`).join('')}</cols><sheetData>`
+    + rows.map((r, y) => `<row r="${y + 1}">${r.map((c, x) => { const ref = col(x) + (y + 1), st = y === 0 ? ' s="1"' : '';
+      return typeof c === 'number' && isFinite(c) ? `<c r="${ref}"${st}><v>${c}</v></c>` : `<c r="${ref}"${st} t="inlineStr"><is><t xml:space="preserve">${X(c)}</t></is></c>`; }).join('')}</row>`).join('') + '</sheetData></worksheet>';
+  const files = [
+    ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
+    ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+    ['xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>'],
+    ['xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
+    ['xl/styles.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Tahoma"/></font><font><b/><sz val="11"/><name val="Tahoma"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>'],
+    ['xl/worksheets/sheet1.xml', sheet],
+  ].map(([n, c]) => [enc.encode(n), enc.encode(c)]);
+  const T = new Uint32Array(256).map((_, n) => { for (let k = 0; k < 8; k++) n = n & 1 ? 0xEDB88320 ^ (n >>> 1) : n >>> 1; return n >>> 0; });
+  const crc = d => { let c = 0xFFFFFFFF; for (const b of d) c = T[(c ^ b) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  const parts = [], central = []; let off = 0;
+  const u16 = n => [n & 255, n >>> 8 & 255], u32 = n => [n & 255, n >>> 8 & 255, n >>> 16 & 255, n >>> 24 & 255];
+  for (const [n, d] of files) {
+    const c = crc(d), head = new Uint8Array([0x50, 0x4B, 3, 4, ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(c), ...u32(d.length), ...u32(d.length), ...u16(n.length), ...u16(0)]);
+    parts.push(head, n, d);
+    central.push(new Uint8Array([0x50, 0x4B, 1, 2, ...u16(20), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(c), ...u32(d.length), ...u32(d.length), ...u16(n.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(off)]), n);
+    off += head.length + n.length + d.length;
+  }
+  const cLen = central.reduce((s, a) => s + a.length, 0);
+  const eocd = new Uint8Array([0x50, 0x4B, 5, 6, ...u16(0), ...u16(0), ...u16(files.length), ...u16(files.length), ...u32(cLen), ...u32(off), ...u16(0)]);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([...parts, ...central, eocd], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
 const deny = () => toast('คุณไม่มีสิทธิ์ทำรายการนี้', 'err');
 function promptBox(title, label, okText = 'ยืนยัน', required = true) {
   return new Promise(res => {
@@ -142,7 +191,7 @@ function pageAdmin(app, params, section) {
   if (u.role === 'owner' && u.ownerStatus !== 'approved') return boOwnerPending(app, u);
   const nav = navFor(portalRole(u));
   const items = nav.flatMap(g => g.items);
-  const allowed = items.filter(i => can(i[3]));
+  const allowed = items.filter(i => !i[3] || can(i[3]));
   const item = section === 'profile' ? BO_PROFILE : items.find(i => i[0] === section);
   const home = PORTAL_INFO[portalRole(u)].home;
   if (!item) return go('/admin/' + (allowed.some(i => i[0] === home) ? home : allowed[0]?.[0] || 'profile'), true);
@@ -155,7 +204,7 @@ function pageAdmin(app, params, section) {
     <aside class="bo-side" id="bo-side">
       <a href="#/admin" class="bo-brand"><span class="bo-logo"><img src="${esc(siteImgId('icon', 'assets/icon-192.png'))}" alt=""></span><div><b>${esc(u.role === 'owner' ? (u.biz?.resortName || u.name) : DB.settings().bizName)}</b><small>${PORTAL_INFO[portalRole(u)].title} · v${APP_VERSION}</small></div></a>
       <div class="bo-me" style="--rc:${r.color}"><span class="bo-av" style="background:${r.color}">${esc(u.name[0] || '?')}</span><div><b>${esc(u.name)}</b><small><i class="fa-solid ${r.icon}"></i> ${r.label}</small></div></div>
-      <nav class="bo-nav">${nav.map(g => { const its = g.items.filter(i => can(i[3]) && (!i[5] || i[5]() || i[0] === item[0])); return its.length ? `<div class="bo-g">${g.g}</div>${its.map(([k, ic, l]) => `<a href="#/admin/${k}" class="${k === item[0] ? 'active' : ''}"><i class="fa-solid ${ic}"></i><span>${l}</span>${k === 'sos' && alerts.sos ? `<em>${alerts.sos}</em>` : k === 'frontdesk' && alerts.arrivals ? `<em>${alerts.arrivals}</em>` : k === 'approvals' && alerts.approvals ? `<em>${alerts.approvals}</em>` : k === 'partners' && alerts.apps ? `<em>${alerts.apps}</em>` : k === 'media' && alerts.svc ? `<em>${alerts.svc}</em>` : ''}</a>`).join('')}` : ''; }).join('')}</nav>
+      <nav class="bo-nav">${nav.map(g => { const its = navArrange(g.items.filter(i => (!i[3] || can(i[3])) && (!i[5] || i[5]() || i[0] === item[0])), item[0]); return its.length ? `<div class="bo-g">${g.g}</div>${its.map(([k, ic, l]) => `<a href="#/admin/${k}" class="${k === item[0] ? 'active' : ''}"><i class="fa-solid ${ic}"></i><span>${l}</span>${k === 'sos' && alerts.sos ? `<em>${alerts.sos}</em>` : k === 'frontdesk' && alerts.arrivals ? `<em>${alerts.arrivals}</em>` : k === 'approvals' && alerts.approvals ? `<em>${alerts.approvals}</em>` : k === 'partners' && alerts.apps ? `<em>${alerts.apps}</em>` : k === 'media' && alerts.svc ? `<em>${alerts.svc}</em>` : ''}</a>`).join('')}` : ''; }).join('')}</nav>
     </aside>
     <div class="bo-scrim" id="bo-scrim"></div>
     <div class="bo-body">
@@ -539,6 +588,7 @@ async function bkAction(id, act, refresh = () => render()) {
     return false;
   } else return false;
   DB.updateBooking(id, patch);
+  if (act === 'checkout' && typeof pmsAfterCheckout === 'function') pmsAfterCheckout(b);
   DB.log(log, `${b.id} · ${guestName(b)}${patch.cancelReason ? ' · ' + patch.cancelReason : ''}`);
   toast(msg); refresh();
   return true;
@@ -578,6 +628,7 @@ function bookingDrawer(id, refresh = () => render()) {
       ${row('ชื่อ', esc(guestName(b)))}${row('อีเมล', `<a href="mailto:${esc(b.guest.email)}">${esc(b.guest.email)}</a>`)}${row('โทร', `<a href="tel:${esc(b.guest.phone)}">${esc(b.guest.phone)}</a>`)}
       ${row('จำนวน', `ผู้ใหญ่ ${b.adults}${b.children ? ` · เด็ก ${b.children}` : ''}`)}${req.length ? row('คำขอพิเศษ', esc(req.join(', '))) : ''}</div>
     ${(can('frontdesk') || isAdmin(DB.currentUser())) && b.status !== 'cancelled' ? '<div class="dr-sec" id="ck-sec"></div>' : ''}
+    ${b.status !== 'cancelled' && b.source !== 'external' && (can('bookings.edit') || can('frontdesk')) ? '<div class="dr-sec" id="pms-sec"></div>' : ''}
     <div class="dr-sec"><h4><i class="fa-solid fa-hotel"></i> การเข้าพัก</h4>
       ${row('ที่พัก', esc(b.hotelName))}${row('ห้อง', `${b.qty} × ${esc(b.roomName)}`)}${row('เช็คอิน', fmtDate(b.checkIn))}${row('เช็คเอาท์', fmtDate(b.checkOut))}${row('จำนวนคืน', b.nights + ' คืน')}</div>
     <div class="dr-sec"><h4><i class="fa-solid fa-receipt"></i> ค่าใช้จ่าย</h4>
@@ -591,6 +642,7 @@ function bookingDrawer(id, refresh = () => render()) {
   $('#dr-voucher', m).onclick = () => bookingVoucher(b, () => bookingDrawer(id, refresh));
   loadSlips(m);
   if (typeof ckDrawer === 'function') ckDrawer(m, b);
+  if (typeof pmsDrawer === 'function') pmsDrawer(m, b, refresh);
   const nf = $('#dr-note', m);
   if (nf) nf.onsubmit = e => {
     e.preventDefault();
@@ -823,7 +875,7 @@ function boProperties(main, params) {
   live.filter(r => r.occ < 0.2).slice(0, 3).forEach(r => ins.push(['fa-lightbulb', `<b>${esc(r.h.name)}</b> อัตราเข้าพักเพียง ${pct(r.occ, 0)} — พิจารณาให้แอดมินลดราคาหรือสร้างโค้ดส่วนลด`]));
   live.filter(r => r.cancel > 0.2 && r.count >= 3).forEach(r => ins.push(['fa-triangle-exclamation', `<b>${esc(r.h.name)}</b> อัตรายกเลิกสูง ${pct(r.cancel, 0)}`]));
   main.innerHTML = pageHead('ผลงานแต่ละที่พัก', `เปรียบเทียบผลงาน ${fmtDate(R.from, false)} – ${fmtDate(R.to, false)} · รายได้เข้าพักคิดตามคืนที่เข้าพัก ไม่รวมภาษี/ค่าบริการ`,
-    `<div class="seg">${Object.entries(PERIODS).map(([k, l]) => `<a href="#/admin/properties?p=${k}" class="${k === pk ? 'on' : ''}">${l}</a>`).join('')}</div><button class="btn btn-outline btn-sm" id="pp-csv"><i class="fa-solid fa-file-csv"></i> CSV</button>`) + `
+    `<div class="seg">${Object.entries(PERIODS).map(([k, l]) => `<a href="#/admin/properties?p=${k}" class="${k === pk ? 'on' : ''}">${l}</a>`).join('')}</div><button class="btn btn-outline btn-sm" id="pp-csv"><i class="fa-solid fa-file-excel"></i> Excel</button>`) + `
     <div class="kpi-grid k4">
       ${kpi('fa-hotel', 'info', 'ที่พักที่เปิดขาย', `${live.length}<small>/${rows.length}</small>`, `${T.rooms.toLocaleString()} ห้อง`)}
       ${kpi('fa-sack-dollar', 'ok', 'ยอดขายรวม', money(T.gross), `${rows.reduce((s, r) => s + r.count, 0)} การจอง`)}
@@ -837,8 +889,8 @@ function boProperties(main, params) {
         <td>${r.adr ? money(r.adr) : '-'}</td><td>${r.revpar ? money(r.revpar) : '-'}</td><td class="${r.cancel > 0.2 ? 'red' : ''}">${r.count || r.cancel ? pct(r.cancel, 0) : '-'}</td><td>${r.h.rating} <span class="small muted">(${r.h.reviews.toLocaleString()})</span></td></tr>`).join('')}
     </tbody></table></div></section>`;
   $('#pp-csv').onclick = () => {
-    downloadFile(`properties-${R.from}-${R.to}.csv`, toCsv([['ที่พัก', 'ห้อง', 'ยอดขาย', 'การจอง', 'Room-nights', 'อัตราเข้าพัก', 'ADR', 'RevPAR', 'อัตรายกเลิก', 'คะแนนรีวิว'],
-      ...rows.map(r => [r.h.name, r.rooms, r.gross, r.count, r.rn, (r.occ * 100).toFixed(1) + '%', Math.round(r.adr), Math.round(r.revpar), (r.cancel * 100).toFixed(1) + '%', r.h.rating])]), 'text/csv;charset=utf-8');
+    downloadXlsx(`properties-${R.from}-${R.to}.xlsx`, [['ที่พัก', 'ห้อง', 'ยอดขาย', 'การจอง', 'Room-nights', 'อัตราเข้าพัก', 'ADR', 'RevPAR', 'อัตรายกเลิก', 'คะแนนรีวิว'],
+      ...rows.map(r => [r.h.name, r.rooms, r.gross, r.count, r.rn, (r.occ * 100).toFixed(1) + '%', Math.round(r.adr), Math.round(r.revpar), (r.cancel * 100).toFixed(1) + '%', r.h.rating])]);
     DB.log('report.export', `ผลงานที่พัก ${R.from} – ${R.to}`);
   };
 }
@@ -981,7 +1033,7 @@ function boReports(main, params) {
   const n = v => v ? money(v) : '<span class="muted">-</span>';
   main.innerHTML = pageHead('รายงานการเงิน', 'รับรู้รายได้ตามเดือนที่เข้าพัก (เช็คอิน) · ไม่รวมการจองที่ยกเลิก',
     `<select id="rp-y" class="sel">${years.map(x => `<option value="${x}" ${x === y ? 'selected' : ''}>ปี ${x + 543}</option>`).join('')}</select>
-     <button class="btn btn-outline btn-sm" id="rp-csv"><i class="fa-solid fa-file-csv"></i> CSV</button><button class="btn btn-outline btn-sm" onclick="print()"><i class="fa-solid fa-print"></i> พิมพ์</button>`) + `
+     <button class="btn btn-outline btn-sm" id="rp-csv"><i class="fa-solid fa-file-excel"></i> Excel</button><button class="btn btn-outline btn-sm" onclick="print()"><i class="fa-solid fa-print"></i> พิมพ์</button>`) + `
     <div class="kpi-grid k4">
       ${kpi('fa-coins', 'ok', `รายได้รวมปี ${y + 543}`, money(T.total))}
       ${kpi('fa-building-columns', 'info', 'รายได้สุทธิ (ก่อนภาษี/บริการ)', money(T.total - T.tax))}
@@ -1002,7 +1054,7 @@ function boReports(main, params) {
   $('#rp-y').onchange = e => go(`/admin/reports?y=${e.target.value}`);
   $('#rp-csv').onclick = () => {
     const rows = [['เดือน', 'การจอง', 'ยกเลิก', 'Room-nights', 'ราคาเต็ม', 'ส่วนลด', 'ค่าบริการ+VAT', 'รายได้รวม', 'รับชำระแล้ว'], ...months.map(r => [`${r.m} ${y + 543}`, r.count, r.cancel, r.nights, r.gross, r.disc, r.tax, r.total, r.paid]), ['รวม', T.count, T.cancel, T.nights, T.gross, T.disc, T.tax, T.total, T.paid]];
-    downloadFile(`report-${y}.csv`, toCsv(rows), 'text/csv;charset=utf-8'); DB.log('report.export', `รายงานปี ${y}`);
+    downloadXlsx(`report-${y}.xlsx`, rows); DB.log('report.export', `รายงานปี ${y}`);
   };
 }
 
@@ -1206,7 +1258,7 @@ function boFrontdesk(main, params) {
 function boBookings(main, params) {
   const f = { q: params.get('q') || '', st: params.get('st') || '', hotel: '', pay: '', from: '', to: '', page: 1 };
   const PER = 15;
-  main.innerHTML = pageHead('รายการจองทั้งหมด', 'ค้นหา กรอง และจัดการการจองทั้งหมด', `<button class="btn btn-outline btn-sm" id="bk-csv"><i class="fa-solid fa-file-csv"></i> ส่งออก CSV</button>`) + `
+  main.innerHTML = pageHead('รายการจองทั้งหมด', 'ค้นหา กรอง และจัดการการจองทั้งหมด', `<button class="btn btn-outline btn-sm" id="bk-csv"><i class="fa-solid fa-file-excel"></i> ส่งออก Excel</button>`) + `
     <div class="filters">
       <div class="f-search"><i class="fa-solid fa-magnifying-glass"></i><input id="bk-q" placeholder="รหัส / ชื่อ / อีเมล / เบอร์" value="${esc(f.q)}"></div>
       <select id="bk-h" class="sel"><option value="">ทุกที่พัก</option>${DB.hotels(true).map(h => `<option value="${h.id}">${esc(h.name)}</option>`).join('')}</select>
@@ -1250,7 +1302,7 @@ function boBookings(main, params) {
   $('#bk-csv').onclick = () => {
     const rows = [['รหัส', 'วันที่จอง', 'ชื่อ', 'อีเมล', 'โทร', 'ที่พัก', 'ห้อง', 'จำนวน', 'เช็คอิน', 'เช็คเอาท์', 'คืน', 'ยอดรวม', 'ภาษี/บริการ', 'คูปอง', 'วิธีชำระ', 'ชำระแล้ว', 'สถานะ']];
     filtered().forEach(b => rows.push([b.id, b.createdAt, guestName(b), b.guest.email, b.guest.phone, b.hotelName, b.roomName, b.qty, b.checkIn, b.checkOut, b.nights, b.price.total, b.price.tax, b.price.couponCode || '', PAY_TH[b.payment.method], b.payment.paid ? 'Y' : 'N', BO_ST[boStatus(b)]]));
-    downloadFile(`bookings-${todayISO()}.csv`, toCsv(rows), 'text/csv;charset=utf-8'); DB.log('booking.export', `${rows.length - 1} รายการ`);
+    downloadXlsx(`bookings-${todayISO()}.xlsx`, rows); DB.log('booking.export', `${rows.length - 1} รายการ`);
   };
   draw();
 }
@@ -1934,7 +1986,7 @@ function boCustomers(main) {
   });
   const all = Object.values(map).map(c => { const ok = c.bks.filter(b => b.status !== 'cancelled'); return { ...c, n: ok.length, spend: ok.reduce((s, b) => s + b.price.total, 0), last: ok.map(b => b.checkIn).sort().pop() }; }).sort((a, b) => b.spend - a.spend);
   let q = '', seg = '';
-  main.innerHTML = pageHead('รายชื่อลูกค้า', `${all.length} ราย · สมาชิก ${all.filter(c => c.member).length} · ผู้จองทั่วไป ${all.filter(c => !c.member).length}`, '<button class="btn btn-outline btn-sm" id="cu-csv"><i class="fa-solid fa-file-csv"></i> ส่งออก CSV</button>') + `
+  main.innerHTML = pageHead('รายชื่อลูกค้า', `${all.length} ราย · สมาชิก ${all.filter(c => c.member).length} · ผู้จองทั่วไป ${all.filter(c => !c.member).length}`, '<button class="btn btn-outline btn-sm" id="cu-csv"><i class="fa-solid fa-file-excel"></i> ส่งออก Excel</button>') + `
     <div class="filters"><div class="f-search"><i class="fa-solid fa-magnifying-glass"></i><input id="cu-q" placeholder="ชื่อ / อีเมล / เบอร์"></div>
     <select id="cu-s" class="sel"><option value="">ทุกกลุ่ม</option><option value="vip">VIP (ใช้จ่าย ≥ ฿20,000)</option><option value="repeat">ลูกค้าประจำ (≥ 2 ครั้ง)</option><option value="member">สมาชิก</option><option value="guest">ผู้จองทั่วไป</option></select></div>
     <section class="card flush" id="cu-list"></section>`;
@@ -1954,7 +2006,7 @@ function boCustomers(main) {
   };
   $('#cu-q').oninput = debounce(e => { q = e.target.value.trim().toLowerCase(); draw(); }, 200);
   $('#cu-s').onchange = e => { seg = e.target.value; draw(); };
-  $('#cu-csv').onclick = () => downloadFile(`customers-${todayISO()}.csv`, toCsv([['ชื่อ', 'อีเมล', 'โทร', 'สมาชิก', 'จำนวนจอง', 'ยอดใช้จ่าย', 'เข้าพักล่าสุด'], ...filtered().map(c => [c.name, c.email, c.phone, c.member ? 'Y' : 'N', c.n, c.spend, c.last || ''])]), 'text/csv;charset=utf-8');
+  $('#cu-csv').onclick = () => downloadXlsx(`customers-${todayISO()}.xlsx`, [['ชื่อ', 'อีเมล', 'โทร', 'สมาชิก', 'จำนวนจอง', 'ยอดใช้จ่าย', 'เข้าพักล่าสุด'], ...filtered().map(c => [c.name, c.email, c.phone, c.member ? 'Y' : 'N', c.n, c.spend, c.last || ''])]);
   draw();
 }
 
@@ -2038,7 +2090,7 @@ function boAudit(main) {
   const all = DB.audit();
   let q = '', who = '', type = '';
   const groups = { auth: 'การเข้าสู่ระบบ', booking: 'การจอง', staff: 'ทีมงาน', hotel: 'ที่พัก', coupon: 'โค้ดส่วนลด', settings: 'ตั้งค่า', data: 'ข้อมูล', flags: 'ฟีเจอร์' };
-  main.innerHTML = pageHead('บันทึกการใช้งาน (Audit log)', `ทุกการกระทำในหลังบ้านถูกบันทึกพร้อมผู้ทำและเวลา · เก็บล่าสุด 1,000 รายการ`, '<button class="btn btn-outline btn-sm" id="au-csv"><i class="fa-solid fa-file-csv"></i> ส่งออก CSV</button>') + `
+  main.innerHTML = pageHead('บันทึกการใช้งาน (Audit log)', `ทุกการกระทำในหลังบ้านถูกบันทึกพร้อมผู้ทำและเวลา · เก็บล่าสุด 1,000 รายการ`, '<button class="btn btn-outline btn-sm" id="au-csv"><i class="fa-solid fa-file-excel"></i> ส่งออก Excel</button>') + `
     <div class="filters"><div class="f-search"><i class="fa-solid fa-magnifying-glass"></i><input id="au-q" placeholder="ค้นหารายละเอียด"></div>
       <select id="au-w" class="sel"><option value="">ทุกคน</option>${[...new Set(all.map(a => a.name))].map(n => `<option>${esc(n)}</option>`).join('')}</select>
       <select id="au-t" class="sel"><option value="">ทุกประเภท</option>${Object.entries(groups).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></div>
@@ -2053,7 +2105,7 @@ function boAudit(main) {
   $('#au-q').oninput = debounce(e => { q = e.target.value.trim().toLowerCase(); draw(); }, 200);
   $('#au-w').onchange = e => { who = e.target.value; draw(); };
   $('#au-t').onchange = e => { type = e.target.value; draw(); };
-  $('#au-csv').onclick = () => downloadFile(`audit-${todayISO()}.csv`, toCsv([['เวลา', 'ผู้ใช้', 'บทบาท', 'การกระทำ', 'รายละเอียด'], ...filtered().map(a => [a.at, a.name, a.role, a.action, a.target])]), 'text/csv;charset=utf-8');
+  $('#au-csv').onclick = () => downloadXlsx(`audit-${todayISO()}.xlsx`, [['เวลา', 'ผู้ใช้', 'บทบาท', 'การกระทำ', 'รายละเอียด'], ...filtered().map(a => [a.at, a.name, a.role, a.action, a.target])]);
   draw();
 }
 

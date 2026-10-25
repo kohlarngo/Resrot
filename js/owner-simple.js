@@ -240,7 +240,7 @@ function shopModal(h, done) {
   const m = openModal(`<h2><i class="fa-solid fa-paintbrush"></i> แก้ไขรีสอร์ท <span class="small muted">· ${esc(h.name)}</span></h2>
     <form id="sh-f" class="form-grid" novalidate style="margin-top:14px">
       <div class="fg full"><label>รูปภาพ — รูปแรกคือ <b>ภาพปก</b> (กดดาวเพื่อตั้งรูปอื่นเป็นปก)</label><div id="sh-imgs"></div></div>
-      <div class="fg full"><label>โลโก้รีสอร์ท <span class="small muted">— แสดงบนหัวใบทะเบียนผู้เข้าพักที่พิมพ์ (ไม่บังคับ)</span></label>
+      <div class="fg full"><label>โลโก้รีสอร์ท <span class="small muted">— ใช้ที่หัวหน้าเว็บของรีสอร์ท ใบทะเบียนผู้เข้าพัก และเอกสารการเงิน (ไม่บังคับ · ถ้าไม่ใส่ใช้โลโก้รวม)</span></label>
         <div class="row" style="gap:12px;align-items:center"><span id="sh-logo-prev" style="display:inline-flex;align-items:center;justify-content:center;width:96px;height:64px;border:1px dashed var(--border,#ccd);border-radius:8px;overflow:hidden"></span>
           <button type="button" class="btn btn-outline btn-sm" id="sh-logo-up"><i class="fa-solid fa-camera"></i> อัปโหลดโลโก้</button><button type="button" class="btn btn-ghost btn-sm" id="sh-logo-rm"><i class="fa-solid fa-trash"></i> ลบโลโก้</button></div></div>
       ${can('hotels.media') ? `<div class="fg full slide-set"><label class="row" style="gap:8px;font-weight:700"><input type="checkbox" name="slide_on" ${h.slideshow?.on === true ? 'checked' : ''}> <i class="fa-solid fa-images"></i> สไลด์รูปอัตโนมัติบนหน้ารีสอร์ท</label>
@@ -892,4 +892,260 @@ function boPrices(main) {
       });
     });
   });
+}
+
+// ================= เอกสารการเงิน: ปรับแต่งได้เองทั้งหมด (ใบแจ้งหนี้ · ใบเสร็จ · ใบกำกับภาษี · ประเภทที่เจ้าของสร้างเอง) =================
+// ผู้ออกเอกสาร h.taxInfo · รูปแบบ/ประเภทเอกสาร h.docCfg · เลขที่รันรายรีสอร์ท/ประเภท/ปี h.docSeq · เอกสารที่ออกแล้วเก็บที่การจอง b.docs[ประเภท] (ออกซ้ำได้เลขเดิม)
+const DOC_DEFAULT_TYPES = () => [
+  { id: 'invoice', th: 'ใบแจ้งหนี้', en: 'Invoice', code: 'INV', vat: false, needPaid: false, buyer: false, discLines: true, sigL: 'ผู้มีอำนาจลงนาม', sigR: 'ผู้รับเอกสาร', note: '', defNote: '' },
+  { id: 'receipt', th: 'ใบเสร็จรับเงิน', en: 'Receipt', code: 'RC', vat: false, needPaid: true, buyer: false, discLines: true, sigL: 'ผู้รับเงิน', sigR: 'ผู้ชำระเงิน', note: '', defNote: '' },
+  { id: 'tax', th: 'ใบกำกับภาษี', en: 'Tax Invoice', code: 'TX', vat: true, needPaid: false, buyer: true, discLines: true, sigL: 'ผู้รับเงิน / ผู้มีอำนาจลงนาม', sigR: 'ผู้ชำระเงิน', note: '', defNote: '' },
+];
+const docCfgOf = h => { const c = h?.docCfg || {}; return { accent: '#1a5fd0', logo: true, header: '', footer: '', ...c, types: Array.isArray(c.types) ? c.types : DOC_DEFAULT_TYPES() }; };
+const r2 = n => Math.round(n * 100) / 100, fmt2 = n => r2(n).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function bahtText(n) {
+  const D = ['ศูนย์', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า'], U = ['', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน'];
+  const six = s => { let o = ''; const L = s.length; [...s].forEach((c, i) => { const d = +c, p = L - i - 1; if (!d) return; o += (p === 1 && d === 1 ? '' : p === 1 && d === 2 ? 'ยี่' : p === 0 && d === 1 && L > 1 ? 'เอ็ด' : D[d]) + U[p]; }); return o; };
+  const int = s => { s = s.replace(/^0+/, '') || '0'; if (s === '0') return D[0]; const parts = []; while (s.length) { parts.unshift(s.slice(-6)); s = s.slice(0, -6); } return parts.map((p, i) => six(p.replace(/^0+(?=\d)/, '')) + (i < parts.length - 1 ? 'ล้าน' : '')).join(''); };
+  const [b, st] = r2(n).toFixed(2).split('.');
+  return int(b) + 'บาท' + (st === '00' ? 'ถ้วน' : int(st) + 'สตางค์');
+}
+// ชื่อผู้ประกอบการเริ่มต้น = ชื่อรีสอร์ท · ที่อยู่เริ่มต้น = ที่อยู่รีสอร์ท (แก้เป็นชื่อนิติบุคคลได้ที่ “ข้อมูลผู้ออก”)
+const taxInfoOf = h => { const t = { taxId: '', branch: 'สำนักงานใหญ่', phone: '', vat: false, svc: 0, ...(h?.taxInfo || {}) }; return { ...t, legalName: (t.legalName || '').trim() || h?.name || '', address: (t.address || '').trim() || h?.address || '' }; };
+
+function boDocs(main) {
+  const hotels = DB.hotels(true);
+  if (!hotels.length) { main.innerHTML = pageHead('เอกสารการเงิน', '') + '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><p class="muted">เพิ่มรีสอร์ทก่อน แล้วจึงออกเอกสารได้</p></div></section>'; return; }
+  const bks = DB.bookings().filter(b => b.source !== 'external' && b.status !== 'cancelled').sort((a, c) => (c.createdAt || '').localeCompare(a.createdAt || ''));
+  main.innerHTML = pageHead('เอกสารการเงิน', 'ออกใบแจ้งหนี้ ใบเสร็จ ใบกำกับภาษี หรือเอกสารแบบที่คุณสร้างเอง · พิมพ์หรือบันทึกเป็น PDF') + `
+    <section class="card"><div class="card-h"><h3><i class="fa-solid fa-building"></i> ผู้ออกเอกสาร & รูปแบบเอกสาร</h3></div>
+      <div class="bo-list">${hotels.map(h => { const t = taxInfoOf(h), c = docCfgOf(h); return `<div class="row between wrap" style="gap:10px;padding:8px 0;border-top:1px solid var(--border,#e5e7eb)"><div><b>${esc(h.name)}</b><div class="small muted">${esc(t.legalName)} · เลขผู้เสียภาษี ${esc(t.taxId || '-')} · ${t.vat ? 'จด VAT' : 'ไม่จด VAT'} · เอกสาร ${c.types.length} ประเภท</div></div>
+        <div class="row" style="gap:6px"><button class="btn btn-outline btn-sm" data-ti="${h.id}"><i class="fa-solid fa-pen"></i> ข้อมูลผู้ออก</button><button class="btn btn-outline btn-sm" data-dc="${h.id}"><i class="fa-solid fa-sliders"></i> ปรับแต่งเอกสาร</button></div></div>`; }).join('')}</div></section>
+    <div class="card sh-find"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="dc-q" placeholder="ค้นหาเลขการจอง หรือชื่อลูกค้า..." autocomplete="off"><span class="small muted" id="dc-n">${bks.length} รายการ</span></div>
+    <section class="card flush"><div class="table-scroll"><table class="tbl"><thead><tr><th>การจอง</th><th>ลูกค้า</th><th>เข้าพัก</th><th>ยอดรวม</th><th>ชำระ</th><th>ออกเอกสาร</th></tr></thead><tbody id="dc-body">${bks.map(b => `<tr data-q="${esc((b.id + ' ' + b.guest.firstName + ' ' + b.guest.lastName + ' ' + b.hotelName).toLowerCase())}">
+      <td><b>${esc(b.id)}</b><div class="small muted">${esc(b.hotelName)}</div></td><td>${esc(b.guest.firstName)} ${esc(b.guest.lastName)}</td><td class="small">${fmtDate(b.checkIn, false)} – ${fmtDate(b.checkOut, false)}</td><td>${money(b.price.total)}</td>
+      <td>${b.payment.paid ? '<span class="green bold">ชำระแล้ว</span>' : '<span class="muted">ยังไม่ชำระ</span>'}</td>
+      <td style="white-space:nowrap">${docCfgOf(DB.hotel(b.hotelId)).types.map(d => `<button class="btn btn-sm ${b.docs?.[d.id] ? 'btn-primary' : 'btn-outline'}" data-doc="${esc(d.id)}" data-b="${esc(b.id)}" title="${esc(d.th)}${b.docs?.[d.id] ? ' · ' + esc(b.docs[d.id].no) : ''}"><i class="fa-solid fa-file-lines"></i> ${esc(d.th)}</button>`).join(' ') || '<span class="small muted">ยังไม่มีประเภทเอกสาร — กด “ปรับแต่งเอกสาร”</span>'}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">ยังไม่มีการจอง</td></tr>'}</tbody></table></div></section>
+    <p class="small muted">ปุ่มสีเข้ม = ออกเอกสารนั้นแล้ว กดเพื่อพิมพ์ซ้ำด้วยเลขที่เดิม · เพิ่ม ลบ หรือเปลี่ยนชื่อประเภทเอกสาร คำนำหน้าเลขที่ ข้อความท้ายเอกสาร สีและโลโก้ ได้ที่ “ปรับแต่งเอกสาร” · ข้อมูลนี้เป็นเครื่องมือช่วยออกเอกสาร กรุณาตรวจสอบกับนักบัญชีของคุณ</p>`;
+  const q = $('#dc-q', main); q.oninput = () => { const t = q.value.trim().toLowerCase(); let n = 0; $$('#dc-body tr', main).forEach(r => { const ok = !t || (r.dataset.q || '').includes(t); r.style.display = ok ? '' : 'none'; if (ok) n++; }); $('#dc-n', main).textContent = n + ' รายการ'; };
+  $$('[data-ti]', main).forEach(b => b.onclick = () => taxInfoModal(DB.hotel(b.dataset.ti), () => boDocs(main)));
+  $$('[data-dc]', main).forEach(b => b.onclick = () => docCfgModal(DB.hotel(b.dataset.dc), () => boDocs(main)));
+  $$('[data-doc]', main).forEach(b => b.onclick = () => issueDoc(DB.booking(b.dataset.b), b.dataset.doc, () => boDocs(main)));
+}
+
+function taxInfoModal(h, done) {
+  const t = taxInfoOf(h);
+  const m = openModal(`<h2><i class="fa-solid fa-building"></i> ข้อมูลผู้ออกเอกสาร <span class="small muted">· ${esc(h.name)}</span></h2>
+    <form id="ti-f" class="form-grid" novalidate style="margin-top:14px">
+      <div class="fg full"><label>ชื่อผู้ออกเอกสาร <span class="small muted">— ค่าเริ่มต้นคือชื่อรีสอร์ท แก้เป็นชื่อนิติบุคคลได้ถ้าต้องการ</span></label><input name="legalName" value="${esc(t.legalName)}" placeholder="${esc(h.name)}"></div>
+      <div class="fg"><label>เลขประจำตัวผู้เสียภาษี (13 หลัก)</label><input name="taxId" value="${esc(t.taxId)}" maxlength="13" inputmode="numeric"></div>
+      <div class="fg"><label>สาขา</label><input name="branch" value="${esc(t.branch)}" placeholder="สำนักงานใหญ่ หรือ สาขา 00001"></div>
+      <div class="fg full"><label>ที่อยู่ <span class="req">*</span></label><textarea name="address" rows="2">${esc(t.address || h.address || '')}</textarea></div>
+      <div class="fg"><label>เบอร์โทร</label><input name="phone" value="${esc(t.phone)}"></div>
+      <div class="fg"><label>ค่าบริการ Service Charge (%)</label><input name="svc" type="number" min="0" max="30" step="0.5" value="${+t.svc || 0}"><div class="small muted" style="margin-top:4px">0 = ไม่เก็บ · ที่เก็บทั่วไป 10% · ราคาที่ลูกค้าจ่ายถือเป็นราคารวมแล้ว ระบบแยกให้ในเอกสาร โดยคิด VAT ซ้อนบนยอดรวมค่าบริการ</div></div>
+      <div class="fg full"><label class="row" style="gap:8px;font-weight:700"><input type="checkbox" name="vat" ${t.vat ? 'checked' : ''}> จดทะเบียนภาษีมูลค่าเพิ่ม (VAT 7%)</label>
+        <div class="small muted" style="margin-top:4px">ราคาที่ลูกค้าจ่ายถือเป็นราคารวม VAT แล้ว · เอกสารประเภทที่ตั้งให้ “แยก VAT” จะออกได้เมื่อติ๊กข้อนี้</div></div>
+    </form>
+    <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn btn-ghost" data-close><i class="fa-solid fa-arrow-left"></i> ย้อนกลับ</button><button class="btn btn-primary" id="ti-save">บันทึก</button></div>`);
+  $('#ti-save', m).onclick = () => {
+    const f = $('#ti-f', m).elements, v = k => f[k].value.trim();
+    if (!v('address')) return toast('กรุณากรอกที่อยู่', 'err');
+    if (v('taxId') && !/^\d{13}$/.test(v('taxId'))) return toast('เลขผู้เสียภาษีต้องเป็นตัวเลข 13 หลัก', 'err');
+    if (f.vat.checked && !v('taxId')) return toast('รีสอร์ทที่จด VAT ต้องกรอกเลขผู้เสียภาษี', 'err');
+    const c = JSON.parse(JSON.stringify(DB.hotel(h.id)));
+    c.taxInfo = { legalName: v('legalName') || h.name, taxId: v('taxId'), branch: v('branch') || 'สำนักงานใหญ่', address: v('address'), phone: v('phone'), svc: Math.max(0, Math.min(30, +v('svc') || 0)), vat: f.vat.checked };
+    DB.saveHotel(c); DB.log('docs.taxinfo', c.name); closeModal(); toast('บันทึกข้อมูลผู้ออกเอกสารแล้ว'); done?.();
+  };
+}
+
+// ปรับแต่งเอกสาร: เพิ่ม/ลบ/แก้ประเภทเอกสารเอง + หน้าตาโดยรวม (สี โลโก้ ข้อความหัว/ท้าย)
+function docCfgModal(h, done) {
+  const cfg = docCfgOf(h), types = JSON.parse(JSON.stringify(cfg.types));
+  let logoUrl = h.logo || '', sigUrl = cfg.sigUrl || ''; // โลโก้เดียวกับของรีสอร์ท (หน้าเว็บ · ใบทะเบียน · เอกสาร)
+  const m = openModal(`<h2><i class="fa-solid fa-sliders"></i> ปรับแต่งเอกสาร <span class="small muted">· ${esc(h.name)}</span></h2>
+    <p class="small muted" style="margin:4px 0 12px">สร้างประเภทเอกสารของคุณเอง (เช่น ใบมัดจำ ใบเสนอราคา ใบรับเงินสด) เปลี่ยนชื่อ ลบ หรือเพิ่มได้อิสระ — มีผลกับรีสอร์ทนี้เท่านั้น</p>
+    <div class="card" style="padding:10px;margin:0 0 12px"><div class="row between wrap" style="gap:8px"><b><i class="fa-solid fa-eye"></i> ตัวอย่างเอกสาร <span class="small muted">· อัปเดตทันทีที่แก้ (ข้อมูลตัวอย่าง ไม่ใช่การจองจริง)</span></b><select id="dcg-pt" style="max-width:240px"></select></div>
+      <iframe id="dcg-pv" title="ตัวอย่างเอกสาร" style="width:100%;height:520px;border:1px solid var(--border,#ddd);border-radius:8px;background:#fff;margin-top:8px"></iframe></div>
+    <div id="dcg-list"></div>
+    <div class="row wrap" style="gap:8px;margin:10px 0"><button type="button" class="btn btn-primary btn-sm" id="dcg-add"><i class="fa-solid fa-plus"></i> เพิ่มประเภทเอกสาร</button><button type="button" class="btn btn-ghost btn-sm" id="dcg-reset"><i class="fa-solid fa-rotate-left"></i> คืนค่าเริ่มต้น (3 ประเภท)</button></div>
+    <form id="dcg-f" class="form-grid" novalidate style="margin-top:10px">
+      <div class="fg"><label>สีหลักของเอกสาร</label><input name="accent" type="color" value="${esc(cfg.accent)}" style="height:42px"></div>
+      <div class="fg full"><label class="row" style="gap:8px"><input type="checkbox" name="logo" ${cfg.logo ? 'checked' : ''}> แสดงโลโก้บนหัวเอกสาร</label>
+        <div class="row" style="gap:12px;align-items:center;margin-top:6px"><span id="dcg-logo-prev" style="display:inline-flex;align-items:center;justify-content:center;width:120px;height:64px;border:1px dashed var(--border,#ccd);border-radius:8px;overflow:hidden"></span>
+          <button type="button" class="btn btn-outline btn-sm" id="dcg-logo-up"><i class="fa-solid fa-camera"></i> อัปโหลดโลโก้</button><button type="button" class="btn btn-ghost btn-sm" id="dcg-logo-rm"><i class="fa-solid fa-trash"></i> ลบ</button></div>
+        <div class="small muted" style="margin-top:4px">เป็นโลโก้เดียวกับ “แก้ไขรีสอร์ท” — เปลี่ยนที่ไหนก็เปลี่ยนทั้งหน้าเว็บของรีสอร์ท ใบทะเบียน และเอกสาร</div></div>
+      <div class="fg full"><label><i class="fa-solid fa-signature"></i> ลายเซ็นผู้มีอำนาจลงนาม <span class="small muted">— แสดงเหนือเส้นลายเซ็นด้านซ้ายของทุกเอกสาร</span></label>
+        <div class="row" style="gap:12px;align-items:center;margin-top:6px"><span id="dcg-sig-prev" style="display:inline-flex;align-items:center;justify-content:center;width:160px;height:64px;border:1px dashed var(--border,#ccd);border-radius:8px;overflow:hidden;background:#fff"></span>
+          <button type="button" class="btn btn-outline btn-sm" id="dcg-sig-up"><i class="fa-solid fa-camera"></i> อัปโหลดลายเซ็น</button><button type="button" class="btn btn-ghost btn-sm" id="dcg-sig-rm"><i class="fa-solid fa-trash"></i> ลบ</button></div>
+        <div class="small muted" style="margin-top:4px">แนะนำรูปลายเซ็นพื้นหลังขาวหรือโปร่งใส (PNG) · ถ่ายหรือสแกนลายเซ็นบนกระดาษขาว</div></div>
+      <div class="fg full"><label>ชื่อผู้ลงนาม / ตำแหน่ง (พิมพ์ใต้เส้นลายเซ็น)</label><input name="signer" value="${esc(cfg.signer || '')}" maxlength="120" placeholder="เช่น (นายสมชาย ใจดี) เจ้าของกิจการ"></div>
+      <div class="fg full"><label>ข้อความใต้หัวเอกสาร (ทุกประเภท)</label><input name="header" value="${esc(cfg.header)}" maxlength="200" placeholder="เช่น โทร 081-xxx-xxxx · LINE @resort"></div>
+      <div class="fg full"><label>ข้อความท้ายเอกสาร (ทุกประเภท)</label><textarea name="footer" rows="2" maxlength="500" placeholder="เช่น บัญชีโอน ธนาคาร... เลขที่... / ขอบคุณที่ใช้บริการ">${esc(cfg.footer)}</textarea></div>
+    </form>
+    <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn btn-ghost" data-close><i class="fa-solid fa-arrow-left"></i> ย้อนกลับ</button><button class="btn btn-primary" id="dcg-save">บันทึก</button></div>`, 'wide');
+  const fld = (i, k, label, ph = '', attrs = '') => `<div class="fg"><label class="small">${label}</label><input data-k="${k}" value="${esc(types[i][k] || '')}" placeholder="${esc(ph)}" ${attrs}></div>`;
+  const chk = (i, k, label) => `<label class="row small" style="gap:6px"><input type="checkbox" data-k="${k}" ${types[i][k] ? 'checked' : ''}> ${label}</label>`;
+  let draw = () => {
+    $('#dcg-list', m).innerHTML = types.map((d, i) => `<div class="card" data-i="${i}" style="margin:0 0 10px;padding:12px"><div class="row between"><b>${esc(d.th || 'ประเภทใหม่')}</b><button type="button" class="btn btn-sm btn-danger" data-del="${i}" title="ลบประเภทนี้"><i class="fa-solid fa-trash"></i></button></div>
+      <div class="form-grid" style="margin-top:8px">${fld(i, 'th', 'ชื่อเอกสาร (ไทย) *')}${fld(i, 'en', 'ชื่อเอกสาร (อังกฤษ)', 'Invoice')}${fld(i, 'code', 'คำนำหน้าเลขที่ (A-Z 0-9)', 'INV', 'maxlength="6"')}
+        ${fld(i, 'sigL', 'ป้ายลายเซ็นซ้าย', 'ผู้มีอำนาจลงนาม')}${fld(i, 'sigR', 'ป้ายลายเซ็นขวา', 'ผู้รับเอกสาร')}
+        <div class="fg full"><label class="small">หมายเหตุในเอกสาร (ค่าเริ่มต้น — แก้เป็นรายใบได้ตอนออกเอกสาร)</label><textarea data-k="defNote" rows="2" maxlength="500" placeholder="เช่น ชำระเงินภายใน 3 วันหลังได้รับใบแจ้งหนี้">${esc(d.defNote || '')}</textarea></div>
+        <div class="fg full"><label class="small">ข้อความท้ายเฉพาะเอกสารนี้ (เช่น เงื่อนไข การคืนมัดจำ)</label><textarea data-k="note" rows="2" maxlength="500">${esc(d.note || '')}</textarea></div></div>
+      <div class="row wrap" style="gap:14px;margin-top:6px">${chk(i, 'vat', 'แยกยอดก่อนภาษี + VAT 7% (ต้องจด VAT)')}${chk(i, 'needPaid', 'ออกได้เมื่อชำระเงินแล้วเท่านั้น')}${chk(i, 'buyer', 'ถามข้อมูลผู้ซื้อ (ชื่อ/เลขภาษี/ที่อยู่)')}${chk(i, 'discLines', 'แสดงส่วนลดแยกบรรทัด')}</div></div>`).join('') || '<p class="muted small">ยังไม่มีประเภทเอกสาร — กด “เพิ่มประเภทเอกสาร”</p>';
+    $$('[data-del]', m).forEach(b => b.onclick = () => { read(); types.splice(+b.dataset.del, 1); draw(); });
+  };
+  const read = () => $$('[data-i]', m).forEach(el => { const d = types[+el.dataset.i]; $$('[data-k]', el).forEach(i => { d[i.dataset.k] = i.type === 'checkbox' ? i.checked : i.value; }); });
+  // ตัวอย่างสด: ใช้ค่าที่กรอกอยู่ (ยังไม่ต้องกดบันทึก) กับการจองสมมุติ
+  const preview = () => {
+    read();
+    const sel = $('#dcg-pt', m), keep = sel.value;
+    sel.innerHTML = types.map(d => `<option value="${esc(d.id)}">${esc(d.th || 'ประเภทใหม่')}</option>`).join('');
+    if (types.some(d => d.id === keep)) sel.value = keep;
+    const d = types.find(x => x.id === sel.value), fr = $('#dcg-pv', m);
+    if (!d) { fr.srcdoc = '<p style="font:14px sans-serif;padding:20px;color:#666">ยังไม่มีประเภทเอกสาร — กด “เพิ่มประเภทเอกสาร”</p>'; return; }
+    const f = $('#dcg-f', m).elements, t0 = taxInfoOf(h), today = todayISO(), now = new Date().toISOString();
+    const t = { ...t0, address: t0.address || '(ที่อยู่ — ตั้งที่ “ข้อมูลผู้ออก”)' };
+    const b = { id: 'SD-SAMPLE', hotelName: h.name, roomName: 'ห้องตัวอย่าง', qty: 1, nights: 2, checkIn: today, checkOut: addDays(today, 2), guest: { firstName: 'สมชาย', lastName: 'ใจดี', email: 'sample@example.com', phone: '081-234-5678' },
+      price: { orig: 3000, room: 2700, member: 0, coupon: 0, couponCode: '', tax: 0, total: 2700 }, payment: { method: 'promptpay', paid: true } };
+    const doc = { no: `${(d.code || 'DOC').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) || 'DOC'}-${new Date().getFullYear()}-0001`, at: now, by: 'ตัวอย่าง', extra: [{ name: 'ค่าอาหารเช้า (ตัวอย่าง)', qty: 2, price: 150 }], note: d.defNote || '',
+      ...(d.buyer ? { buyer: { name: 'บริษัท ตัวอย่าง จำกัด', taxId: '0105500000000', branch: 'สำนักงานใหญ่', address: '99 ถนนตัวอย่าง กรุงเทพฯ 10110' } } : {}) };
+    // โหลดตัวอย่างใหม่แล้วเบราว์เซอร์อาจดึงโฟกัสไปที่กรอบตัวอย่าง ทำให้พิมพ์ต่อไม่ได้ — จำช่องที่กำลังพิมพ์และคืนโฟกัส/ตำแหน่งเคอร์เซอร์ให้
+    const ae = document.activeElement, ss = ae?.selectionStart, se = ae?.selectionEnd, typing = ae && ae !== fr && m.contains(ae) && /^(INPUT|TEXTAREA)$/.test(ae.tagName);
+    fr.onload = () => { if (!typing) return; ae.focus({ preventScroll: true }); try { if (ss != null) ae.setSelectionRange(ss, se); } catch { /* ช่องชนิดที่ไม่มีเคอร์เซอร์ */ } };
+    fr.srcdoc = docHtml(b, d.id, h, { preview: true, tax: t, doc, logoUrl, cfg: { types, sigUrl, signer: f.signer.value.trim(), accent: f.accent.value || '#1a5fd0', logo: f.logo.checked, header: f.header.value.trim(), footer: f.footer.value.trim() } });
+  };
+  const drawLogo = () => { const src = logoUrl; $('#dcg-logo-prev', m).innerHTML = src ? `<img src="${esc(src)}" alt="" style="max-width:100%;max-height:100%;object-fit:contain">` : '<span class="small muted">ยังไม่มีโลโก้</span>'; $('#dcg-logo-rm', m).style.display = logoUrl ? '' : 'none'; };
+  $('#dcg-logo-up', m).onclick = async () => {
+    try { toast('เลือกรูปโลโก้จากเครื่อง...', 'info'); const url = await pickAndUploadImage(600); if (!url) return; logoUrl = url; drawLogo(); pvSoon(); toast('อัปโหลดโลโก้แล้ว — กด “บันทึก” เพื่อใช้งาน'); }
+    catch (e) { toast('อัปโหลดโลโก้ไม่สำเร็จ: ' + e.message, 'err'); }
+  };
+  $('#dcg-logo-rm', m).onclick = () => { logoUrl = ''; drawLogo(); pvSoon(); };
+  const drawSig = () => { $('#dcg-sig-prev', m).innerHTML = sigUrl ? `<img src="${esc(sigUrl)}" alt="" style="max-width:100%;max-height:100%;object-fit:contain">` : '<span class="small muted">ยังไม่มีลายเซ็น</span>'; $('#dcg-sig-rm', m).style.display = sigUrl ? '' : 'none'; };
+  $('#dcg-sig-up', m).onclick = async () => {
+    try { toast('เลือกรูปลายเซ็นจากเครื่อง...', 'info'); const url = await pickAndUploadImage(600); if (!url) return; sigUrl = url; drawSig(); pvSoon(); toast('อัปโหลดลายเซ็นแล้ว — กด “บันทึก” เพื่อใช้งาน'); }
+    catch (e) { toast('อัปโหลดลายเซ็นไม่สำเร็จ: ' + e.message, 'err'); }
+  };
+  $('#dcg-sig-rm', m).onclick = () => { sigUrl = ''; drawSig(); pvSoon(); };
+  let pvT; const pvSoon = () => { clearTimeout(pvT); pvT = setTimeout(preview, 500); };
+  m.addEventListener('input', pvSoon); m.addEventListener('change', pvSoon);
+  const draw0 = draw; draw = () => { draw0(); pvSoon(); };
+  drawLogo(); drawSig(); draw();
+  $('#dcg-add', m).onclick = () => { read(); types.push({ id: 'c' + Date.now().toString(36), th: '', en: '', code: 'DOC', vat: false, needPaid: false, buyer: false, discLines: true, sigL: 'ผู้มีอำนาจลงนาม', sigR: 'ผู้รับเอกสาร', note: '', defNote: '' }); draw(); $$('[data-i]', m).at(-1)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+  $('#dcg-reset', m).onclick = async () => { if (!(await confirmBox('คืนค่าเริ่มต้นเป็น ใบแจ้งหนี้ / ใบเสร็จรับเงิน / ใบกำกับภาษี? (เอกสารที่ออกไปแล้วไม่เปลี่ยน)', 'คืนค่า'))) return; types.splice(0, types.length, ...DOC_DEFAULT_TYPES()); draw(); };
+  $('#dcg-save', m).onclick = () => {
+    read();
+    if (types.some(d => !d.th.trim())) return toast('กรุณาตั้งชื่อเอกสารไทยให้ครบทุกประเภท', 'err');
+    types.forEach(d => { d.th = d.th.trim(); d.en = (d.en || '').trim(); d.code = (d.code || 'DOC').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) || 'DOC'; });
+    const f = $('#dcg-f', m).elements, c = JSON.parse(JSON.stringify(DB.hotel(h.id)));
+    c.logo = logoUrl || undefined; c.docCfg = { types, sigUrl: sigUrl || undefined, signer: f.signer.value.trim(), accent: f.accent.value || '#1a5fd0', logo: f.logo.checked, header: f.header.value.trim(), footer: f.footer.value.trim() };
+    DB.saveHotel(c); DB.log('docs.config', c.name); closeModal(); toast('บันทึกการปรับแต่งเอกสารแล้ว'); done?.();
+  };
+}
+
+// ออกเอกสาร: เคยออกแล้ว = พิมพ์ซ้ำเลขเดิม · ยังไม่เคย = เปิดหน้าต่างกรอกผู้ซื้อ (ถ้าประเภทนี้ต้องการ) + รายการเพิ่มเอง + หมายเหตุ แล้วออกเลขที่
+function issueDoc(b, typeId, done) {
+  const h = DB.hotel(b.hotelId), t = taxInfoOf(h), d = docCfgOf(h).types.find(x => x.id === typeId);
+  if (!d) return toast('ไม่พบประเภทเอกสารนี้', 'err');
+  if (b.docs?.[typeId]) { printDoc(b, typeId, h); return; }
+  if (!t.address.trim()) return toast('กรุณากรอกที่อยู่ใน “ข้อมูลผู้ออก” ของรีสอร์ทนี้ก่อน', 'err');
+  if (d.vat && (!t.vat || !t.taxId)) return toast('เอกสารประเภทนี้แยก VAT — ต้องติ๊ก “จดทะเบียน VAT” และกรอกเลขผู้เสียภาษีที่ “ข้อมูลผู้ออกเอกสาร” ก่อน', 'err');
+  if (d.needPaid && !b.payment.paid) return toast('เอกสารประเภทนี้ออกได้เมื่อรับชำระเงินแล้ว — ยืนยันการชำระเงินของการจองนี้ก่อน', 'err');
+  const g = b.guest, rows = [];
+  const m = openModal(`<h2><i class="fa-solid fa-file-lines"></i> ออก${esc(d.th)} <span class="small muted">· ${esc(b.id)}</span></h2>
+    <form id="is-f" class="form-grid" novalidate style="margin-top:14px">
+      ${d.buyer ? `<div class="fg full"><label>ชื่อผู้ซื้อ / บริษัท <span class="req">*</span></label><input name="bname" value="${esc(`${g.firstName} ${g.lastName}`)}"></div>
+      <div class="fg"><label>เลขประจำตัวผู้เสียภาษี (ถ้ามี)</label><input name="btax" maxlength="13" inputmode="numeric"></div><div class="fg"><label>สาขา (ถ้ามี)</label><input name="bbranch"></div>
+      <div class="fg full"><label>ที่อยู่ผู้ซื้อ <span class="req">*</span></label><textarea name="baddr" rows="2"></textarea></div>` : ''}
+      <div class="fg full"><label>รายการเพิ่มเติม (ไม่บังคับ) <span class="small muted">— เช่น ค่าอาหาร ค่าเตียงเสริม ค่ามัดจำ · ใส่ราคาติดลบเพื่อเป็นส่วนลด</span></label><div id="is-rows"></div>
+        <button type="button" class="btn btn-outline btn-sm" id="is-add"><i class="fa-solid fa-plus"></i> เพิ่มรายการ</button></div>
+      <div class="fg full"><label>หมายเหตุในเอกสาร (ไม่บังคับ)</label><textarea name="note" rows="2" maxlength="500">${esc(d.defNote || '')}</textarea></div>
+    </form>
+    <div class="small muted" style="margin-top:8px">เมื่อออกแล้วจะได้เลขที่เอกสารทันที และแก้ไขไม่ได้ (พิมพ์ซ้ำได้) · ยอดเดิมของการจอง ${money(b.price.total)}</div>
+    <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn btn-ghost" data-close><i class="fa-solid fa-arrow-left"></i> ย้อนกลับ</button><button class="btn btn-primary" id="is-go">ออก${esc(d.th)}</button></div>`);
+  const drawRows = () => { $('#is-rows', m).innerHTML = rows.map((r, i) => `<div class="row" data-r="${i}" style="gap:6px;margin-bottom:6px"><input data-f="name" value="${esc(r.name)}" placeholder="รายการ" style="flex:2"><input data-f="qty" type="number" min="1" value="${r.qty}" style="width:70px" title="จำนวน"><input data-f="price" type="number" step="0.01" value="${r.price}" style="width:110px" title="ราคา/หน่วย"><button type="button" class="btn btn-sm btn-danger" data-rd="${i}"><i class="fa-solid fa-xmark"></i></button></div>`).join('');
+    $$('[data-rd]', m).forEach(x => x.onclick = () => { readRows(); rows.splice(+x.dataset.rd, 1); drawRows(); }); };
+  const readRows = () => $$('[data-r]', m).forEach(el => { const r = rows[+el.dataset.r]; r.name = $('[data-f=name]', el).value; r.qty = +$('[data-f=qty]', el).value || 1; r.price = +$('[data-f=price]', el).value || 0; });
+  $('#is-add', m).onclick = () => { readRows(); rows.push({ name: '', qty: 1, price: 0 }); drawRows(); };
+  $('#is-go', m).onclick = () => {
+    readRows(); const f = $('#is-f', m).elements, v = k => f[k]?.value.trim() || '';
+    if (d.buyer && (!v('bname') || !v('baddr'))) return toast('กรุณากรอกชื่อและที่อยู่ผู้ซื้อ', 'err');
+    if (v('btax') && !/^\d{13}$/.test(v('btax'))) return toast('เลขผู้เสียภาษีต้องเป็นตัวเลข 13 หลัก', 'err');
+    const extra = rows.filter(r => r.name.trim() && r.price).map(r => ({ name: r.name.trim().slice(0, 120), qty: Math.max(1, Math.round(r.qty)), price: r2(r.price) }));
+    const hc = JSON.parse(JSON.stringify(DB.hotel(h.id))), yr = new Date().getFullYear(), key = d.code + yr;
+    hc.docSeq = { ...(hc.docSeq || {}) }; hc.docSeq[key] = (hc.docSeq[key] || 0) + 1;
+    const doc = { no: `${d.code}-${yr}-${String(hc.docSeq[key]).padStart(4, '0')}`, at: new Date().toISOString(), by: DB.currentUser()?.name || '', extra, note: v('note'),
+      ...(d.buyer ? { buyer: { name: v('bname'), taxId: v('btax'), branch: v('bbranch'), address: v('baddr') } } : {}) };
+    DB.saveHotel(hc); DB.updateBooking(b.id, { docs: { ...(b.docs || {}), [typeId]: doc } }); DB.log('docs.issue', `${doc.no} · ${b.id}`);
+    closeModal(); printDoc(DB.booking(b.id), typeId, DB.hotel(h.id)); done?.();
+  };
+}
+
+// สร้าง HTML ของเอกสาร — ใช้ทั้งตอนพิมพ์จริง และตัวอย่างในหน้า “ปรับแต่งเอกสาร” (o.preview = ไม่มีแถบพิมพ์/ไม่สั่งพิมพ์อัตโนมัติ)
+function docHtml(b, typeId, h, o = {}) {
+  const cfg = o.cfg || docCfgOf(h), d = cfg.types.find(x => x.id === typeId), t = o.tax || taxInfoOf(h), doc = o.doc || b.docs[typeId], P = b.price, E = x => esc(x == null ? '' : String(x));
+  const buyer = doc.buyer || { name: `${b.guest.firstName} ${b.guest.lastName}`, address: '' }, ac = /^#[0-9a-f]{6}$/i.test(cfg.accent) ? cfg.accent : '#1a5fd0';
+  const paid = b.payment.paid, extras = doc.extra || [], extraSum = r2(extras.reduce((s, x) => s + x.qty * x.price, 0)), folio = b.folio || [], folioTotal = r2(folio.reduce((s, x) => s + x.qty * x.price, 0)), total = r2(P.total + extraSum + folioTotal);
+  // Service Charge + VAT คิดซ้อน: ราคารวม = ฐาน × (1 + SC%) × 1.07 → แยกฐาน / ค่าบริการ / VAT ให้ผลรวมเท่ายอดจริงเป๊ะ
+  const svcPct = +t.svc || 0, k = (1 + svcPct / 100) * (d.vat ? 1.07 : 1), base = r2(total / k), svc = svcPct ? r2(base * svcPct / 100) : 0, vat = d.vat ? r2(total - base - svc) : 0;
+  const nights = b.nights * b.qty, items = [[`ค่าห้องพัก ${E(b.roomName)} — ${E(b.hotelName)}<br><span class="m">${fmtDate(b.checkIn, false)} – ${fmtDate(b.checkOut, false)} · ${b.qty} ห้อง × ${b.nights} คืน</span>`, nights, P.orig / (nights || 1), P.orig]];
+  if (d.discLines) {
+    const disc = r2(P.orig - P.room); if (disc > 0) items.push(['ส่วนลดโปรโมชัน', '', '', -disc]);
+    if (P.member) items.push(['ส่วนลดสมาชิก', '', '', -P.member]); if (P.coupon) items.push([`โค้ดส่วนลด ${E(P.couponCode)}`, '', '', -P.coupon]);
+  } else { items[0][2] = P.room / (nights || 1); items[0][3] = P.room - (P.member || 0) - (P.coupon || 0); }
+  if (P.tax) items.push(['ภาษีและค่าธรรมเนียม', '', '', P.tax]);
+  folio.forEach(x => items.push([E(x.name), x.qty, x.price, x.qty * x.price]));
+  extras.forEach(x => items.push([E(x.name), x.qty, x.price, x.qty * x.price]));
+  const logoSrc = o.logoUrl !== undefined ? o.logoUrl : h.logo, logo = cfg.logo && logoSrc ? `<img src="${E(logoSrc)}" alt="" style="max-height:56px;max-width:160px;object-fit:contain;margin-bottom:6px;display:block">` : '';
+  const html = `<!doctype html><html lang="th"><head><meta charset="utf-8"><title>${E(d.th)} ${E(doc.no)}</title><style>
+    body { font: 14px/1.5 'Sarabun', 'Noto Sans Thai', Tahoma, sans-serif; color: #111; max-width: 800px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 22px; margin: 0; color: ${ac}; } .m { color: #666; font-size: 12px; } table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border: 1px solid #bbb; padding: 7px 9px; vertical-align: top; } th { background: ${ac}; color: #fff; text-align: left; } td.r, th.r { text-align: right; }
+    .top { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 3px solid ${ac}; } .box { border: 1px solid #bbb; padding: 10px 12px; margin-top: 12px; white-space: pre-line; }
+    .sig { display: flex; justify-content: space-around; margin-top: 74px; text-align: center; } .sig div { width: 40%; border-top: 1px solid #333; padding-top: 6px; }
+    .noprint { margin-bottom: 14px; padding: 10px; background: #eef4ff; border-radius: 8px; } .noprint button { font: inherit; font-weight: 700; padding: 8px 16px; border: 0; border-radius: 8px; background: #1a5fd0; color: #fff; cursor: pointer; margin-left: 10px; }
+    @media print { .noprint { display: none; } body { padding: 0; } th { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  </style></head><body>
+    ${o.preview ? '' : '<div class="noprint">เลือก <b>พิมพ์</b> หรือเลือกปลายทางเป็น <b>บันทึกเป็น PDF</b> ในหน้าต่างพิมพ์ <button onclick="window.print()">พิมพ์ / บันทึก PDF</button></div>'}
+    <div class="top"><div>${logo}<b style="font-size:16px">${E(t.legalName)}</b><div>${E(t.address)}</div><div class="m">${t.taxId ? `เลขประจำตัวผู้เสียภาษี ${E(t.taxId)} · ` : ''}${E(t.branch)}${t.phone ? ' · โทร ' + E(t.phone) : ''}</div>${cfg.header ? `<div class="m">${E(cfg.header)}</div>` : ''}</div>
+      <div style="text-align:right"><h1>${E(d.th)}</h1>${d.en ? `<div class="m">${E(d.en)}</div>` : ''}<div style="margin-top:8px">เลขที่: <b>${E(doc.no)}</b></div><div>วันที่: ${E(fmtDate(doc.at.slice(0, 10), false))}</div><div class="m">อ้างอิงการจอง ${E(b.id)}</div></div></div>
+    <div class="box"><b>${d.buyer ? 'ผู้ซื้อ' : 'ลูกค้า'}:</b> ${E(buyer.name)}${buyer.taxId ? ` · เลขประจำตัวผู้เสียภาษี ${E(buyer.taxId)}${buyer.branch ? ' (' + E(buyer.branch) + ')' : ''}` : ''}${buyer.address ? `\n${E(buyer.address)}` : ''}${!d.buyer ? `\n<span class="m">${E(b.guest.email)} · ${E(b.guest.phone)}</span>` : ''}</div>
+    <table><thead><tr><th style="width:40px">#</th><th>รายการ</th><th class="r">จำนวน</th><th class="r">ราคา/หน่วย</th><th class="r">จำนวนเงิน (บาท)</th></tr></thead><tbody>
+      ${items.map((it, i) => `<tr><td>${i + 1}</td><td>${it[0]}</td><td class="r">${it[1]}</td><td class="r">${it[2] === '' ? '' : fmt2(it[2])}</td><td class="r">${it[3] < 0 ? '-' : ''}${fmt2(Math.abs(it[3]))}</td></tr>`).join('')}
+      ${d.vat || svcPct ? `<tr><td colspan="4" class="r">มูลค่าก่อน${svcPct ? 'ค่าบริการและ' : ''}${d.vat ? 'ภาษีมูลค่าเพิ่ม' : ''}</td><td class="r">${fmt2(base)}</td></tr>${svcPct ? `<tr><td colspan="4" class="r">ค่าบริการ ${svcPct}%</td><td class="r">${fmt2(svc)}</td></tr>` : ''}${d.vat ? `<tr><td colspan="4" class="r">ภาษีมูลค่าเพิ่ม 7%</td><td class="r">${fmt2(vat)}</td></tr>` : ''}` : ''}
+      <tr><td colspan="4" class="r"><b>จำนวนเงินรวมทั้งสิ้น</b></td><td class="r"><b>${fmt2(total)}</b></td></tr></tbody></table>
+    <div class="box">(${bahtText(total)})</div>
+    <div class="box">วิธีชำระ: ${E(PAY_TH[b.payment.method] || '')} · ${paid ? 'ชำระเงินแล้ว' : 'ยังไม่ได้รับชำระ'}${!t.vat ? '\n<span class="m">ผู้ประกอบการไม่ได้จดทะเบียนภาษีมูลค่าเพิ่ม</span>' : ''}</div>
+    ${doc.note ? `<div class="box"><b>หมายเหตุ:</b> ${E(doc.note)}</div>` : ''}${d.note ? `<div class="box">${E(d.note)}</div>` : ''}${cfg.footer ? `<div class="box">${E(cfg.footer)}</div>` : ''}
+    <div class="sig"><div>${cfg.sigUrl ? `<img src="${E(cfg.sigUrl)}" alt="" style="max-height:56px;max-width:180px;object-fit:contain;display:block;margin:-62px auto 6px">` : ''}${E(d.sigL || 'ผู้มีอำนาจลงนาม')}<br><span class="m">${E(cfg.signer || t.legalName)}</span></div><div>${E(d.sigR || 'ผู้รับเอกสาร')}</div></div>
+    <div class="m" style="margin-top:18px">ออกโดย ${E(doc.by || '')} · ${E(fmtDateTime(doc.at))}</div>
+    ${o.preview ? '' : '<script>addEventListener("load", function () { setTimeout(function () { window.print(); }, 400); });<\/script>'}
+  </body></html>`;
+  return html;
+}
+function printDoc(b, typeId, h) {
+  const w = window.open('', '_blank');
+  if (!w) return toast('เบราว์เซอร์บล็อกหน้าต่างพิมพ์ — กรุณาอนุญาตป๊อปอัปของเว็บนี้', 'err');
+  w.document.open(); w.document.write(docHtml(b, typeId, h)); w.document.close();
+}
+
+// ================= ปรับแต่งเมนูด้านข้าง (เจ้าของเลือกเองว่าอะไรขึ้น/ไม่ขึ้น และเรียงลำดับ) =================
+function boMenuSettings(main) {
+  const u = DB.currentUser(), nav = navFor(portalRole(u));
+  const groups = nav.map(g => ({ g: g.g, items: navArrange(g.items.filter(i => (!i[3] || can(i[3])) && (!i[5] || i[5]())), null, true) })).filter(g => g.items.length);
+  const hid = new Set(navPref().hidden || []), shown = groups.flatMap(g => g.items).filter(i => !hid.has(i[0])).length;
+  const save = (hidden, order) => { navSavePref({ hidden: [...hidden], order }); render(); };
+  const flat = () => groups.flatMap(g => g.items.map(i => i[0]));
+  main.innerHTML = pageHead('ปรับแต่งเมนูด้านข้าง', `เลือกเองว่าเมนูไหนแสดงหรือซ่อน และเรียงลำดับตามที่คุณใช้ · แสดงอยู่ ${shown} จาก ${groups.flatMap(g => g.items).length} เมนู · ตั้งค่านี้ใช้กับบัญชีของคุณบนเบราว์เซอร์นี้`, '<button class="btn btn-ghost" id="ms-reset"><i class="fa-solid fa-rotate-left"></i> คืนค่าเริ่มต้น</button>') +
+    groups.map(g => `<section class="card"><div class="card-h"><h3>${esc(g.g)}</h3></div><div class="bo-list">${g.items.map((i, n) => `<div class="row between" style="gap:10px;padding:8px 0;border-top:1px solid var(--border,#e5e7eb)">
+      <div class="row" style="gap:10px"><i class="fa-solid ${i[1]}" style="width:20px;text-align:center"></i><span class="${hid.has(i[0]) ? 'muted' : ''}">${esc(i[2])}</span></div>
+      <div class="row" style="gap:6px;align-items:center"><button class="btn btn-ghost btn-sm" data-mv="${i[0]}" data-d="-1" ${n === 0 ? 'disabled' : ''} title="เลื่อนขึ้น"><i class="fa-solid fa-arrow-up"></i></button><button class="btn btn-ghost btn-sm" data-mv="${i[0]}" data-d="1" ${n === g.items.length - 1 ? 'disabled' : ''} title="เลื่อนลง"><i class="fa-solid fa-arrow-down"></i></button>
+        ${i[0] === 'menuset' ? '<span class="small muted" style="min-width:64px;text-align:right">แสดงเสมอ</span>' : `<label class="switch"><input type="checkbox" data-vis="${i[0]}" ${hid.has(i[0]) ? '' : 'checked'}><span></span></label>`}</div></div>`).join('')}</div></section>`).join('');
+  $$('[data-vis]', main).forEach(c => c.onchange = () => { const h = new Set(navPref().hidden || []); c.checked ? h.delete(c.dataset.vis) : h.add(c.dataset.vis); save(h, navPref().order || flat()); });
+  $$('[data-mv]', main).forEach(b => b.onclick = () => {
+    const k = b.dataset.mv, d = +b.dataset.d, g = groups.find(x => x.items.some(i => i[0] === k)), ks = g.items.map(i => i[0]), i = ks.indexOf(k), j = i + d;
+    if (j < 0 || j >= ks.length) return;
+    [ks[i], ks[j]] = [ks[j], ks[i]]; g.items = ks.map(x => g.items.find(it => it[0] === x));
+    save(new Set(navPref().hidden || []), flat());
+  });
+  $('#ms-reset', main).onclick = () => { navSavePref({}); render(); toast('คืนค่าเมนูเริ่มต้นแล้ว'); };
 }

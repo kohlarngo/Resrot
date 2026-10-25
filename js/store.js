@@ -171,6 +171,7 @@ const DB = {
     let best = null;
     hotel.rooms.forEach(r => {
       if (r.maxGuests < guestsPerRoom && r.maxGuests * s.rooms < s.adults) return;
+      if (typeof restrictMsgOfRoom === 'function' && restrictMsgOfRoom(r, s.checkIn, s.checkOut)) return; // MinLOS / CTA / CTD / ปิดขาย
       const avail = this.available(r, s.checkIn, s.checkOut);
       if (avail < s.rooms) return;
       const q = this.quote(r, s.checkIn, s.checkOut, 1);
@@ -620,6 +621,7 @@ const PERMS = {
   'reviews.view': 'ดูรีวิวจากลูกค้า',
   'reviews.manage': 'ลบ / จัดการรีวิว',
   'customers.view': 'ดูข้อมูลลูกค้า',
+  'housekeeping': 'งานแม่บ้าน / สถานะห้อง',
   'sos.manage': 'จัดการแจ้งเหตุฉุกเฉิน',
   'audit.view': 'ดูบันทึกการใช้งาน (Audit log)',
   'dev.console': 'เครื่องมือเทคนิค (System / Data / Logs)',
@@ -632,8 +634,8 @@ const PERMS = {
 // นักพัฒนา = จัดการทีมงาน บันทึกการใช้งาน ตั้งค่าเว็บไซต์ และเครื่องมือเทคนิค (สถานะระบบ / ข้อมูลดิบ / Error logs / ฟีเจอร์)
 // ต้องตรงกับตาราง sd_role_perms
 const ROLE_PERMS = {
-  owner: ['exec.view', 'reports.view', 'ops.view', 'frontdesk', 'bookings.view', 'bookings.edit', 'inventory', 'hotels.edit', 'coupons.edit', 'reviews.view', 'customers.view', 'payout.edit', 'team.manage'],
-  staff: ['ops.view', 'frontdesk', 'bookings.view', 'bookings.edit', 'inventory', 'hotels.edit', 'coupons.edit', 'reviews.view', 'customers.view'], // เพดานสิทธิ์ · ของจริงตาม perms ที่เจ้าของติ๊กให้รายคน
+  owner: ['exec.view', 'reports.view', 'ops.view', 'frontdesk', 'bookings.view', 'bookings.edit', 'inventory', 'hotels.edit', 'coupons.edit', 'reviews.view', 'customers.view', 'payout.edit', 'team.manage', 'housekeeping'],
+  staff: ['ops.view', 'frontdesk', 'bookings.view', 'bookings.edit', 'inventory', 'hotels.edit', 'coupons.edit', 'reviews.view', 'customers.view', 'housekeeping'], // เพดานสิทธิ์ · ของจริงตาม perms ที่เจ้าของติ๊กให้รายคน
   admin: ['exec.view', 'reports.view', 'partners.manage', 'bookings.view', 'bookings.edit', 'inventory', 'hotels.edit', 'coupons.edit', 'reviews.view', 'reviews.manage', 'customers.view', 'sos.manage', 'data.backup', 'data.reset'],
   dev: ['staff.manage', 'audit.view', 'settings.business', 'dev.console', 'flags.edit', 'hotels.media', 'ads.manage', 'checkin.view'],
   user: [],
@@ -643,7 +645,7 @@ const STAFF_ROLES = ['owner', 'admin', 'dev', 'staff'];
 const portalRole = u => u?.role === 'staff' ? 'owner' : u?.role;
 const bossId = u => u?.role === 'staff' ? u.employerId : u?.id;
 // สิทธิ์ที่เจ้าของให้พนักงานได้ (ไม่รวมเรื่องเงินและการจัดการทีม) — ต้องตรงกับ sd_staff_perm_list()
-const STAFF_PERM_LABELS = { 'bookings.view': 'ดูรายการจอง', 'bookings.edit': 'แก้ไข / อนุมัติการจอง', 'frontdesk': 'แขกเข้า-ออก · ตรวจสลิป · เช็คอิน', 'inventory': 'ตารางห้องว่าง / ปิดห้อง / จองจากช่องทางอื่น', 'hotels.edit': 'แก้ไขห้องพักและหน้ารีสอร์ท', 'coupons.edit': 'โค้ดส่วนลด', 'ops.view': 'ภาพรวมวันนี้', 'reviews.view': 'ดูรีวิว', 'customers.view': 'ดูรายชื่อลูกค้า' };
+const STAFF_PERM_LABELS = { 'housekeeping': 'งานแม่บ้าน / สถานะห้อง (แม่บ้านเห็นเฉพาะหน้านี้ได้)', 'bookings.view': 'ดูรายการจอง', 'bookings.edit': 'แก้ไข / อนุมัติการจอง', 'frontdesk': 'แขกเข้า-ออก · ตรวจสลิป · เช็คอิน', 'inventory': 'ตารางห้องว่าง / ปิดห้อง / จองจากช่องทางอื่น', 'hotels.edit': 'แก้ไขห้องพักและหน้ารีสอร์ท', 'coupons.edit': 'โค้ดส่วนลด', 'ops.view': 'ภาพรวมวันนี้', 'reviews.view': 'ดูรีวิว', 'customers.view': 'ดูรายชื่อลูกค้า' };
 // หลังบ้านแยกไฟล์ — owner.html (เจ้าของรีสอร์ท) / admin.html (ผู้ดูแลแพลตฟอร์ม) / dev.html (นักพัฒนา) ตั้ง window.PORTAL ก่อนโหลดสคริปต์ · index.html = หน้าเว็บลูกค้า
 const PORTAL = STAFF_ROLES.includes(window.PORTAL) ? window.PORTAL : null;
 const SITE_URL = 'index.html';

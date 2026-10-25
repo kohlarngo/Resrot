@@ -267,9 +267,14 @@ function headerHtml() {
   const u = DB.currentUser();
   const path = location.hash.slice(1).split('?')[0] || '/';
   const a = (href, label) => `<a href="#${href}" class="${path === href ? 'active' : ''}">${label}</a>`;
+  // หน้าของรีสอร์ทที่อัปโหลดโลโก้ไว้ → แสดงโลโก้ของรีสอร์ทนั้นแทนโลโก้รวม (โลโก้เดียวกับที่ใช้ในเอกสารและใบทะเบียน)
+  const rh = (path.match(/^\/hotel\/([^/]+)/) || [])[1], rl = rh ? DB.hotel(decodeURIComponent(rh)) : null;
+  const logoLink = rl?.logo
+    ? `<a href="#/hotel/${esc(rl.slug || rl.id)}" class="logo logo-img" aria-label="${esc(rl.name)}"><img src="${esc(rl.logo)}" alt="${esc(rl.name)}" style="width:auto;height:auto;max-width:150px;max-height:60px;object-fit:contain"></a>`
+    : `<a href="#/" class="logo logo-img" data-img-slot="logo" aria-label="kohlarngo"><img src="${esc(siteImgId('logo', 'assets/logo-800.jpg'))}" alt="kohlarngo" width="108" height="72"></a>`;
   return `<header class="header"><div class="container header-inner">
     <button class="menu-toggle" id="menu-t"><i class="fa-solid fa-bars"></i></button>
-    <a href="#/" class="logo logo-img" data-img-slot="logo" aria-label="kohlarngo"><img src="${esc(siteImgId('logo', 'assets/logo-800.jpg'))}" alt="kohlarngo" width="108" height="72"></a>
+    ${logoLink}
     <nav class="nav" id="nav">
       ${a('/', 'หน้าแรก')}${a('/search', 'ค้นหาที่พัก')}${a('/deals', 'ดีลสุดคุ้ม')}${a('/my-bookings', 'การจองของฉัน')}${a('/favorites', 'รายการโปรด')}
     </nav>
