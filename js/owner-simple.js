@@ -19,7 +19,7 @@ const HIGHLIGHT_SAMPLES = ['ติดชายหาด เดินลงทะ
 // ---------- ขั้นตอนเริ่มต้น (แสดงจนกว่าจะทำครบ) ----------
 // ขั้นที่ต้องทำก่อนเปิดขาย: แต่ละขั้นบอกชัดว่า "ยังขาดอะไร" · ขั้นเสริม (ไม่นับคะแนน) แสดงท้ายการ์ด
 function ownerSetupData() {
-  const u = DB.currentUser(), po = u.payout || {}, bz = u.biz || {}, hs = DB.hotels(true);
+  const u = DB.currentUser(), po = u.payout || {}, bz = u.biz || {}, hs = DB.hotels(true).filter(h => !h.practice);
   const rooms = hs.reduce((n, h) => n + (h.rooms || []).length, 0), maxImg = Math.max(0, ...hs.map(h => (h.images || []).length));
   const hasPay = isPromptpayId(po.promptpayId) || !!(po.bankInfo || '').trim();
   const missing = (...a) => a.filter(Boolean).join(' · ');
@@ -40,6 +40,7 @@ function ownerSetupData() {
   return { steps, extras, hs, u };
 }
 function ownerSetupCard() {
+  if (typeof prShowing === 'function' && prShowing()) return '';
   const { steps, extras, hs, u } = ownerSetupData();
   const todo = steps.filter(s => !s[0]).length, done = steps.length - todo;
   if (!todo) return '';
@@ -206,7 +207,7 @@ function boShopPage(main, params) {
   const hotels = DB.hotels(true);
   main.innerHTML = pageHead('หน้ารีสอร์ท', 'แก้ไขรีสอร์ทที่ลูกค้าเห็น —ภาพปก รูป คำอธิบาย และลิงก์ Facebook / TikTok / LINE', hotels.length ? '' : '<button class="btn btn-primary" id="sh-new"><i class="fa-solid fa-plus"></i> เพิ่มรีสอร์ทของคุณ</button>') + (hotels.length ? hotels.map(h => {
     const soc = Object.entries(SOCIALS).filter(([k]) => h.social?.[k]);
-    return `<section class="card sh-card"><div class="sh-cover">${imgTag(h.images[0], 900, '', h.id)}<span class="im-badge">ภาพปก</span></div>
+    return `<section class="card sh-card"><div class="sh-cover">${imgTag(h.images[0], 900, '', h.id)}${demoWm(h)}<span class="im-badge">ภาพปก</span></div>
       <div class="sh-body"><div class="row between wrap" style="gap:10px"><div><h2 style="margin:0">${esc(h.name)}</h2><div class="small muted">${esc(h.type)} · ${esc(h.area)}, ${esc(h.city)}</div></div>
           <label class="switch big"><input type="checkbox" data-act="${h.id}" ${h.active !== false ? 'checked' : ''} ${h.banned ? 'disabled' : ''}><span></span>${h.banned ? 'ถูกแบน' : h.active !== false ? 'เปิดขาย' : 'ปิดการขาย'}</label></div>
         ${h.banned ? `<div class="small red" style="margin-top:6px"><i class="fa-solid fa-ban"></i> ถูกแบนโดยผู้ดูแลระบบ (${h.banned.until ? 'ถึง ' + fmtDateTime(h.banned.until) : 'ถาวร'})${h.banned.reason ? ` — ${esc(h.banned.reason)}` : ''} · ติดต่อทีมงานเพื่อขอปลดแบน</div>` : ''}<p class="small" style="margin:10px 0">${esc(h.description || '— ยังไม่มีคำอธิบาย —')}</p>
@@ -367,6 +368,195 @@ function boDevIcal(main) {
   const q = $('#ic-q', main); if (q) q.oninput = () => { const t = q.value.trim().toLowerCase(); let k = 0; $$('.sh-row', main).forEach(r => { const ok = !t || r.dataset.q.includes(t); r.style.display = ok ? '' : 'none'; if (ok) k++; }); $('#ic-n', main).textContent = k + ' แห่ง'; };
 }
 
+// ================= นักพัฒนา: รีสอร์ท VIP / แนะนำ =================
+// เปิด VIP รายรีสอร์ท (h.vip = {on, tag}) → ป้ายสีทองบนการ์ดและหน้ารีสอร์ท + ขึ้นอันดับบนสุดในผลค้นหา + แสดงในหน้าแรก
+const vipRunning = h => { const v = h.vip || {}, t = todayISO(); return !(v.from && t < v.from) && !(v.to && t > v.to); };
+function boDevVip(main) {
+  const hotels = DB.hotels(true), TAGS = ['VIP', 'แนะนำ', 'ยอดนิยม'];
+  const ownerName = h => { const o = h.ownerId ? DB.owner(h.ownerId) : null; return o ? (o.biz?.resortName || o.name) : 'แพลตฟอร์ม'; };
+  const n = hotels.filter(h => h.vip?.on === true).length;
+  main.innerHTML = pageHead('รีสอร์ท VIP / แนะนำ', `เปิด ${n} จาก ${hotels.length} รีสอร์ท · รีสอร์ท VIP มีป้ายสีทอง ขึ้นอันดับบนสุดของผลค้นหา และแสดงในหน้าแรก`) + `
+    <div class="card sh-find"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="vp-q" placeholder="ค้นหารีสอร์ท หรือชื่อเจ้าของ..." autocomplete="off"><span class="small muted" id="vp-n">${hotels.length} แห่ง</span></div>
+    <div id="vp-list">${hotels.map(h => `<section class="card sh-row" data-q="${esc((h.name + ' ' + ownerName(h)).toLowerCase())}">
+      <div class="sh-thumb">${imgTag(h.images[0], 200, '', h.id)}</div>
+      <div class="sh-main"><b class="sh-name">${esc(h.name)}</b><div class="small muted">เจ้าของ: ${esc(ownerName(h))}${h.active === false ? ' · <span class="red">ปิดการขาย</span>' : ''}</div></div>
+      <div class="sh-ctl"><button class="btn btn-outline btn-sm" data-vp-img="${h.id}" ${h.vip?.on === true ? '' : 'disabled'}><i class="fa-solid fa-sliders"></i> ตั้งค่าเว็บ VIP</button>${h.vip?.on === true ? ` <a class="btn btn-outline btn-sm" href="${esc(vipLink(h))}" target="_blank" rel="noopener" title="เปิดเว็บจองส่วนตัว"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>` : ''} <span class="small muted">ช่วงวันที่</span> <input type="date" data-vp-from="${h.id}" value="${esc(h.vip?.from || '')}" ${h.vip?.on === true ? '' : 'disabled'} title="เริ่ม (ว่าง = ทันที)"> – <input type="date" data-vp-to="${h.id}" value="${esc(h.vip?.to || '')}" ${h.vip?.on === true ? '' : 'disabled'} title="สิ้นสุด (ว่าง = ไม่จำกัด)"> <select data-vp-tag="${h.id}" ${h.vip?.on === true ? '' : 'disabled'}>${TAGS.map(t => `<option ${(h.vip?.tag || 'VIP') === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
+        <label class="switch"><input type="checkbox" data-vp-on="${h.id}" ${h.vip?.on === true ? 'checked' : ''}><span></span>${h.vip?.on === true ? (vipRunning(h) ? 'เปิด' : 'เปิด (นอกช่วงวันที่)') : 'ปิด'}</label></div></section>`).join('') || '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><p class="muted">ยังไม่มีรีสอร์ทในระบบ</p></div></section>'}</div>`;
+  const save = (id, patch) => { const h = JSON.parse(JSON.stringify(DB.hotel(id))); h.vip = { ...h.vip, on: h.vip?.on === true, tag: h.vip?.tag || 'VIP', ...patch }; DB.saveHotel(h); DB.log('hotel.vip', `${h.name} → ${h.vip.on ? 'VIP (' + h.vip.tag + ')' : 'ปิด VIP'}`); };
+  $$('[data-vp-on]', main).forEach(c => c.onchange = () => { save(c.dataset.vpOn, { on: c.checked }); toast(c.checked ? 'เปิด VIP ให้รีสอร์ทนี้แล้ว' : 'ปิด VIP ของรีสอร์ทนี้แล้ว'); boDevVip(main); });
+  const dateSave = (el, key) => el.onchange = () => {
+    const id = el.dataset[key === 'from' ? 'vpFrom' : 'vpTo'], o = DB.hotel(id).vip || {}, a = key === 'from' ? el.value : o.from || '', b = key === 'to' ? el.value : o.to || '';
+    if (a && b && a > b) { el.value = o[key] || ''; return toast('วันเริ่มต้องไม่เกินวันสิ้นสุด', 'err'); }
+    save(id, { [key]: el.value }); toast('บันทึกช่วงวันที่ VIP แล้ว'); boDevVip(main);
+  };
+  $$('[data-vp-from]', main).forEach(el => dateSave(el, 'from'));
+  $$('[data-vp-to]', main).forEach(el => dateSave(el, 'to'));
+  $$('[data-vp-tag]', main).forEach(s => s.onchange = () => { save(s.dataset.vpTag, { tag: s.value }); toast('เปลี่ยนป้ายเป็น “' + s.value + '” แล้ว'); });
+  $$('[data-vp-img]', main).forEach(b => b.onclick = () => vipBuilder(main, b.dataset.vpImg, () => boDevVip(main)));
+  const q = $('#vp-q', main); if (q) q.oninput = () => { const t = q.value.trim().toLowerCase(); let k = 0; $$('.sh-row', main).forEach(r => { const ok = !t || r.dataset.q.includes(t); r.style.display = ok ? '' : 'none'; if (ok) k++; }); $('#vp-n', main).textContent = k + ' แห่ง'; };
+}
+
+// ตั้งค่าเว็บจองส่วนตัว (VIP) แบบเห็นหน้าจอจริง: เลือกหน้า → กดที่ข้อความ/รูปในจอมือถือ → แก้ทางขวา เห็นผลทันที → บันทึก
+// ใช้ทั้งเจ้าของรีสอร์ทและนักพัฒนา · ไม่แตะสวิตช์เปิด/ปิด VIP (h.vip.on) และป้าย (h.vip.tag) — สองค่านั้นนักพัฒนาเป็นคนตั้ง
+const VB_SCREENS = [
+  ['', 'fa-house', 'หน้าแรก', ['images', 'logo', 'brand', 'brandSub', 'tagline', 'sub', 'cta', 'tabs', 'color']],
+  ['search', 'fa-magnifying-glass', 'ค้นหา', ['searchTitle', 'gallery', 'galleryTitle']],
+  ['rooms', 'fa-hotel', 'รายละเอียด & ห้องพัก', ['images', 'roomsTitle', 'pickBtn', 'about', 'aboutTitle']],
+  ['room', 'fa-bed', 'เลือกห้องพัก', ['roomTitle', 'roomAmenTitle', 'bookBtn']],
+  ['services', 'fa-bell-concierge', 'บริการเพิ่มเติม', ['svc', 'svcPage', 'svcImg', 'svcTitle', 'services', 'svcNote']],
+];
+// [ป้าย, ชนิด, ค่าตั้งต้น] · ชนิด: t = ข้อความใน vip · x = ข้อความใน vip.text · show = เปิด/ปิดส่วน (vip.hide) · img / imgs / color / services
+const VB_FIELDS = {
+  images: ['รูปปก & แกลเลอรี (รูปแรก = ภาพปก)', 'imgs'], logo: ['โลโก้', 'img'], svcImg: ['รูปแบนเนอร์', 'img'], color: ['สีธีมเว็บ', 'color'],
+  brand: ['ชื่อแบรนด์', 't', h => h.name], brandSub: ['คำใต้ชื่อแบรนด์', 't', h => [h.type, h.area].filter(Boolean).join(' · ') || 'HOTELS & RESORTS'],
+  tagline: ['ข้อความหัวเว็บ (ตัวใหญ่)', 't', () => 'พักผ่อน… ให้ทุกการเดินทางพิเศษกว่าเดิม'], sub: ['ข้อความรอง', 't', () => 'ที่พักคุณภาพ ในทุกช่วงเวลาของคุณ'],
+  cta: ['ข้อความปุ่ม', 't', () => 'จองห้องพัก'], svcTitle: ['ข้อความบนแบนเนอร์', 't', () => 'เพิ่มความสะดวกสบาย ให้การเข้าพักของคุณ'],
+  tabs: ['แถบเมนูล่าง', 'show'], gallery: ['รูปบรรยากาศรีสอร์ท', 'show'], about: ['ส่วน “เกี่ยวกับที่พัก”', 'show'], svc: ['หน้าบริการเพิ่มเติม', 'show'],
+  services: ['รายการบริการ', 'services'],
+  searchTitle: ['หัวข้อหน้า', 'x'], galleryTitle: ['หัวข้อรูปบรรยากาศ', 'x'], roomsTitle: ['หัวข้อรายการห้อง', 'x'], pickBtn: ['ข้อความปุ่มล่าง', 'x'], aboutTitle: ['หัวข้อเกี่ยวกับที่พัก', 'x'],
+  roomTitle: ['หัวข้อหน้า', 'x'], roomAmenTitle: ['หัวข้อสิ่งอำนวยความสะดวก', 'x'], bookBtn: ['ข้อความปุ่มจอง', 'x'], svcPage: ['หัวข้อหน้า', 'x'], svcNote: ['ข้อความท้ายหน้า', 'x'],
+};
+function vipBuilder(main, hotelId, back) {
+  const h = DB.hotel(hotelId); if (!h) return back?.();
+  const { on, tag, from, to, ...rest } = JSON.parse(JSON.stringify(h.vip || {}));
+  const d = { text: {}, hide: {}, images: [], tcolor: {}, tpos: {}, ...rest }; // ค่าที่กำลังแก้ (ยังไม่บันทึก) · tcolor = สีตัวอักษร · tpos = ตำแหน่ง/ขนาด/จัดแนว รายช่อง
+  let scr = '', dirty = false;
+  const src = s => `${PORTAL ? SITE_URL + '?t=' + Date.now() : ''}#/vip/${h.slug || h.id}?preview=1${s ? '&s=' + s : ''}`;
+  main.innerHTML = `<div class="vb">
+    <div class="vb-head"><button class="btn btn-ghost btn-sm" id="vb-back"><i class="fa-solid fa-arrow-left"></i> กลับ</button>
+      <div><b><i class="fa-solid fa-crown" style="color:#d4a017"></i> ตั้งค่าเว็บจอง · ${esc(h.name)}</b><div class="small muted">① เลือกหน้า ② กดที่ข้อความหรือรูปบนจอมือถือ (ลากข้อความเพื่อขยับได้) ③ แก้ทางขวา เห็นผลทันที ④ กด “บันทึก”</div></div>
+      <div class="row" style="gap:8px"><a class="btn btn-outline btn-sm" href="${esc(vipLink(h))}" target="_blank" rel="noopener"><i class="fa-solid fa-eye"></i> เปิดเว็บจริง</a><button class="btn btn-primary btn-sm" id="vb-save"><i class="fa-solid fa-check"></i> บันทึก</button></div></div>
+    <div class="vb-tabs">${VB_SCREENS.map(([k, i, l], n) => `<button data-vb-s="${k}" class="${k === scr ? 'on' : ''}"><i class="fa-solid ${i}"></i><span>${n + 1}. ${l}</span></button>`).join('')}</div>
+    <div class="vb-body"><div class="vb-phone"><div class="vb-notch"></div><iframe id="vb-fr" title="ตัวอย่างหน้าเว็บ" src="${esc(src(''))}"></iframe></div>
+      <div class="vb-panel card" id="vb-panel"></div></div></div>`;
+  const fr = $('#vb-fr', main);
+  const push = debounce(() => { const w = fr.contentWindow; if (!w?.render) return; w.__vipDraft = d; w.render(); }, 120);
+  const changed = () => { dirty = true; push(); };
+  const val = k => { const [, t, def] = VB_FIELDS[k]; return t === 'x' ? d.text[k] || '' : t === 't' ? d[k] || '' : ''; };
+  const ph = k => { const [, t, def] = VB_FIELDS[k]; return t === 'x' ? VIP_TEXT[k] : def ? def(h) : ''; };
+  const svcRows = () => String(d.services || '').split('\n').filter(x => x.trim()).map(x => { const [a, ...b] = x.split(/\s+-\s+|\|/); return [a.trim(), b.join(' ').trim()]; });
+  // ปุ่มขยับ / ขนาด / จัดแนว (ใช้กับข้อความและโลโก้)
+  const moveHtml = (k, align = true) => `<div class="vb-move"><span class="small muted">ขยับ</span>${[['l', 'left'], ['u', 'up'], ['d', 'down'], ['r', 'right']].map(([m, i]) => `<button class="btn btn-ghost btn-sm" data-mv="${k}|${m}" title="ขยับ"><i class="fa-solid fa-arrow-${i}"></i></button>`).join('')}
+        <span class="small muted">ขนาด</span><button class="btn btn-ghost btn-sm" data-mv="${k}|-" title="เล็กลง">A−</button><button class="btn btn-ghost btn-sm" data-mv="${k}|+" title="ใหญ่ขึ้น">A+</button>
+        ${align ? '<span class="small muted">จัดแนว</span>' + [['left', 'left'], ['center', 'center'], ['right', 'right']].map(([a, i]) => `<button class="btn btn-ghost btn-sm${d.tpos[k]?.a === a ? ' on' : ''}" data-mv="${k}|${a}" title="ชิด${a === 'left' ? 'ซ้าย' : a === 'right' ? 'ขวา' : 'กลาง'}"><i class="fa-solid fa-align-${i}"></i></button>`).join('') : ''}
+        ${d.tpos[k] ? `<button class="btn btn-ghost btn-sm" data-mv="${k}|0">คืนตำแหน่งเดิม</button>` : ''}</div>`;
+  const fieldHtml = k => {
+    const [label, t] = VB_FIELDS[k];
+    if (t === 'show') return `<div class="vb-f vb-sw" data-f="${k}"><span>${label}</span><label class="switch big"><input type="checkbox" data-show="${k}" ${d.hide[k] ? '' : 'checked'}><span></span>${d.hide[k] ? 'ซ่อน' : 'แสดง'}</label></div>`;
+    if (t === 'color') return `<div class="vb-f" data-f="${k}"><label>${label}</label><div class="row" style="gap:8px">${['#12305a', '#0f766e', '#7c2d12', '#6d28d9', '#be123c', '#111827'].map(c => `<button class="vb-sw-c" data-color="${c}" style="background:${c}" aria-label="${c}"></button>`).join('')}<input type="color" data-color-in value="${esc(vipColor({ vip: d }))}"></div></div>`;
+    if (t === 'imgs') return `<div class="vb-f" data-f="${k}"><label>${label}</label><div class="small muted" style="margin-bottom:6px">ไม่ใส่ = ใช้รูปรีสอร์ทปกติ · สูงสุด 8 รูป</div><div id="vb-imgs"></div></div>`;
+    if (t === 'img') return `<div class="vb-f" data-f="${k}"><label>${label}</label><div class="row" style="gap:10px;align-items:center"><div class="vb-thumb" style="background:${esc(vipColor({ vip: d }))}">${d[k] ? `<img src="${esc(imgUrl(d[k], 200))}" alt="">` : '<i class="fa-regular fa-image"></i>'}</div>
+      <button class="btn btn-outline btn-sm" data-up="${k}"><i class="fa-solid fa-upload"></i> ${d[k] ? 'เปลี่ยนรูป' : 'อัปโหลด'}</button>${d[k] ? `<button class="btn btn-ghost btn-sm" data-rm="${k}">ลบ</button>` : ''}</div>
+      ${k === 'logo' ? moveHtml(k, false) + '<div class="small muted">ลากโลโก้บนจอมือถือเพื่อขยับได้</div>' : ''}</div>`;
+    if (t === 'services') return `<div class="vb-f" data-f="${k}"><label>${label}</label><div id="vb-svc">${svcRows().map(([a, b], i) => `<div class="vb-svc-row"><input data-sa="${i}" value="${esc(a)}" placeholder="ชื่อบริการ เช่น สปา & นวด"><input data-sb="${i}" value="${esc(b)}" placeholder="รายละเอียดสั้นๆ"><button class="btn btn-ghost btn-sm" data-sx="${i}" aria-label="ลบ"><i class="fa-solid fa-trash"></i></button></div>`).join('')}</div>
+      <button class="btn btn-outline btn-sm" id="vb-svc-add" style="margin-top:6px"><i class="fa-solid fa-plus"></i> เพิ่มบริการ</button></div>`;
+    const col = d.tcolor[k];
+    const ctaHtml = k !== 'cta' ? '' : `<div class="vb-cta"><div class="small muted" style="margin:8px 0 4px">รูปแบบกรอบปุ่ม</div><div class="vb-cta-opts">${[['pill', 'ขาวโค้ง'], ['solid', 'สีธีม'], ['outline', 'เส้นขอบ'], ['glass', 'กระจกใส'], ['square', 'เหลี่ยม'], ['gold', 'ทอง']].map(([s, l]) => `<button class="vb-cta-o${(d.ctaStyle || 'pill') === s ? ' on' : ''}" data-cta-st="${s}"><span class="va-pill va-pill--${s}" style="--vip:${esc(vipColor({ vip: d }))}">จอง</span><small>${l}</small></button>`).join('')}</div>
+      <div class="vb-cols" style="margin-top:8px">${['#ffffff', '#12305a', '#d4a017', '#dc2626', '#16a34a', '#111827'].map(c => `<button class="vb-sw-c sm" data-cta-bg="${c}" style="background:${c}" title="${c}"></button>`).join('')}<label class="vb-col sm" title="เลือกสีเอง"><i class="fa-solid fa-palette"></i><input type="color" data-cta-bg-in value="${esc(d.ctaBg || '#ffffff')}"></label><span class="small muted">สีกรอบปุ่ม</span>${d.ctaBg ? '<button class="btn btn-ghost btn-sm" data-cta-bg="">สีเดิม</button>' : ''}</div></div>`;
+    return `<div class="vb-f" data-f="${k}"><label>${label}</label><div class="vb-txt"><input data-txt="${k}" value="${esc(val(k))}" placeholder="${esc(ph(k))}" maxlength="${k === 'sub' || k === 'svcNote' ? 120 : 80}">
+      <label class="vb-col${col ? ' set' : ''}" title="สีตัวอักษร"><i class="fa-solid fa-font"></i><span style="background:${esc(col || 'transparent')}"></span><input type="color" data-tcol="${k}" value="${esc(col || '#ffffff')}"></label>${col ? `<button class="btn btn-ghost btn-sm" data-tcol-x="${k}" title="ใช้สีเดิม">สีเดิม</button>` : ''}</div>
+      <div class="vb-cols">${['#ffffff', '#111827', '#12305a', '#d4a017', '#dc2626', '#16a34a'].map(c => `<button class="vb-sw-c sm" data-tcq="${k}" data-c="${c}" style="background:${c}" title="${c}"></button>`).join('')}<span class="small muted">สีตัวอักษร</span></div>
+      ${ctaHtml}${moveHtml(k)}
+      <div class="small muted">ว่างไว้ = “${esc(ph(k))}” · ลากข้อความบนจอมือถือเพื่อขยับได้</div></div>`;
+  };
+  const drawPanel = (focus) => {
+    const p = $('#vb-panel', main), [, , title, keys] = VB_SCREENS.find(x => x[0] === scr);
+    p.innerHTML = `<h3 style="margin:0 0 4px">${title}</h3><p class="small muted" style="margin:0 0 12px"><i class="fa-solid fa-hand-pointer"></i> กดที่ข้อความหรือรูปบนจอมือถือ ช่องที่ตรงกันจะเด่นขึ้นมา</p>${keys.map(fieldHtml).join('')}`;
+    if (keys.includes('images')) imgManager($('#vb-imgs', p), d.images, { min: 0 });
+    $$('[data-txt]', p).forEach(i => i.oninput = () => { const k = i.dataset.txt; if (VB_FIELDS[k][1] === 'x') d.text[k] = i.value.trim(); else d[k] = i.value.trim(); changed(); });
+    $$('[data-cta-st]', p).forEach(b => b.onclick = () => { d.ctaStyle = b.dataset.ctaSt; d.ctaBg = ''; changed(); drawPanel('cta'); }); // เลือกรูปแบบใหม่ = ล้างสีที่ตั้งเอง ให้เห็นแบบนั้นชัดๆ (เลือกสีใหม่ทีหลังได้)
+    $$('[data-cta-bg]', p).forEach(b => b.onclick = () => { d.ctaBg = b.dataset.ctaBg; changed(); drawPanel('cta'); });
+    $('[data-cta-bg-in]', p)?.addEventListener('input', e => { d.ctaBg = e.target.value; changed(); });
+    $$('[data-mv]', p).forEach(b => b.onclick = () => {
+      const [k, m] = b.dataset.mv.split('|'), ps = { ...d.tpos[k] };
+      if (m === '0') delete d.tpos[k];
+      else {
+        if (m === 'l') ps.x = (ps.x || 0) - 8; if (m === 'r') ps.x = (ps.x || 0) + 8; if (m === 'u') ps.y = (ps.y || 0) - 8; if (m === 'd') ps.y = (ps.y || 0) + 8;
+        if (m === '+') ps.s = Math.min(2.5, Math.round(((ps.s || 1) + 0.1) * 10) / 10); if (m === '-') ps.s = Math.max(0.5, Math.round(((ps.s || 1) - 0.1) * 10) / 10);
+        if (['left', 'center', 'right'].includes(m)) ps.a = ps.a === m ? undefined : m;
+        d.tpos[k] = ps;
+      }
+      changed(); drawPanel(k);
+    });
+    const setCol = (k, c) => { if (c) d.tcolor[k] = c; else delete d.tcolor[k]; changed(); drawPanel(k); };
+    $$('[data-tcol]', p).forEach(i => { i.oninput = () => { d.tcolor[i.dataset.tcol] = i.value; i.previousElementSibling.style.background = i.value; changed(); }; i.onchange = () => drawPanel(i.dataset.tcol); });
+    $$('[data-tcq]', p).forEach(b => b.onclick = () => setCol(b.dataset.tcq, b.dataset.c));
+    $$('[data-tcol-x]', p).forEach(b => b.onclick = () => setCol(b.dataset.tcolX, ''));
+    $$('[data-show]', p).forEach(c => c.onchange = () => { if (c.checked) delete d.hide[c.dataset.show]; else d.hide[c.dataset.show] = true; c.parentElement.lastChild.textContent = c.checked ? 'แสดง' : 'ซ่อน'; changed(); });
+    $$('[data-color]', p).forEach(b => b.onclick = () => { d.color = b.dataset.color; $('[data-color-in]', p).value = d.color; changed(); });
+    $('[data-color-in]', p)?.addEventListener('input', e => { d.color = e.target.value; changed(); });
+    $$('[data-up]', p).forEach(b => b.onclick = async () => { try { const u = await pickAndUploadImage(b.dataset.up === 'logo' ? 600 : 1600); if (u) { d[b.dataset.up] = u; changed(); drawPanel(b.dataset.up); } } catch (e) { toast('อัปโหลดไม่สำเร็จ: ' + e.message, 'err'); } });
+    $$('[data-rm]', p).forEach(b => b.onclick = () => { d[b.dataset.rm] = ''; changed(); drawPanel(b.dataset.rm); });
+    const svcSave = () => { d.services = $$('.vb-svc-row', p).map(r => { const a = $('[data-sa]', r).value.trim(), b = $('[data-sb]', r).value.trim(); return a ? (b ? `${a} - ${b}` : a) : ''; }).filter(Boolean).join('\n').slice(0, 1500); changed(); };
+    $$('#vb-svc input', p).forEach(i => i.oninput = svcSave);
+    $$('[data-sx]', p).forEach(b => b.onclick = () => { b.parentElement.remove(); svcSave(); drawPanel('services'); });
+    $('#vb-svc-add', p)?.addEventListener('click', () => { d.services = (d.services ? d.services + '\n' : '') + 'บริการใหม่'; changed(); drawPanel('services'); setTimeout(() => { const l = $$('#vb-svc [data-sa]', p).pop(); l?.select(); }, 0); });
+    if (focus) { const f = $(`[data-f="${focus}"]`, p); if (f) { f.classList.add('hl'); f.scrollIntoView({ block: 'center', behavior: 'smooth' }); $('input:not([type=checkbox]):not([type=color])', f)?.focus(); setTimeout(() => f.classList.remove('hl'), 1600); } }
+  };
+  const setScreen = (k, focus) => {
+    scr = k; $$('[data-vb-s]', main).forEach(b => b.classList.toggle('on', b.dataset.vbS === k));
+    const w = fr.contentWindow; if (w) { w.__vipDraft = d; const hs = '#' + src(k).split('#')[1]; if (w.location.hash !== hs) w.location.hash = hs; else w.render?.(); }
+    drawPanel(focus);
+  };
+  // กดในจอตัวอย่าง: ไม่เปิดลิงก์/ปฏิทิน · ถ้ากดโดนส่วนที่แก้ได้ → เปิดช่องนั้นทางขวา
+  fr.onload = () => {
+    const w = fr.contentWindow, doc = fr.contentDocument; if (!doc) return;
+    w.__vipDraft = d;
+    if (scr && w.location.hash !== '#' + src(scr).split('#')[1]) w.location.hash = '#' + src(scr).split('#')[1]; // โหลดใหม่แล้วกลับมาหน้าที่เลือกไว้ ไม่เด้งไปหน้าแรก
+    // ลากข้อความเพื่อขยับ: กดค้างที่ข้อความ (ช่องชนิด t / x) แล้วลาก — ปล่อยแล้วบันทึกตำแหน่งลงค่าที่กำลังแก้
+    const isTxt = k => k === 'logo' || ['t', 'x'].includes(VB_FIELDS[k]?.[1]);
+    let drag = null, dragged = false;
+    const pt = e => e.touches?.[0] || e.changedTouches?.[0] || e;
+    const startDrag = e => { const el = e.target.closest('[data-vedit]'); if (!el || !isTxt(el.dataset.vedit)) return; const q = pt(e); drag = { el, k: el.dataset.vedit, sx: q.clientX, sy: q.clientY, base: { ...d.tpos[el.dataset.vedit] }, moved: false }; };
+    const moveDrag = e => {
+      if (!drag) return; const q = pt(e), dx = q.clientX - drag.sx, dy = q.clientY - drag.sy;
+      if (!drag.moved && Math.abs(dx) + Math.abs(dy) < 5) return;
+      drag.moved = true; e.preventDefault();
+      const b = drag.base; drag.x = Math.round((b.x || 0) + dx); drag.y = Math.round((b.y || 0) + dy);
+      drag.el.style.transform = `translate(${drag.x}px,${drag.y}px) scale(${b.s || 1})`; drag.el.style.outline = '2px solid #f59e0b';
+    };
+    const endDrag = () => { if (!drag) return; if (drag.moved) { d.tpos[drag.k] = { ...drag.base, x: drag.x, y: drag.y }; dragged = true; setTimeout(() => dragged = false, 50); changed(); const k = drag.k; if (VB_SCREENS.find(x => x[0] === scr)[3].includes(k)) drawPanel(k); } drag = null; };
+    doc.addEventListener('mousemove', moveDrag, { capture: true, passive: false }); doc.addEventListener('touchmove', moveDrag, { capture: true, passive: false });
+    doc.addEventListener('mouseup', endDrag, true); doc.addEventListener('touchend', endDrag, true);
+    const trap = e => { if (e.target.closest?.('.va-nav, .va-thumbs')) return; // ปุ่มเลื่อนรูปใช้ได้ในจอตัวอย่าง
+      e.preventDefault(); e.stopPropagation(); if (e.type === 'mousedown' || e.type === 'touchstart') return startDrag(e); if (dragged) return; const el = e.target.closest('[data-vedit]'); if (!el) return toast('ส่วนนี้ดึงจากข้อมูลห้องพัก/รีสอร์ท — แก้ได้ที่เมนู “ห้องพัก” หรือ “หน้ารีสอร์ท”', 'info'); const k = el.dataset.vedit; const sc = VB_SCREENS.find(x => x[0] === scr)[3].includes(k) ? scr : VB_SCREENS.find(x => x[3].includes(k))?.[0] ?? scr; if (sc !== scr) setScreen(sc, k); else drawPanel(k); };
+    ['click', 'mousedown', 'touchstart'].forEach(t => doc.addEventListener(t, trap, { capture: true, passive: false }));
+    const wait = setInterval(() => { if (doc.querySelector('.va-wrap')) { clearInterval(wait); push(); } }, 200); setTimeout(() => clearInterval(wait), 20000);
+  };
+  $$('[data-vb-s]', main).forEach(b => b.onclick = () => setScreen(b.dataset.vbS));
+  $('#vb-back', main).onclick = async () => { if (dirty && !(await confirmBox('ยังไม่ได้บันทึก — ออกโดยไม่บันทึก?', 'ออก'))) return; back?.(); };
+  $('#vb-save', main).onclick = () => {
+    const cur = JSON.parse(JSON.stringify(DB.hotel(h.id)));
+    cur.vip = { ...cur.vip, ...JSON.parse(JSON.stringify(d)), images: d.images.slice(0, 8), on: cur.vip?.on === true, tag: cur.vip?.tag || 'VIP', from: cur.vip?.from || '', to: cur.vip?.to || '' };
+    DB.saveHotel(cur); DB.log('hotel.vipsite', cur.name); dirty = false; toast('บันทึกเว็บจองแล้ว — ลูกค้าเห็นทันที');
+  };
+  // imgManager แก้อาร์เรย์ d.images โดยตรง (อัปโหลด/ลบ/ตั้งปก) → คอยดูการเปลี่ยนแปลงแล้วอัปเดตจอตัวอย่าง
+  let sig = JSON.stringify(d.images);
+  const poll = setInterval(() => { if (!document.body.contains(fr)) return clearInterval(poll); const s2 = JSON.stringify(d.images); if (s2 !== sig) { sig = s2; changed(); } }, 700);
+  drawPanel();
+}
+
+// ================= เจ้าของรีสอร์ท: เว็บจองส่วนตัว (VIP) =================
+function boVipSite(main) {
+  const hotels = DB.hotels(true), s = DB.settings();
+  main.innerHTML = pageHead('เว็บจองส่วนตัว (VIP)', 'เว็บไซต์จองห้องของรีสอร์ทคุณเอง — มีแต่รีสอร์ทของคุณ ไม่มีรีสอร์ทอื่นหรือโฆษณา ส่งลิงก์ให้ลูกค้าจองตรงได้เลย') +
+    (hotels.map(h => h.vip?.on === true ? `<section class="card"><div class="card-h"><h3><i class="fa-solid fa-crown" style="color:#d4a017"></i> ${esc(h.name)} <span class="pill ok">เปิดใช้ VIP แล้ว</span></h3></div>
+      <div class="row wrap" style="gap:14px;align-items:flex-start">
+        <div style="width:220px;max-width:100%;border-radius:12px;overflow:hidden;aspect-ratio:16/10;background:#eee">${imgTag((h.vip.images || [])[0] || h.images[0], 500, '', h.id)}</div>
+        <div style="flex:1;min-width:240px">
+          <div class="small muted">ลิงก์เว็บจองของคุณ</div>
+          <div class="row" style="gap:6px;margin:4px 0 10px"><input readonly value="${esc(vipLink(h))}" style="flex:1;min-width:0" onclick="this.select()"><button class="btn btn-outline btn-sm" data-vs-copy="${h.id}"><i class="fa-regular fa-copy"></i> คัดลอก</button></div>
+          <div class="small" style="margin-bottom:10px">${esc(h.vip.tagline || 'ยังไม่ได้ตั้งข้อความหัวเว็บ')} · ${(h.vip.images || []).length} รูป VIP · ${String(h.vip.services || '').split(/\n/).filter(x => x.trim()).length} บริการเพิ่มเติม</div>
+          <div class="row wrap" style="gap:8px"><button class="btn btn-primary btn-sm" data-vs-edit="${h.id}"><i class="fa-solid fa-wand-magic-sparkles"></i> ตั้งค่าเว็บ (แก้บนหน้าจอจริง)</button>
+            <a class="btn btn-outline btn-sm" href="${esc(vipLink(h))}" target="_blank" rel="noopener"><i class="fa-solid fa-eye"></i> เปิดดูเว็บ</a></div>
+        </div></div></section>`
+    : `<section class="card"><div class="card-h"><h3><i class="fa-solid fa-crown muted"></i> ${esc(h.name)}</h3></div>
+      <p class="small">ยังไม่ได้เปิดใช้ <b>เว็บจองส่วนตัว (VIP)</b> — เว็บจองแบรนด์ของรีสอร์ทคุณเอง พร้อมรูปปกใหญ่ แกลเลอรี บริการเพิ่มเติม และป้าย VIP สีทองในหน้าค้นหา kohlarngo</p>
+      <p class="small muted">ติดต่อทีมงานเพื่อเปิดใช้: ${[s.phone && `<a href="tel:${esc(s.phone.replace(/[^\d+]/g, ''))}">${esc(s.phone)}</a>`, s.line && `LINE ${esc(s.line)}`].filter(Boolean).join(' · ') || 'ผู้ดูแลระบบ'}</p></section>`).join('') || '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><p class="muted">ยังไม่มีรีสอร์ท</p></div></section>');
+  $$('[data-vs-copy]', main).forEach(b => b.onclick = () => { copyText(vipLink(DB.hotel(b.dataset.vsCopy))); toast('คัดลอกลิงก์เว็บจองแล้ว'); });
+  $$('[data-vs-edit]', main).forEach(b => b.onclick = () => vipBuilder(main, b.dataset.vsEdit, () => boVipSite(main)));
+}
+
 // ================= นักพัฒนา: สไลด์ & รูปของทุกรีสอร์ท =================
 // เปิด/ปิดสไลด์ ตั้งเวลา จัดการรูป ของรีสอร์ททุกแห่ง (ต้องมีสิทธิ์ hotels.media — ตรวจที่ฐานข้อมูลด้วย RLS)
 function boDevMedia(main) {
@@ -477,7 +667,7 @@ const icalOn = h => !!h && h.icalOff !== true && (DB.flags().icalSync === true |
 function boChannels(main) {
   const hotels = DB.hotels(true);
   const f = { ch: '', st: 'active', hid: hotels[0]?.id || '' };
-  const chColor = c => ({ 'Agoda': '#c2410c', 'Booking.com': '#1d4ed8', 'Traveloka': '#0369a1', 'Trip.com': '#6d28d9', 'Airbnb': '#be123c' }[c] || '#475569');
+  const chColor = c => ({ 'Agoda': '#c2410c', 'Booking.com': '#1d4ed8', 'Traveloka': '#0369a1', 'Trip.com': '#6d28d9', 'Airbnb': '#be123c', 'Facebook': '#1877f2', 'TikTok': '#111827' }[c] || '#475569');
   main.innerHTML = pageHead('จองจากช่องทางอื่น', 'บันทึกการจองจาก Agoda / Booking.com / โทรศัพท์ เพื่อลดห้องว่างบนเว็บของเรา ไม่ให้ลูกค้าจองซ้ำ', '<button class="btn btn-primary" id="ch-add"><i class="fa-solid fa-plus"></i> บันทึกการจองใหม่</button>') + `
     ${hotels.some(icalOn)
       ? '<div class="notice info"><i class="fa-solid fa-circle-info"></i><div>มี 2 วิธีลดห้อง: <b>ซิงก์อัตโนมัติ (Plus)</b> วางลิงก์ปฏิทิน iCal จาก Agoda / Booking.com ด้านล่าง ระบบดึงทุก 20 นาที (ไม่ใช่เรียลไทม์ จึงอาจจองซ้อนได้ในช่วงรอ) หรือ <b>บันทึกเอง</b> ด้วยปุ่ม “บันทึกการจองใหม่”</div></div>'
@@ -575,7 +765,7 @@ function boChannels(main) {
 
 // ---------- แจ้งเตือนการจอง (Telegram + Web Push) ----------
 const NOTIFY_VAPID_PUBLIC = 'BNZP8pEMnY_mtugVH_GhwhJiLI7mYn4npBpPhbeuHxWXzX9m0SQjM1E35uZ7UE4xxT_U81ugqTMNx8c6SzEhhtI';
-const NOTIFY_EVENTS = [['new', 'มีการจองใหม่'], ['slip', 'ลูกค้าส่งสลิปโอนเงิน'], ['cancel', 'ลูกค้าขอยกเลิก'], ['checkin', 'ลูกค้ากรอกเช็คอินเอง']];
+const NOTIFY_EVENTS = [['new', 'มีการจองใหม่'], ['slip', 'ลูกค้าส่งสลิปโอนเงิน'], ['cancel', 'ลูกค้าขอยกเลิก'], ['checkin', 'ลูกค้ากรอกเช็คอินเอง'], ['waitlist', 'มีคนเข้าคิวรอห้อง / ห้องว่างตรงกับคิวที่รออยู่']];
 const b64ToBytes = s => Uint8Array.from(atob((s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
 
 function boNotify(main) {
@@ -588,7 +778,7 @@ function boNotify(main) {
   const draw = async () => { try { await draw0(); } catch (err) { console.error(err); $('#nt-box').innerHTML = `<div class="notice warn"><i class="fa-solid fa-triangle-exclamation"></i><div>โหลดหน้านี้ไม่สำเร็จ: ${esc(err.message || err)}</div></div>`; } };
   const draw0 = async () => {
     const [subsR, prefR, tgR] = await Promise.all([supa.from('sd_notify_subs').select('id, kind, endpoint, label, created_at').order('created_at'), supa.from('sd_notify_prefs').select('prefs').maybeSingle(), supa.rpc('sd_notify_tg_status')]);
-    const subs = subsR.data || [], prefs = { new: true, slip: true, cancel: true, checkin: true, ...(prefR.data?.prefs || {}) };
+    const subs = subsR.data || [], prefs = { new: true, slip: true, cancel: true, checkin: true, waitlist: true, ...(prefR.data?.prefs || {}) };
     const reg = pushOk ? await soft(navigator.serviceWorker.getRegistration()) : null, mine = reg ? await soft(reg.pushManager.getSubscription()) : null;
     const thisOn = !!mine && subs.some(s => s.kind === 'webpush' && s.endpoint === mine.endpoint);
     const tg = tgR.data || {}, pushes = subs.filter(s => s.kind === 'webpush');
@@ -839,26 +1029,23 @@ function boLinks(main) {
   });
 }
 
-// ================= ราคาตามวัน =================
-// แท็บ 1 "ใช้กับวัน": ราคาตามวันในสัปดาห์ต่อห้อง (rooms[].dayPrices = { 0..6: ราคา }, 0=อาทิตย์ · ว่าง = ราคาปกติ)
-// แท็บ 2 "ช่วงวันที่": ราคาเป็นช่วงวันที่ เช่น ปีใหม่ สงกรานต์ (rooms[].priceRules = [{from,to,price}])
+// ================= ตั้งราคา (ราคาตามวันในสัปดาห์ + ช่วงวันที่ อยู่หน้าเดียวกัน) =================
+// ส่วน "ราคาตามวันในสัปดาห์": ราคาตามวันในสัปดาห์ต่อห้อง (rooms[].dayPrices = { 0..6: ราคา }, 0=อาทิตย์ · ว่าง = ราคาปกติ)
+// ส่วน "ช่วงวันที่": ราคาเป็นช่วงวันที่ เช่น ปีใหม่ สงกรานต์ (rooms[].priceRules = [{from,to,price}])
 // ลำดับ: ช่วงวันที่ > ราคาตามวันในสัปดาห์ > ราคาปกติ · ต้องตรงกับ sd_price / DB.nightPrice
 const DOW_TH = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
-let pricesTab = 'week';
 function boPrices(main) {
   const hotels = DB.hotels(true), today = todayISO();
   const live = r => (r.priceRules || []).filter(x => x.to >= today);
-  const tabs = `<div class="tabs-line" style="margin-bottom:14px">${[['week', 'ใช้กับวัน (ราคาตามวันในสัปดาห์)'], ['range', 'ช่วงวันที่ (ปีใหม่ สงกรานต์ ฯลฯ)']].map(([k, l]) => `<button data-ptab="${k}" class="${pricesTab === k ? 'active' : ''}">${l}</button>`).join('')}</div>`;
-  const sub = pricesTab === 'week' ? 'ตั้งราคาแยกตามวันในสัปดาห์ เช่น คืนศุกร์–เสาร์แพงกว่า — ช่องที่เว้นว่างใช้ราคาปกติ · ส่วนลดของห้องคิดต่อจากราคานี้' : 'ตั้งราคาเฉพาะช่วงวันที่ เช่น ปีใหม่ สงกรานต์ วันหยุดยาว — ชนะราคาตามวันในสัปดาห์ · ส่วนลดของห้องคิดต่อจากราคานี้';
-  const roomHtml = r => pricesTab === 'week'
-    ? `<div class="rm-row" data-r="${esc(r.id)}" style="padding:12px 0;border-top:1px solid var(--border)"><div class="row between wrap" style="gap:8px"><div><b>${esc(r.name)}</b><div class="small muted">ราคาปกติ ${money(r.price)}/คืน</div></div><button class="btn btn-primary btn-sm" data-wsave>บันทึก</button></div>
-        <div class="row wrap" style="gap:8px;margin-top:8px">${DOW_TH.map((n, d) => `<label class="small" style="display:flex;flex-direction:column;gap:2px;width:78px"><span>${n}</span><input type="number" min="0" data-dp="${d}" value="${r.dayPrices?.[d] > 0 ? r.dayPrices[d] : ''}" placeholder="${r.price}"></label>`).join('')}</div></div>`
-    : `<div class="rm-row" data-r="${esc(r.id)}" style="padding:12px 0;border-top:1px solid var(--border)"><div class="row between wrap" style="gap:8px"><div><b>${esc(r.name)}</b><div class="small muted">ราคาปกติ ${money(r.price)}/คืน</div></div><button class="btn btn-outline btn-sm" data-add><i class="fa-solid fa-plus"></i> เพิ่มช่วงวัน</button></div>
-        ${live(r).length ? live(r).map(x => `<div class="row between small" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;margin-top:6px"><span><b>${fmtDate(x.from)}</b> – <b>${fmtDate(x.to)}</b> · ${money(x.price)}/คืน</span><button class="btn btn-ghost btn-sm" data-del="${r.priceRules.indexOf(x)}" title="ลบ"><i class="fa-solid fa-trash"></i></button></div>`).join('') : '<div class="small muted" style="margin-top:6px">ยังไม่ได้ตั้งราคาตามช่วงวันที่</div>'}</div>`;
-  main.innerHTML = pageHead('ราคาตามวัน', sub) + tabs + (hotels.length ? hotels.map(h => `
+  const roomHtml = r => `<div class="rm-row" data-r="${esc(r.id)}" style="padding:12px 0;border-top:1px solid var(--border)"><b>${esc(r.name)}</b> <span class="small muted">ราคาปกติ ${money(r.price)}/คืน</span>
+      <div style="margin-top:10px"><div class="row between wrap" style="gap:8px"><div><b class="small">ราคาตามวันในสัปดาห์</b> <span class="small muted">— ช่องที่เว้นว่างใช้ราคาปกติ</span></div><button class="btn btn-primary btn-sm" data-wsave>บันทึก</button></div>
+        <div class="row wrap" style="gap:8px;margin-top:8px">${DOW_TH.map((n, d) => `<label class="small" style="display:flex;flex-direction:column;gap:2px;width:78px"><span>${n}</span><input type="number" min="0" data-dp="${d}" value="${r.dayPrices?.[d] > 0 ? r.dayPrices[d] : ''}" placeholder="${r.price}"></label>`).join('')}</div></div>
+      <div style="margin-top:14px"><div class="row between wrap" style="gap:8px"><div><b class="small">ช่วงวันที่ (ปีใหม่ สงกรานต์ ฯลฯ)</b> <span class="small muted">— ชนะราคาตามวันในสัปดาห์</span></div><button class="btn btn-outline btn-sm" data-add><i class="fa-solid fa-plus"></i> เพิ่มช่วงวัน</button></div>
+        ${live(r).length ? live(r).map(x => `<div class="row between small" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;margin-top:6px"><span><b>${fmtDate(x.from)}</b> – <b>${fmtDate(x.to)}</b> · ${money(x.price)}/คืน</span><button class="btn btn-ghost btn-sm" data-del="${r.priceRules.indexOf(x)}" title="ลบ"><i class="fa-solid fa-trash"></i></button></div>`).join('') : '<div class="small muted" style="margin-top:6px">ยังไม่ได้ตั้งราคาตามช่วงวันที่</div>'}</div></div>`;
+  const sub = 'ตั้งราคาห้องได้ที่เดียว: ราคาตามวันในสัปดาห์ (เช่น คืนศุกร์–เสาร์แพงกว่า) และราคาตามช่วงวันที่ (เช่น ปีใหม่ สงกรานต์) · ลำดับ: ช่วงวันที่ > วันในสัปดาห์ > ราคาปกติ · ส่วนลดของห้องคิดต่อจากราคานี้';
+  main.innerHTML = pageHead('ตั้งราคา', sub) + (hotels.length ? hotels.map(h => `
     <section class="card" data-h="${esc(h.id)}"><div class="card-h"><h3><i class="fa-solid fa-tags"></i> ${esc(h.name)}</h3></div>
       ${h.rooms.length ? h.rooms.map(roomHtml).join('') : '<p class="muted">ยังไม่มีห้องพัก — เพิ่มห้องที่เมนู "ห้องพัก" ก่อน</p>'}</section>`).join('') : '<div class="empty"><i class="fa-solid fa-hotel"></i><h3>ยังไม่มีรีสอร์ท</h3></div>');
-  $$('[data-ptab]', main).forEach(b => b.onclick = () => { pricesTab = b.dataset.ptab; boPrices(main); });
   const save = (h, msg) => { DB.saveHotel(h); toast(msg); boPrices(main); };
   $$('section[data-h]', main).forEach(sec => {
     const h = DB.hotel(sec.dataset.h);
@@ -901,6 +1088,8 @@ const DOC_DEFAULT_TYPES = () => [
   { id: 'receipt', th: 'ใบเสร็จรับเงิน', en: 'Receipt', code: 'RC', vat: false, needPaid: true, buyer: false, discLines: true, sigL: 'ผู้รับเงิน', sigR: 'ผู้ชำระเงิน', note: '', defNote: '' },
   { id: 'tax', th: 'ใบกำกับภาษี', en: 'Tax Invoice', code: 'TX', vat: true, needPaid: false, buyer: true, discLines: true, sigL: 'ผู้รับเงิน / ผู้มีอำนาจลงนาม', sigR: 'ผู้ชำระเงิน', note: '', defNote: '' },
 ];
+// โลโก้รีสอร์ท: ใช้ของรีสอร์ทนั้น (ถ้าตั้งไว้) ไม่งั้นใช้โลโก้เดียวของบัญชี (หน้า “บัญชีรับเงิน” › ข้อมูลรีสอร์ท)
+const resortLogo = h => h?.logo || (/^https:\/\//i.test(DB.currentUser()?.biz?.logo || '') ? DB.currentUser().biz.logo : '');
 const docCfgOf = h => { const c = h?.docCfg || {}; return { accent: '#1a5fd0', logo: true, header: '', footer: '', ...c, types: Array.isArray(c.types) ? c.types : DOC_DEFAULT_TYPES() }; };
 const r2 = n => Math.round(n * 100) / 100, fmt2 = n => r2(n).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function bahtText(n) {
@@ -917,7 +1106,8 @@ function boDocs(main) {
   const hotels = DB.hotels(true);
   if (!hotels.length) { main.innerHTML = pageHead('เอกสารการเงิน', '') + '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><p class="muted">เพิ่มรีสอร์ทก่อน แล้วจึงออกเอกสารได้</p></div></section>'; return; }
   const bks = DB.bookings().filter(b => b.source !== 'external' && b.status !== 'cancelled').sort((a, c) => (c.createdAt || '').localeCompare(a.createdAt || ''));
-  main.innerHTML = pageHead('เอกสารการเงิน', 'ออกใบแจ้งหนี้ ใบเสร็จ ใบกำกับภาษี หรือเอกสารแบบที่คุณสร้างเอง · พิมพ์หรือบันทึกเป็น PDF') + `
+  main.innerHTML = pageHead('เอกสารการเงิน', 'ออกใบเสนอราคา ใบแจ้งหนี้ ใบเสร็จ ใบกำกับภาษี หรือเอกสารแบบที่คุณสร้างเอง · พิมพ์หรือบันทึกเป็น PDF', '<button class="btn btn-primary" id="dc-quote"><i class="fa-solid fa-file-invoice-dollar"></i> ออกใบเสนอราคา</button>') + `
+    ${DB.hotels(true).some(h => (h.quotes || []).length) ? `<section class="card"><div class="card-h"><h3><i class="fa-solid fa-file-invoice-dollar"></i> ใบเสนอราคาที่ออกแล้ว</h3></div><div class="bo-list">${DB.hotels(true).flatMap(h => (h.quotes || []).map(q => ({ h, q }))).sort((a, c) => c.q.at.localeCompare(a.q.at)).slice(0, 20).map(({ h, q }) => `<div class="row wrap" style="gap:14px;align-items:center;padding:8px 0;border-top:1px solid var(--border,#e5e7eb)"><div><b>${esc(q.no)}</b> · ${esc(q.cust.name)}<div class="small muted">${esc(h.name)} · ${fmtDate(q.at.slice(0, 10), false)} · ยืนราคาถึง ${fmtDate(q.validUntil, false)} · ${money(q.items.reduce((s, x) => s + x.qty * x.price, 0))}</div></div><button class="btn btn-outline btn-sm" data-qp="${esc(h.id)}|${esc(q.no)}"><i class="fa-solid fa-print"></i> พิมพ์ซ้ำ</button> <button class="btn btn-outline btn-sm" data-qe="${esc(h.id)}|${esc(q.no)}"><i class="fa-solid fa-pen"></i> แก้ไข</button> <button class="btn btn-ghost btn-sm red" data-qd="${esc(h.id)}|${esc(q.no)}" title="ลบ"><i class="fa-solid fa-trash"></i></button></div>`).join('')}</div></section>` : ''}
     <section class="card"><div class="card-h"><h3><i class="fa-solid fa-building"></i> ผู้ออกเอกสาร & รูปแบบเอกสาร</h3></div>
       <div class="bo-list">${hotels.map(h => { const t = taxInfoOf(h), c = docCfgOf(h); return `<div class="row between wrap" style="gap:10px;padding:8px 0;border-top:1px solid var(--border,#e5e7eb)"><div><b>${esc(h.name)}</b><div class="small muted">${esc(t.legalName)} · เลขผู้เสียภาษี ${esc(t.taxId || '-')} · ${t.vat ? 'จด VAT' : 'ไม่จด VAT'} · เอกสาร ${c.types.length} ประเภท</div></div>
         <div class="row" style="gap:6px"><button class="btn btn-outline btn-sm" data-ti="${h.id}"><i class="fa-solid fa-pen"></i> ข้อมูลผู้ออก</button><button class="btn btn-outline btn-sm" data-dc="${h.id}"><i class="fa-solid fa-sliders"></i> ปรับแต่งเอกสาร</button></div></div>`; }).join('')}</div></section>
@@ -928,9 +1118,104 @@ function boDocs(main) {
       <td style="white-space:nowrap">${docCfgOf(DB.hotel(b.hotelId)).types.map(d => `<button class="btn btn-sm ${b.docs?.[d.id] ? 'btn-primary' : 'btn-outline'}" data-doc="${esc(d.id)}" data-b="${esc(b.id)}" title="${esc(d.th)}${b.docs?.[d.id] ? ' · ' + esc(b.docs[d.id].no) : ''}"><i class="fa-solid fa-file-lines"></i> ${esc(d.th)}</button>`).join(' ') || '<span class="small muted">ยังไม่มีประเภทเอกสาร — กด “ปรับแต่งเอกสาร”</span>'}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">ยังไม่มีการจอง</td></tr>'}</tbody></table></div></section>
     <p class="small muted">ปุ่มสีเข้ม = ออกเอกสารนั้นแล้ว กดเพื่อพิมพ์ซ้ำด้วยเลขที่เดิม · เพิ่ม ลบ หรือเปลี่ยนชื่อประเภทเอกสาร คำนำหน้าเลขที่ ข้อความท้ายเอกสาร สีและโลโก้ ได้ที่ “ปรับแต่งเอกสาร” · ข้อมูลนี้เป็นเครื่องมือช่วยออกเอกสาร กรุณาตรวจสอบกับนักบัญชีของคุณ</p>`;
   const q = $('#dc-q', main); q.oninput = () => { const t = q.value.trim().toLowerCase(); let n = 0; $$('#dc-body tr', main).forEach(r => { const ok = !t || (r.dataset.q || '').includes(t); r.style.display = ok ? '' : 'none'; if (ok) n++; }); $('#dc-n', main).textContent = n + ' รายการ'; };
+  $('#dc-quote', main).onclick = () => quoteForm(() => boDocs(main));
+  const qOf = k => { const [hid, no] = k.split('|'), h = DB.hotel(hid); return { h, q: (h?.quotes || []).find(x => x.no === no) }; };
+  $$('[data-qe]', main).forEach(b => b.onclick = () => { const x = qOf(b.dataset.qe); if (x.q) quoteForm(() => boDocs(main), x); });
+  $$('[data-qd]', main).forEach(b => b.onclick = async () => {
+    const { h, q } = qOf(b.dataset.qd); if (!q) return;
+    if (!(await confirmBox(`ลบใบเสนอราคา <b>${esc(q.no)}</b> (${esc(q.cust.name)})? ลบแล้วกู้คืนไม่ได้ และเลขที่นี้จะไม่ถูกนำกลับมาใช้`, 'ลบใบเสนอราคา'))) return;
+    const hc = JSON.parse(JSON.stringify(h)); hc.quotes = (hc.quotes || []).filter(x => x.no !== q.no);
+    DB.saveHotel(hc); DB.log('docs.quote.delete', `${q.no} · ${q.cust.name}`); toast('ลบใบเสนอราคาแล้ว'); boDocs(main);
+  });
+  $$('[data-qp]', main).forEach(b => b.onclick = () => { const [hid, no] = b.dataset.qp.split('|'), h = DB.hotel(hid), q = (h?.quotes || []).find(x => x.no === no); if (q) printQuote(q, h); });
   $$('[data-ti]', main).forEach(b => b.onclick = () => taxInfoModal(DB.hotel(b.dataset.ti), () => boDocs(main)));
   $$('[data-dc]', main).forEach(b => b.onclick = () => docCfgModal(DB.hotel(b.dataset.dc), () => boDocs(main)));
-  $$('[data-doc]', main).forEach(b => b.onclick = () => issueDoc(DB.booking(b.dataset.b), b.dataset.doc, () => boDocs(main)));
+  $$('[data-doc]', main).forEach(b => b.onclick = () => { if (typeof prMarkDoc === 'function') prMarkDoc(); issueDoc(DB.booking(b.dataset.b), b.dataset.doc, () => boDocs(main)); });
+}
+
+// ================= ใบเสนอราคา (ออกก่อนมีการจอง — ไม่ผูกกับการจอง) =================
+// เก็บที่ h.quotes (ล่าสุดก่อน เก็บ 50 ใบ) · เลขที่ QT-ปี-ลำดับ รันใน h.docSeq เหมือนเอกสารอื่น · ราคาในใบกรอกเอง ไม่กระทบห้องว่าง/ยอดจอง
+function quoteHtml(q, h, o = {}) {
+  const cfg = docCfgOf(h), t = taxInfoOf(h), E = x => esc(x == null ? '' : String(x)), ac = /^#[0-9a-f]{6}$/i.test(cfg.accent) ? cfg.accent : '#1a5fd0';
+  const sub = r2(q.items.reduce((s, x) => s + x.qty * x.price, 0)), svcPct = +t.svc || 0, svc = svcPct ? r2(sub * svcPct / 100) : 0, vat = t.vat ? r2((sub + svc) * 0.07) : 0, total = r2(sub + svc + vat);
+  const logoSrc = resortLogo(h), logo = cfg.logo && logoSrc ? `<img src="${E(logoSrc)}" alt="" style="max-height:56px;max-width:160px;object-fit:contain;margin-bottom:6px;display:block">` : '';
+  return `<!doctype html><html lang="th"><head><meta charset="utf-8"><title>ใบเสนอราคา ${E(q.no)}</title><style>
+    body { font: 14px/1.5 'Sarabun', 'Noto Sans Thai', Tahoma, sans-serif; color: #111; max-width: 800px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 22px; margin: 0; color: ${ac}; } .m { color: #666; font-size: 12px; } table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border: 1px solid #bbb; padding: 7px 9px; vertical-align: top; } th { background: ${ac}; color: #fff; text-align: left; } td.r, th.r { text-align: right; }
+    .top { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 3px solid ${ac}; } .box { border: 1px solid #bbb; padding: 10px 12px; margin-top: 12px; white-space: pre-line; }
+    .sig { display: flex; justify-content: space-around; margin-top: 74px; text-align: center; } .sig div { width: 40%; border-top: 1px solid #333; padding-top: 6px; }
+    @media print { body { padding: 0; } th { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  </style></head><body>
+    <div class="top"><div>${logo}<b style="font-size:16px">${E(t.legalName)}</b><div>${E(t.address)}</div><div class="m">${t.taxId ? `เลขประจำตัวผู้เสียภาษี ${E(t.taxId)} · ` : ''}${E(t.branch)}${t.phone ? ' · โทร ' + E(t.phone) : ''}</div>${cfg.header ? `<div class="m">${E(cfg.header)}</div>` : ''}</div>
+      <div style="text-align:right"><h1>ใบเสนอราคา</h1><div class="m">Quotation</div><div style="margin-top:8px">เลขที่: <b>${E(q.no)}</b></div><div>วันที่: ${E(fmtDate(q.at.slice(0, 10), false))}</div><div>ยืนราคาถึง: <b>${E(fmtDate(q.validUntil, false))}</b></div></div></div>
+    <div class="box"><b>เสนอราคาให้:</b> ${E(q.cust.name)}${q.cust.taxId ? ` · เลขประจำตัวผู้เสียภาษี ${E(q.cust.taxId)}` : ''}${q.cust.address ? `\n${E(q.cust.address)}` : ''}${q.cust.phone ? `\n<span class="m">โทร ${E(q.cust.phone)}</span>` : ''}</div>
+    ${q.items.length ? `<table><thead><tr><th style="width:40px">#</th><th>รายการ</th><th class="r">จำนวน</th><th class="r">ราคา/หน่วย</th><th class="r">จำนวนเงิน (บาท)</th></tr></thead><tbody>
+      ${q.items.map((x, i) => `<tr><td>${i + 1}</td><td>${E(x.name)}</td><td class="r">${x.qty}</td><td class="r">${fmt2(x.price)}</td><td class="r">${x.qty * x.price < 0 ? '-' : ''}${fmt2(Math.abs(x.qty * x.price))}</td></tr>`).join('')}
+      ${svcPct || t.vat ? `<tr><td colspan="4" class="r">รวมเป็นเงิน</td><td class="r">${fmt2(sub)}</td></tr>${svcPct ? `<tr><td colspan="4" class="r">ค่าบริการ ${svcPct}%</td><td class="r">${fmt2(svc)}</td></tr>` : ''}${t.vat ? `<tr><td colspan="4" class="r">ภาษีมูลค่าเพิ่ม 7%</td><td class="r">${fmt2(vat)}</td></tr>` : ''}` : ''}
+      <tr><td colspan="4" class="r"><b>จำนวนเงินรวมทั้งสิ้น</b></td><td class="r"><b>${fmt2(total)}</b></td></tr></tbody></table>
+    <div class="box">(${bahtText(total)})</div>` : ""}
+    ${q.note ? `<div class="box"><b>หมายเหตุ / เงื่อนไข:</b> ${E(q.note)}</div>` : ''}${cfg.footer ? `<div class="box">${E(cfg.footer)}</div>` : ''}
+    <div class="sig"><div>${E(cfg.signer || t.legalName)}<br><span class="m">ผู้เสนอราคา</span></div><div>ลูกค้า<br><span class="m">ผู้อนุมัติ / ตกลงตามใบเสนอราคา</span></div></div>
+    <div class="m" style="margin-top:18px">ออกโดย ${E(q.by || '')} · ${E(fmtDateTime(q.at))} · ใบเสนอราคานี้ไม่ใช่การยืนยันการจอง ห้องว่างเป็นไปตามจริง ณ วันที่ยืนยัน</div>
+    ${o.preview ? '' : '<script>addEventListener("load", function () { setTimeout(function () { window.print(); }, 400); });<\/script>'}
+  </body></html>`;
+}
+function printQuote(q, h) {
+  const w = window.open('', '_blank');
+  if (!w) return toast('เบราว์เซอร์บล็อกหน้าต่างพิมพ์ — กรุณาอนุญาตป๊อปอัปของเว็บนี้', 'err');
+  w.document.open(); w.document.write(quoteHtml(q, h)); w.document.close();
+}
+function quoteForm(done, ex) { // ex = { h, q } เมื่อแก้ใบเดิม (เลขที่/วันที่ออกคงเดิม)
+  const hotels = ex ? [ex.h] : DB.hotels(true), eq = ex?.q, rows = eq?.items?.length ? eq.items.map(x => ({ ...x })) : [{ name: '', qty: 1, price: 0 }];
+  const m = openModal(`<h2><i class="fa-solid fa-file-invoice-dollar"></i> ${eq ? 'แก้ไขใบเสนอราคา ' + esc(eq.no) : 'ออกใบเสนอราคา'}</h2>
+    <form id="qt-f" class="form-grid" novalidate style="margin-top:14px">
+      <div class="fg full"><label>รีสอร์ทที่ออกเอกสาร</label><select name="hid" ${eq ? 'disabled' : ''}>${hotels.map(h => `<option value="${h.id}">${esc(h.name)}</option>`).join('')}</select></div>
+      <div class="fg full"><label>ชื่อลูกค้า / บริษัท <span class="req">*</span></label><input name="cname" value="${esc(eq?.cust.name || '')}"></div>
+      <div class="fg"><label>เบอร์โทร</label><input name="cphone" value="${esc(eq?.cust.phone || '')}"></div><div class="fg"><label>เลขผู้เสียภาษี (ถ้ามี)</label><input name="ctax" maxlength="13" inputmode="numeric" value="${esc(eq?.cust.taxId || '')}"></div>
+      <div class="fg full"><label>ที่อยู่ลูกค้า (ถ้ามี)</label><textarea name="caddr" rows="2">${esc(eq?.cust.address || '')}</textarea></div>
+      <div class="fg full"><label>เพิ่มห้องพักอัตโนมัติ <span class="small muted">— เลือกห้อง วันที่ และจำนวนห้อง ระบบคำนวณจำนวนคืนให้ (แก้ราคาได้)</span></label>
+        <div class="row wrap" style="gap:6px"><select name="room" style="flex:2;min-width:160px"></select><input name="ci" type="date" title="เช็คอิน"><input name="co" type="date" title="เช็คเอาต์"><input name="rq" type="number" min="1" value="1" style="width:70px" title="จำนวนห้อง"><button type="button" class="btn btn-outline btn-sm" id="qt-room"><i class="fa-solid fa-plus"></i> เพิ่ม</button></div></div>
+      <div class="fg full"><label>รายการ <span class="small muted">(ไม่บังคับ)</span></label><div id="qt-rows"></div><button type="button" class="btn btn-outline btn-sm" id="qt-add"><i class="fa-solid fa-plus"></i> เพิ่มรายการ</button></div>
+      <div class="fg"><label>${eq ? 'ยืนราคาถึงวันที่' : 'ยืนราคา (วัน)'}</label>${eq ? `<input name="until" type="date" value="${esc(eq.validUntil)}">` : '<input name="days" type="number" min="1" max="365" value="7">'}</div>
+      <div class="fg full"><label>หมายเหตุ / เงื่อนไข</label><textarea name="note" rows="2" maxlength="500" placeholder="เช่น มัดจำ 30% เพื่อยืนยันการจอง">${esc(eq?.note || '')}</textarea></div>
+    </form>
+    <div class="row" style="justify-content:flex-end;gap:10px;margin-top:8px;position:sticky;bottom:0;background:var(--card,#fff);padding:10px 0"><button class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary" id="qt-go">${eq ? 'บันทึกการแก้ไข' : 'ออกใบเสนอราคา'}</button></div>`);
+  const f = $('#qt-f', m).elements, hotel = () => DB.hotel(f.hid.value);
+  const fillRooms = () => { f.room.innerHTML = (hotel()?.rooms || []).map(r => `<option value="${r.id}">${esc(r.name)} · ${money(r.price)}/คืน</option>`).join(''); };
+  const readRows = () => $$('[data-r]', m).forEach(el => { const r = rows[+el.dataset.r]; r.name = $('[data-f=name]', el).value; r.qty = +$('[data-f=qty]', el).value || 1; r.price = +$('[data-f=price]', el).value || 0; });
+  const drawRows = () => { $('#qt-rows', m).innerHTML = rows.map((r, i) => `<div class="row" data-r="${i}" style="gap:6px;margin-bottom:6px"><input data-f="name" value="${esc(r.name)}" placeholder="รายการ" style="flex:2"><input data-f="qty" type="number" min="1" value="${r.qty}" style="width:70px" title="จำนวน"><input data-f="price" type="number" step="0.01" value="${r.price}" style="width:100px" title="ราคา/หน่วย"><button type="button" class="btn btn-ghost btn-sm red" data-rd="${i}" aria-label="ลบ"><i class="fa-solid fa-trash"></i></button></div>`).join('');
+    $$('[data-rd]', m).forEach(x => x.onclick = () => { readRows(); rows.splice(+x.dataset.rd, 1); if (!rows.length) rows.push({ name: '', qty: 1, price: 0 }); drawRows(); }); };
+  f.hid.onchange = fillRooms; fillRooms(); drawRows(); if (eq) f.hid.value = ex.h.id;
+  $('#qt-add', m).onclick = () => { readRows(); rows.push({ name: '', qty: 1, price: 0 }); drawRows(); };
+  $('#qt-room', m).onclick = () => {
+    const r = hotel()?.rooms.find(x => x.id === f.room.value), n = Math.round((new Date(f.co.value) - new Date(f.ci.value)) / 864e5), q = Math.max(1, Math.round(+f.rq.value) || 1);
+    if (!r || !f.ci.value || !f.co.value || !(n > 0)) return toast('เลือกห้อง และวันเช็คอิน/เช็คเอาต์ให้ถูกต้อง', 'err');
+    readRows(); const row = { name: `ห้องพัก ${r.name} (${fmtDate(f.ci.value, false)} – ${fmtDate(f.co.value, false)} · ${q} ห้อง × ${n} คืน)`, qty: q * n, price: r.price };
+    if (rows.length === 1 && !rows[0].name.trim() && !rows[0].price) rows[0] = row; else rows.push(row); drawRows();
+  };
+  $('#qt-go', m).onclick = () => {
+    readRows(); const v = k => f[k].value.trim(), h = hotel(), t = taxInfoOf(h);
+    if (!v('cname')) return toast('กรุณากรอกชื่อลูกค้า', 'err');
+    if (v('ctax') && !/^\d{13}$/.test(v('ctax'))) return toast('เลขผู้เสียภาษีต้องเป็นตัวเลข 13 หลัก', 'err');
+    if (!t.address.trim()) return toast('กรุณากรอกที่อยู่ใน “ข้อมูลผู้ออก” ของรีสอร์ทนี้ก่อน', 'err');
+    const items = rows.filter(r => r.name.trim() && r.price).map(r => ({ name: r.name.trim().slice(0, 160), qty: Math.max(1, Math.round(r.qty)), price: r2(r.price) }));
+    const hc = JSON.parse(JSON.stringify(h)), yr = new Date().getFullYear(), key = 'QT' + yr, days = f.days ? Math.min(365, Math.max(1, Math.round(+v('days')) || 7)) : 7;
+    const cust = { name: v('cname'), phone: v('cphone'), taxId: v('ctax'), address: v('caddr') };
+    if (eq) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(v('until'))) return toast('กรุณาเลือกวันที่ยืนราคา', 'err');
+      const q = { ...eq, items, note: v('note'), cust, validUntil: v('until'), editedAt: new Date().toISOString(), editedBy: DB.currentUser()?.name || '' };
+      hc.quotes = (hc.quotes || []).map(x => x.no === eq.no ? q : x);
+      DB.saveHotel(hc); DB.log('docs.quote.edit', `${q.no} · ${q.cust.name}`);
+      closeModal(); toast('บันทึกการแก้ไขแล้ว'); done?.(); return;
+    }
+    hc.docSeq = { ...(hc.docSeq || {}) }; hc.docSeq[key] = (hc.docSeq[key] || 0) + 1;
+    const until = new Date(); until.setDate(until.getDate() + days);
+    const q = { no: `QT-${yr}-${String(hc.docSeq[key]).padStart(4, '0')}`, at: new Date().toISOString(), by: DB.currentUser()?.name || '', validUntil: isoOf(until), items, note: v('note'), cust };
+    hc.quotes = [q, ...(hc.quotes || [])].slice(0, 50);
+    DB.saveHotel(hc); DB.log('docs.quote', `${q.no} · ${q.cust.name}`);
+    closeModal(); printQuote(q, DB.hotel(h.id)); done?.();
+  };
 }
 
 function taxInfoModal(h, done) {
@@ -961,7 +1246,7 @@ function taxInfoModal(h, done) {
 // ปรับแต่งเอกสาร: เพิ่ม/ลบ/แก้ประเภทเอกสารเอง + หน้าตาโดยรวม (สี โลโก้ ข้อความหัว/ท้าย)
 function docCfgModal(h, done) {
   const cfg = docCfgOf(h), types = JSON.parse(JSON.stringify(cfg.types));
-  let logoUrl = h.logo || '', sigUrl = cfg.sigUrl || ''; // โลโก้เดียวกับของรีสอร์ท (หน้าเว็บ · ใบทะเบียน · เอกสาร)
+  const logoUrl = resortLogo(h); let sigUrl = cfg.sigUrl || ''; // โลโก้เดียวกับของรีสอร์ท (หน้าเว็บ · ใบทะเบียน · เอกสาร)
   const m = openModal(`<h2><i class="fa-solid fa-sliders"></i> ปรับแต่งเอกสาร <span class="small muted">· ${esc(h.name)}</span></h2>
     <p class="small muted" style="margin:4px 0 12px">สร้างประเภทเอกสารของคุณเอง (เช่น ใบมัดจำ ใบเสนอราคา ใบรับเงินสด) เปลี่ยนชื่อ ลบ หรือเพิ่มได้อิสระ — มีผลกับรีสอร์ทนี้เท่านั้น</p>
     <div class="card" style="padding:10px;margin:0 0 12px"><div class="row between wrap" style="gap:8px"><b><i class="fa-solid fa-eye"></i> ตัวอย่างเอกสาร <span class="small muted">· อัปเดตทันทีที่แก้ (ข้อมูลตัวอย่าง ไม่ใช่การจองจริง)</span></b><select id="dcg-pt" style="max-width:240px"></select></div>
@@ -972,8 +1257,8 @@ function docCfgModal(h, done) {
       <div class="fg"><label>สีหลักของเอกสาร</label><input name="accent" type="color" value="${esc(cfg.accent)}" style="height:42px"></div>
       <div class="fg full"><label class="row" style="gap:8px"><input type="checkbox" name="logo" ${cfg.logo ? 'checked' : ''}> แสดงโลโก้บนหัวเอกสาร</label>
         <div class="row" style="gap:12px;align-items:center;margin-top:6px"><span id="dcg-logo-prev" style="display:inline-flex;align-items:center;justify-content:center;width:120px;height:64px;border:1px dashed var(--border,#ccd);border-radius:8px;overflow:hidden"></span>
-          <button type="button" class="btn btn-outline btn-sm" id="dcg-logo-up"><i class="fa-solid fa-camera"></i> อัปโหลดโลโก้</button><button type="button" class="btn btn-ghost btn-sm" id="dcg-logo-rm"><i class="fa-solid fa-trash"></i> ลบ</button></div>
-        <div class="small muted" style="margin-top:4px">เป็นโลโก้เดียวกับ “แก้ไขรีสอร์ท” — เปลี่ยนที่ไหนก็เปลี่ยนทั้งหน้าเว็บของรีสอร์ท ใบทะเบียน และเอกสาร</div></div>
+          <a class="btn btn-outline btn-sm" href="#/admin/payout" id="dcg-logo-go"><i class="fa-solid fa-image"></i> เปลี่ยนโลโก้</a></div>
+        <div class="small muted" style="margin-top:4px">ใช้โลโก้รีสอร์ทอันเดียวกับทั้งระบบ — เปลี่ยนที่ “บัญชีรับเงิน › ข้อมูลรีสอร์ท” ครั้งเดียว เปลี่ยนทั้งเมนู หน้าเว็บ ใบทะเบียน และหัวเอกสาร</div></div>
       <div class="fg full"><label><i class="fa-solid fa-signature"></i> ลายเซ็นผู้มีอำนาจลงนาม <span class="small muted">— แสดงเหนือเส้นลายเซ็นด้านซ้ายของทุกเอกสาร</span></label>
         <div class="row" style="gap:12px;align-items:center;margin-top:6px"><span id="dcg-sig-prev" style="display:inline-flex;align-items:center;justify-content:center;width:160px;height:64px;border:1px dashed var(--border,#ccd);border-radius:8px;overflow:hidden;background:#fff"></span>
           <button type="button" class="btn btn-outline btn-sm" id="dcg-sig-up"><i class="fa-solid fa-camera"></i> อัปโหลดลายเซ็น</button><button type="button" class="btn btn-ghost btn-sm" id="dcg-sig-rm"><i class="fa-solid fa-trash"></i> ลบ</button></div>
@@ -1014,12 +1299,8 @@ function docCfgModal(h, done) {
     fr.onload = () => { if (!typing) return; ae.focus({ preventScroll: true }); try { if (ss != null) ae.setSelectionRange(ss, se); } catch { /* ช่องชนิดที่ไม่มีเคอร์เซอร์ */ } };
     fr.srcdoc = docHtml(b, d.id, h, { preview: true, tax: t, doc, logoUrl, cfg: { types, sigUrl, signer: f.signer.value.trim(), accent: f.accent.value || '#1a5fd0', logo: f.logo.checked, header: f.header.value.trim(), footer: f.footer.value.trim() } });
   };
-  const drawLogo = () => { const src = logoUrl; $('#dcg-logo-prev', m).innerHTML = src ? `<img src="${esc(src)}" alt="" style="max-width:100%;max-height:100%;object-fit:contain">` : '<span class="small muted">ยังไม่มีโลโก้</span>'; $('#dcg-logo-rm', m).style.display = logoUrl ? '' : 'none'; };
-  $('#dcg-logo-up', m).onclick = async () => {
-    try { toast('เลือกรูปโลโก้จากเครื่อง...', 'info'); const url = await pickAndUploadImage(600); if (!url) return; logoUrl = url; drawLogo(); pvSoon(); toast('อัปโหลดโลโก้แล้ว — กด “บันทึก” เพื่อใช้งาน'); }
-    catch (e) { toast('อัปโหลดโลโก้ไม่สำเร็จ: ' + e.message, 'err'); }
-  };
-  $('#dcg-logo-rm', m).onclick = () => { logoUrl = ''; drawLogo(); pvSoon(); };
+  const drawLogo = () => { const src = logoUrl; $('#dcg-logo-prev', m).innerHTML = src ? `<img src="${esc(src)}" alt="" style="max-width:100%;max-height:100%;object-fit:contain">` : '<span class="small muted">ยังไม่มีโลโก้</span>'; };
+  $('#dcg-logo-go', m).onclick = () => closeModal();
   const drawSig = () => { $('#dcg-sig-prev', m).innerHTML = sigUrl ? `<img src="${esc(sigUrl)}" alt="" style="max-width:100%;max-height:100%;object-fit:contain">` : '<span class="small muted">ยังไม่มีลายเซ็น</span>'; $('#dcg-sig-rm', m).style.display = sigUrl ? '' : 'none'; };
   $('#dcg-sig-up', m).onclick = async () => {
     try { toast('เลือกรูปลายเซ็นจากเครื่อง...', 'info'); const url = await pickAndUploadImage(600); if (!url) return; sigUrl = url; drawSig(); pvSoon(); toast('อัปโหลดลายเซ็นแล้ว — กด “บันทึก” เพื่อใช้งาน'); }
@@ -1037,7 +1318,7 @@ function docCfgModal(h, done) {
     if (types.some(d => !d.th.trim())) return toast('กรุณาตั้งชื่อเอกสารไทยให้ครบทุกประเภท', 'err');
     types.forEach(d => { d.th = d.th.trim(); d.en = (d.en || '').trim(); d.code = (d.code || 'DOC').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) || 'DOC'; });
     const f = $('#dcg-f', m).elements, c = JSON.parse(JSON.stringify(DB.hotel(h.id)));
-    c.logo = logoUrl || undefined; c.docCfg = { types, sigUrl: sigUrl || undefined, signer: f.signer.value.trim(), accent: f.accent.value || '#1a5fd0', logo: f.logo.checked, header: f.header.value.trim(), footer: f.footer.value.trim() };
+    c.docCfg = { types, sigUrl: sigUrl || undefined, signer: f.signer.value.trim(), accent: f.accent.value || '#1a5fd0', logo: f.logo.checked, header: f.header.value.trim(), footer: f.footer.value.trim() };
     DB.saveHotel(c); DB.log('docs.config', c.name); closeModal(); toast('บันทึกการปรับแต่งเอกสารแล้ว'); done?.();
   };
 }
@@ -1095,7 +1376,7 @@ function docHtml(b, typeId, h, o = {}) {
   if (P.tax) items.push(['ภาษีและค่าธรรมเนียม', '', '', P.tax]);
   folio.forEach(x => items.push([E(x.name), x.qty, x.price, x.qty * x.price]));
   extras.forEach(x => items.push([E(x.name), x.qty, x.price, x.qty * x.price]));
-  const logoSrc = o.logoUrl !== undefined ? o.logoUrl : h.logo, logo = cfg.logo && logoSrc ? `<img src="${E(logoSrc)}" alt="" style="max-height:56px;max-width:160px;object-fit:contain;margin-bottom:6px;display:block">` : '';
+  const logoSrc = o.logoUrl !== undefined ? o.logoUrl : resortLogo(h), logo = cfg.logo && logoSrc ? `<img src="${E(logoSrc)}" alt="" style="max-height:56px;max-width:160px;object-fit:contain;margin-bottom:6px;display:block">` : '';
   const html = `<!doctype html><html lang="th"><head><meta charset="utf-8"><title>${E(d.th)} ${E(doc.no)}</title><style>
     body { font: 14px/1.5 'Sarabun', 'Noto Sans Thai', Tahoma, sans-serif; color: #111; max-width: 800px; margin: 0 auto; padding: 24px; }
     h1 { font-size: 22px; margin: 0; color: ${ac}; } .m { color: #666; font-size: 12px; } table { width: 100%; border-collapse: collapse; margin-top: 12px; }
@@ -1136,8 +1417,8 @@ function boMenuSettings(main) {
   const save = (hidden, order) => { navSavePref({ hidden: [...hidden], order }); render(); };
   const flat = () => groups.flatMap(g => g.items.map(i => i[0]));
   main.innerHTML = pageHead('ปรับแต่งเมนูด้านข้าง', `เลือกเองว่าเมนูไหนแสดงหรือซ่อน และเรียงลำดับตามที่คุณใช้ · แสดงอยู่ ${shown} จาก ${groups.flatMap(g => g.items).length} เมนู · ตั้งค่านี้ใช้กับบัญชีของคุณบนเบราว์เซอร์นี้`, '<button class="btn btn-ghost" id="ms-reset"><i class="fa-solid fa-rotate-left"></i> คืนค่าเริ่มต้น</button>') +
-    groups.map(g => `<section class="card"><div class="card-h"><h3>${esc(g.g)}</h3></div><div class="bo-list">${g.items.map((i, n) => `<div class="row between" style="gap:10px;padding:8px 0;border-top:1px solid var(--border,#e5e7eb)">
-      <div class="row" style="gap:10px"><i class="fa-solid ${i[1]}" style="width:20px;text-align:center"></i><span class="${hid.has(i[0]) ? 'muted' : ''}">${esc(i[2])}</span></div>
+    groups.map((g, gi) => `<section class="card"><div class="card-h"><h3>${esc(g.g)}</h3></div><div class="bo-list">${g.items.map((i, n) => `<div class="row between ms-row" draggable="true" data-row="${i[0]}" data-grp="${gi}" style="gap:10px;padding:8px 0;border-top:1px solid var(--border,#e5e7eb)">
+      <div class="row" style="gap:10px"><i class="fa-solid fa-grip-vertical ms-grip" title="ลากเพื่อเรียงลำดับ"></i><i class="fa-solid ${i[1]}" style="width:20px;text-align:center"></i><span class="${hid.has(i[0]) ? 'muted' : ''}">${esc(i[2])}</span></div>
       <div class="row" style="gap:6px;align-items:center"><button class="btn btn-ghost btn-sm" data-mv="${i[0]}" data-d="-1" ${n === 0 ? 'disabled' : ''} title="เลื่อนขึ้น"><i class="fa-solid fa-arrow-up"></i></button><button class="btn btn-ghost btn-sm" data-mv="${i[0]}" data-d="1" ${n === g.items.length - 1 ? 'disabled' : ''} title="เลื่อนลง"><i class="fa-solid fa-arrow-down"></i></button>
         ${i[0] === 'menuset' ? '<span class="small muted" style="min-width:64px;text-align:right">แสดงเสมอ</span>' : `<label class="switch"><input type="checkbox" data-vis="${i[0]}" ${hid.has(i[0]) ? '' : 'checked'}><span></span></label>`}</div></div>`).join('')}</div></section>`).join('');
   $$('[data-vis]', main).forEach(c => c.onchange = () => { const h = new Set(navPref().hidden || []); c.checked ? h.delete(c.dataset.vis) : h.add(c.dataset.vis); save(h, navPref().order || flat()); });
@@ -1147,5 +1428,35 @@ function boMenuSettings(main) {
     [ks[i], ks[j]] = [ks[j], ks[i]]; g.items = ks.map(x => g.items.find(it => it[0] === x));
     save(new Set(navPref().hidden || []), flat());
   });
+  // ลากเมาส์เพื่อเรียงลำดับ (ย้ายได้ภายในหมวดเดียวกัน) · ปุ่มลูกศรยังใช้ได้ โดยเฉพาะบนมือถือ
+  let drag = null;
+  const clearMark = () => $$('.ms-row', main).forEach(r => r.classList.remove('ms-over-t', 'ms-over-b', 'ms-drag'));
+  $$('.ms-row', main).forEach(r => {
+    r.addEventListener('dragstart', e => { drag = r.dataset.row; r.classList.add('ms-drag'); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', drag); } catch { /* บางเบราว์เซอร์ไม่รองรับ */ } });
+    r.addEventListener('dragend', () => { drag = null; clearMark(); });
+    r.addEventListener('dragover', e => {
+      const from = drag && $(`.ms-row[data-row="${drag}"]`, main);
+      if (!from || from.dataset.grp !== r.dataset.grp || from === r) return;
+      e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+      const below = e.clientY > r.getBoundingClientRect().top + r.offsetHeight / 2;
+      $$('.ms-row', main).forEach(x => x.classList.remove('ms-over-t', 'ms-over-b')); r.classList.add(below ? 'ms-over-b' : 'ms-over-t');
+    });
+    r.addEventListener('drop', e => {
+      e.preventDefault();
+      const from = drag && $(`.ms-row[data-row="${drag}"]`, main);
+      if (!from || from.dataset.grp !== r.dataset.grp || from === r) return clearMark();
+      const g = groups[+r.dataset.grp], below = e.clientY > r.getBoundingClientRect().top + r.offsetHeight / 2;
+      const moved = g.items.find(i => i[0] === drag), rest = g.items.filter(i => i[0] !== drag), at = rest.findIndex(i => i[0] === r.dataset.row) + (below ? 1 : 0);
+      rest.splice(at, 0, moved); g.items = rest;
+      save(new Set(navPref().hidden || []), flat());
+    });
+  });
   $('#ms-reset', main).onclick = () => { navSavePref({}); render(); toast('คืนค่าเมนูเริ่มต้นแล้ว'); };
 }
+
+(function msStyle() {
+  const st = document.createElement('style');
+  st.textContent = `.ms-row{cursor:grab}.ms-row.ms-drag{opacity:.4}.ms-grip{width:16px;text-align:center;color:var(--muted,#94a3b8)}
+.ms-row.ms-over-t{box-shadow:0 -3px 0 #38bdf8}.ms-row.ms-over-b{box-shadow:0 3px 0 #38bdf8}`;
+  document.head.appendChild(st);
+})();

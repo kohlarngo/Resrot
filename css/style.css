@@ -288,6 +288,7 @@ input[type=range] { width: 100%; accent-color: var(--primary); }
 .d-tabs a { padding: 14px 16px; color: var(--text); font-weight: 600; border-bottom: 3px solid transparent; white-space: nowrap; }
 .d-tabs a:hover { color: var(--primary); border-bottom-color: var(--primary); }
 .detail-layout { display: grid; grid-template-columns: 1fr 330px; gap: 20px; margin-top: 16px; }
+.detail-layout.solo { grid-template-columns: 1fr; }
 .panel { background: #fff; border-radius: 12px; box-shadow: var(--shadow); padding: 20px; margin-bottom: 16px; }
 .panel h2 { margin: 0 0 14px; font-size: 21px; }
 .panel h3 { margin: 0 0 10px; }
@@ -657,6 +658,8 @@ body:has(#modal) #ed-bar, body:has(#modal) #ed-fab { display: none; }
 
 /* ===== โฆษณา ===== */
 .ad-tag { display: inline-block; background: rgba(0,0,0,.55); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; letter-spacing: .3px; }
+.vip-badge { position: absolute; left: 10px; top: 10px; z-index: 2; display: inline-flex; align-items: center; gap: 5px; background: linear-gradient(135deg, #f7d774, #d4a017); color: #3d2c00; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+.vip-badge.inline { position: static; vertical-align: middle; font-size: 12px; margin-left: 6px; }
 .ad-badge { position: absolute; left: 10px; top: 10px; z-index: 2; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 4px; }
 .ad-banner { position: relative; }
 .ad-banner .ad-slide { display: none; position: relative; height: 200px; border-radius: 14px; overflow: hidden; background: #dfe7f1; color: #fff; text-decoration: none; }
@@ -752,3 +755,192 @@ body.has-bottom-ad { padding-bottom: 92px; } body.has-bottom-ad #ed-fab { bottom
 .mc-d.blank { border: 0; background: transparent; cursor: default; }
 .mc-p { color: #444; font-size: 11px; }
 @media (max-width: 768px) { .mc-d { min-height: 62px; padding: 4px; font-size: 11px; } .mc-grid { gap: 3px; padding: 0 6px 10px; } }
+
+/* ================= เว็บจองส่วนตัว (VIP) ================= */
+body.vip-site { --vip: #12305a; background: #f4f6fa; }
+.vip-head { position: sticky; top: 0; z-index: 50; background: #fff; border-bottom: 1px solid var(--border); }
+.vip-head-in { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 60px; }
+.vip-logo { display: flex; align-items: center; gap: 10px; color: var(--vip); text-decoration: none; min-width: 0; }
+.vip-logo > i { font-size: 22px; color: #d4a017; }
+.vip-logo span { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+.vip-logo b { font-size: 16px; letter-spacing: .3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vip-logo small { font-size: 11px; color: var(--muted); }
+.vip-head nav { display: flex; align-items: center; gap: 6px; }
+.vip-head nav a:not(.vip-cta-sm) { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; color: var(--vip); background: #eef2f8; }
+.vip-cta-sm { background: var(--vip); color: #fff !important; padding: 9px 16px; border-radius: 999px; font-weight: 700; font-size: 14px; text-decoration: none; white-space: nowrap; }
+.vip-foot { background: var(--vip); color: #fff; padding: 26px 0; text-align: center; }
+.vip-foot .small { margin-top: 6px; opacity: .9; }
+.vip-foot a, .vip-foot .muted { color: #fff !important; opacity: .85; }
+.vip-foot b i { color: #f7d774; }
+@media (max-width: 640px) { .vip-head nav a:not(.vip-cta-sm) { display: none; } }
+}
+
+/* หน้าแบบแอป (ตามดีไซน์) — คอลัมน์กว้างแบบมือถือ กลางจอบนคอมพิวเตอร์ */
+body.vip-app { background: #e9eef6; }
+body.vip-app .vip-head, body.vip-app .vip-foot { display: none; }
+.va-wrap { max-width: 480px; margin: 0 auto; min-height: 100vh; background: #fff; box-shadow: 0 0 40px rgba(18,48,90,.12); position: relative; }
+.va { position: relative; min-height: 100vh; }
+.va-page { padding: 0 16px 24px; }
+.va-page.has-bar { padding-bottom: 110px; }
+.va-ib { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: #fff; color: #1d2433; border: 0; box-shadow: 0 2px 8px rgba(0,0,0,.12); cursor: pointer; text-decoration: none; }
+.va-ib-sp { width: 38px; }
+.va-top { display: flex; align-items: center; justify-content: space-between; margin: 0 -16px; padding: 10px 16px; border-bottom: 1px solid #eef0f4; position: sticky; top: 0; background: #fff; z-index: 5; }
+.va-top b { font-size: 17px; }
+.va-top .va-ib { box-shadow: none; background: transparent; }
+.va-h { font-size: 16px; margin: 20px 0 10px; color: #1d2433; }
+.va-title { font-size: 21px; margin: 14px 0 6px; color: #1d2433; }
+/* 1) หน้าแรก */
+.va-home { color: #fff; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; }
+.va-home-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.va-home-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,25,50,.85) 0%, rgba(10,25,50,.1) 35%, rgba(10,25,50,.15) 55%, rgba(10,25,50,.85) 100%); }
+.va-brand { position: relative; text-align: center; padding-top: 56px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.va-brand i { font-size: 34px; }
+.va-brand b { font-size: 24px; letter-spacing: 3px; text-transform: uppercase; font-weight: 500; }
+.va-brand small { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; opacity: .9; }
+.va-home-txt { position: relative; padding: 0 26px 100px; }
+.va-home-txt h1 { font-size: 30px; line-height: 1.3; margin: 0 0 8px; text-shadow: 0 2px 10px rgba(0,0,0,.4); }
+.va-home-txt p { margin: 0 0 22px; opacity: .92; }
+.va-pill { display: flex; align-items: center; justify-content: center; gap: 10px; background: #fff; color: #1d2433; border-radius: 999px !important; padding: 14px; font-weight: 700; font-size: 16px; text-decoration: none; }
+.va-tabs { position: absolute; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(4, 1fr); background: #fff; border-top: 1px solid #e6e9ef; padding: 8px 0 12px; z-index: 3; }
+.va-tabs a { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; color: #8a93a6; text-decoration: none; }
+.va-tabs a i { font-size: 18px; }
+.va-tabs a.on { color: var(--vip); font-weight: 700; }
+/* 2) ค้นหา */
+.va-loc { display: flex; gap: 12px; align-items: center; border: 1px solid #e6e9ef; border-radius: 14px; padding: 12px 14px; }
+.va-loc > i { color: var(--vip); font-size: 18px; }
+.va-loc b, .va-loc small { display: block; }
+.va-loc small { color: var(--muted); font-size: 12px; }
+.va-sb .search-card { box-shadow: none; padding: 0; margin-top: 12px; background: transparent; }
+.va-sb [data-pop="dest"] { display: none !important; }
+.va-sb .search-grid { display: grid !important; grid-template-columns: 1fr !important; gap: 10px; }
+.va-sb .field { border: 1px solid #e6e9ef !important; border-radius: 14px !important; background: #fff; }
+.va-sb .search-btn { position: static; transform: none; min-width: 0; box-shadow: none; width: 100%; margin-top: 12px; border-radius: 12px; background: var(--vip) !important; border-color: var(--vip) !important; padding: 13px; font-size: 16px; }
+.va-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; }
+.va-tiles a { border: 1px solid #e6e9ef; border-radius: 14px; padding: 16px 6px; text-align: center; font-size: 12px; color: #1d2433; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.va-tiles a i { font-size: 22px; color: var(--vip); }
+.va-dest { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.va-dest button { padding: 0; border: 0; border-radius: 12px; overflow: hidden; aspect-ratio: 3/4; cursor: zoom-in; }
+.va-dest img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* 3-4) รายละเอียดรีสอร์ท */
+.va-gal { position: relative; margin: 0 -16px; height: 300px; background: #ddd; }
+.va-gal-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; height: 100%; scrollbar-width: none; }
+.va-gal-track::-webkit-scrollbar { display: none; }
+.va-gal-track > div { flex: 0 0 100%; scroll-snap-align: start; cursor: zoom-in; }
+.va-gal-track img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.va-gal-back { position: absolute; left: 14px; top: 14px; }
+.va-gal-act { position: absolute; right: 14px; top: 14px; display: flex; gap: 8px; }
+.va-gal-act .fav-btn { position: static; width: 38px; height: 38px; border: 0; background: #fff; color: #1d2433; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+.va-gal-act .fav-btn.on { color: #e11d48; }
+.va-gal-n { position: absolute; right: 14px; bottom: 30px; background: rgba(0,0,0,.55); color: #fff; font-size: 12px; padding: 3px 10px; border-radius: 999px; }
+.va-sheet { position: relative; margin: -20px -16px 0; background: #fff; border-radius: 20px 20px 0 0; padding: 4px 16px 0; }
+.va-rate { color: #f5a524; font-size: 13px; } .va-rate b { color: #1d2433; margin-left: 4px; } .va-rate span { color: var(--muted); }
+.va-addr { font-size: 13px; color: #4a5468; margin-top: 6px; } .va-addr i { color: var(--vip); }
+.va-amen { display: flex; gap: 8px; overflow-x: auto; margin-top: 14px; padding-bottom: 4px; }
+.va-amen > div { flex: 0 0 66px; text-align: center; font-size: 11px; color: #4a5468; }
+.va-amen span { display: grid; place-items: center; width: 46px; height: 46px; margin: 0 auto 6px; border-radius: 50%; border: 1px solid #e6e9ef; color: var(--vip); font-size: 17px; }
+.va-date { margin-top: 14px; background: #f3f6fb; border-radius: 12px; padding: 10px 12px; font-size: 13px; }
+.va-date a { float: right; font-weight: 700; color: var(--vip); }
+.va-rm { display: flex; gap: 12px; align-items: center; border: 1px solid #e6e9ef; border-radius: 14px; padding: 10px; margin-bottom: 10px; color: #1d2433; text-decoration: none; }
+.va-rm img { width: 104px; height: 80px; object-fit: cover; border-radius: 10px; flex: none; }
+.va-rm > div { flex: 1; min-width: 0; } .va-rm b, .va-rm small { display: block; } .va-rm small { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.va-rm.sold img { filter: grayscale(1); opacity: .6; }
+.va-price { display: block; font-weight: 800; font-size: 17px; margin-top: 6px; } .va-price small { display: inline !important; font-weight: 400; }
+.va-link { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding: 14px; border-radius: 12px; background: #f3f6fb; color: var(--vip); font-weight: 700; text-decoration: none; } .va-link i:last-child { margin-left: auto; }
+.va-bar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; background: #fff; border-top: 1px solid #e6e9ef; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px 16px; z-index: 20; box-shadow: 0 -4px 16px rgba(0,0,0,.06); }
+.va-bar b { display: block; font-size: 20px; } .va-bar small { display: block; color: var(--muted); font-size: 11px; }
+.va-btn { background: var(--vip); color: #fff; border: 0; border-radius: 12px; padding: 13px 26px; font-size: 15px; font-weight: 700; cursor: pointer; min-width: 150px; }
+/* 5) เลือกห้อง */
+.va-room-img { margin: 0 -16px; height: 230px; cursor: zoom-in; } .va-room-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.va-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: #4a5468; } .va-meta i { color: var(--vip); }
+.va-thumbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+.va-thumbs button { padding: 0; border: 0; border-radius: 10px; overflow: hidden; aspect-ratio: 4/3; cursor: pointer; } .va-thumbs img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.va-offers { display: grid; gap: 10px; }
+.va-offer { display: flex; align-items: center; gap: 12px; border: 1.5px solid #e6e9ef; border-radius: 14px; padding: 12px; cursor: pointer; }
+.va-offer:has(input:checked) { border-color: var(--vip); background: #f3f6fb; }
+.va-offer input { accent-color: var(--vip); width: 18px; height: 18px; }
+.va-offer > div { flex: 1; } .va-offer b, .va-offer small { display: block; } .va-offer small { color: var(--muted); font-size: 12px; }
+.va-offer > span { text-align: right; } .va-offer s { display: block; color: var(--muted); font-size: 12px; } .va-offer > span b { font-size: 16px; }
+.va-qty { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; } .va-qty select { width: auto; }
+.va-card { border: 1px solid #e6e9ef; border-radius: 14px; margin-top: 14px; }
+/* 8) บริการเพิ่มเติม */
+.va-banner { position: relative; border-radius: 16px; overflow: hidden; height: 150px; }
+.va-banner img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.va-banner b { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 18px; color: #fff; font-size: 18px; line-height: 1.4; background: linear-gradient(90deg, rgba(10,25,50,.8), rgba(10,25,50,.1)); }
+.va-list { margin-top: 12px; }
+.va-list a { display: flex; align-items: center; gap: 14px; padding: 14px 4px; border-bottom: 1px solid #eef0f4; color: #1d2433; text-decoration: none; }
+.va-list a > span { flex: none; width: 46px; height: 46px; border-radius: 50%; border: 1px solid #e6e9ef; display: grid; place-items: center; color: var(--vip); font-size: 18px; }
+.va-list a > div { flex: 1; } .va-list b, .va-list small { display: block; } .va-list small { color: var(--muted); font-size: 12px; }
+.va-list a > i { color: #b0b7c5; }
+/* หน้ากรอกข้อมูล / ชำระเงิน / รายละเอียดการจอง ในธีม VIP */
+body.vip-site .btn-primary { background: var(--vip); border-color: var(--vip); }
+body.vip-site .panel { border-radius: 16px; }
+
+/* ข้อความยอมรับเงื่อนไข: ตัวหนา สีดำ */
+.terms-lbl { font-weight: 700 !important; color: #111 !important; }
+.va-logo { max-width: 120px; max-height: 70px; object-fit: contain; }
+.va-home.no-tabs .va-home-txt { padding-bottom: 40px; }
+
+/* ตั้งค่าเว็บ VIP แบบเห็นหน้าจอจริง */
+body.vip-edit [data-vedit] { cursor: pointer; outline: 2px dashed transparent; outline-offset: 2px; border-radius: 4px; transition: outline-color .15s; }
+body.vip-edit [data-vedit]:hover { outline-color: #f59e0b; }
+.vb-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: space-between; margin-bottom: 12px; }
+.vb-head > div:nth-child(2) { flex: 1; min-width: 220px; }
+.vb-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 14px; }
+.vb-tabs button { flex: none; display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); background: #fff; border-radius: 999px; padding: 9px 16px; font-size: 14px; cursor: pointer; color: #334; }
+.vb-tabs button.on { background: #12305a; border-color: #12305a; color: #fff; font-weight: 700; }
+.vb-body { display: grid; grid-template-columns: 400px 1fr; gap: 20px; align-items: start; }
+.vb-phone { position: sticky; top: 12px; width: 390px; height: 780px; max-height: calc(100vh - 40px); border: 12px solid #111; border-radius: 44px; overflow: hidden; background: #111; box-shadow: 0 20px 50px rgba(0,0,0,.25); }
+.vb-notch { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: 120px; height: 22px; background: #111; border-radius: 0 0 14px 14px; z-index: 2; }
+.vb-phone iframe { width: 100%; height: 100%; border: 0; background: #fff; border-radius: 32px; }
+.vb-panel { padding: 18px; }
+.vb-f { padding: 12px; border-radius: 12px; border: 1px solid transparent; margin-bottom: 6px; transition: background .3s, border-color .3s; }
+.vb-f.hl { background: #fff7e6; border-color: #f59e0b; }
+.vb-f > label:not(.switch) { display: block; font-weight: 700; margin-bottom: 6px; }
+.vb-f input:not([type=checkbox]):not([type=color]) { width: 100%; }
+.vb-sw { display: flex !important; align-items: center; justify-content: space-between; gap: 10px; font-weight: 700; }
+.vb-sw-c { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #ccd; cursor: pointer; }
+.vb-thumb { width: 64px; height: 64px; border-radius: 12px; display: grid; place-items: center; overflow: hidden; color: #fff; font-size: 22px; }
+.vb-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.vb-svc-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; margin-bottom: 6px; }
+@media (max-width: 900px) {
+  .vb-body { grid-template-columns: 1fr; }
+  .vb-phone { position: relative; top: 0; margin: 0 auto; width: 340px; height: 640px; }
+  .vb-svc-row { grid-template-columns: 1fr auto; } .vb-svc-row [data-sb] { grid-column: 1; }
+}
+.va-note { text-align: center; margin: 14px; }
+.vb-txt { display: flex; gap: 6px; align-items: center; }
+.vb-txt > input { flex: 1; min-width: 0; }
+.vb-col { position: relative; flex: none; width: 42px; height: 40px; border: 1px solid var(--border); border-radius: 10px; display: grid; place-items: center; cursor: pointer; background: #fff; }
+.vb-col i { font-size: 14px; color: #334; margin-top: -6px; }
+.vb-col span { position: absolute; left: 8px; right: 8px; bottom: 6px; height: 5px; border-radius: 3px; border: 1px solid #ccd; }
+.vb-col input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.vb-cols { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+.vb-sw-c.sm { width: 22px; height: 22px; }
+.vb-move { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 6px; }
+.vb-move .btn { padding: 4px 8px; min-width: 30px; }
+.vb-move .btn.on { background: #12305a; color: #fff; }
+.vb-move .small { margin: 0 2px 0 6px; }
+.va-top b span { display: inline-block; }
+body.vip-edit [data-vedit] { user-select: none; -webkit-user-select: none; }
+.vb-sw .switch { font-weight: 600; min-width: 92px; justify-content: flex-end; }
+/* รูปแบบปุ่ม "จองห้องพัก" หน้าแรกเว็บ VIP */
+.va-brand > span { display: inline-block; }
+.va-pill--solid { background: var(--vip); color: #fff; }
+.va-pill--outline { background: transparent; color: #fff; border: 2px solid #fff; }
+.va-pill--glass { background: rgba(255,255,255,.18); color: #fff; border: 1px solid rgba(255,255,255,.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.va-pill.va-pill--square { border-radius: 10px !important; }
+.va-pill--gold { background: linear-gradient(135deg, #f7d774, #d4a017); color: #3d2c00; }
+.vb-cta-opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.vb-cta-o { border: 2px solid var(--border); border-radius: 12px; padding: 10px 6px 6px; background: linear-gradient(160deg, #3b5b7d, #12305a); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.vb-cta-o.on { border-color: #f59e0b; box-shadow: 0 0 0 2px #fde68a; }
+.vb-cta-o .va-pill { padding: 6px 14px; font-size: 12px; width: 80%; pointer-events: none; }
+.vb-cta-o small { color: #fff; font-size: 11px; }
+.vb-col.sm { width: 26px; height: 26px; border-radius: 50%; }
+.vb-col.sm i { margin: 0; font-size: 12px; }
+/* แกลเลอรีเว็บ VIP: ปุ่มเลื่อนรูป */
+.va-gal-room { height: 260px; margin: 0 -16px; }
+.va-nav { position: absolute; top: 50%; transform: translateY(-50%); z-index: 3; width: 34px; height: 34px; border-radius: 50%; border: 0; background: rgba(255,255,255,.9); color: #1d2433; box-shadow: 0 2px 8px rgba(0,0,0,.2); cursor: pointer; display: grid; place-items: center; }
+.va-nav.prev { left: 10px; } .va-nav.next { right: 10px; }
+.va-gal-room .va-gal-n { bottom: 12px; }
+.va-thumbs button.on { outline: 3px solid var(--vip); outline-offset: -3px; }
+.va-thumbs { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }

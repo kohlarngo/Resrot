@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 560" width="360" height="560" font-family="Sarabun,Tahoma,sans-serif">
+  <rect width="360" height="560" fill="#f4f6fb"/>
+  <rect x="0" y="0" width="360" height="120" fill="#1d4ed8"/>
+  <circle cx="180" cy="62" r="26" fill="#fff"/>
+  <path d="M168 62l9 9 17-19" stroke="#16a34a" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="180" y="108" text-anchor="middle" font-size="18" font-weight="700" fill="#fff">โอนเงินสำเร็จ</text>
+  <rect x="16" y="104" width="328" height="420" rx="16" fill="#fff" stroke="#e2e8f0"/>
+  <text x="180" y="140" text-anchor="middle" font-size="12" fill="#64748b">26 ต.ค. 2569 · 10:42 น.</text>
+  <text x="180" y="190" text-anchor="middle" font-size="38" font-weight="700" fill="#0f172a">฿ 3,110.00</text>
+  <line x1="36" y1="214" x2="324" y2="214" stroke="#e2e8f0"/>
+  <text x="36" y="246" font-size="12" fill="#64748b">จาก</text>
+  <text x="36" y="268" font-size="16" font-weight="700" fill="#0f172a">น.ส. มาลี (ตัวอย่าง)</text>
+  <text x="36" y="288" font-size="12" fill="#64748b">xxx-x-x1234-x</text>
+  <text x="36" y="326" font-size="12" fill="#64748b">ไปยัง</text>
+  <text x="36" y="348" font-size="16" font-weight="700" fill="#0f172a">รีสอร์ทตัวอย่าง</text>
+  <text x="36" y="368" font-size="12" fill="#64748b">PromptPay xxx-xxx-9999</text>
+  <line x1="36" y1="392" x2="324" y2="392" stroke="#e2e8f0"/>
+  <text x="36" y="420" font-size="12" fill="#64748b">เลขที่รายการ</text>
+  <text x="324" y="420" text-anchor="end" font-size="12" fill="#0f172a">DEMO0000000000</text>
+  <text x="36" y="444" font-size="12" fill="#64748b">ค่าธรรมเนียม</text>
+  <text x="324" y="444" text-anchor="end" font-size="12" fill="#0f172a">0.00 บาท</text>
+  <rect x="36" y="466" width="288" height="36" rx="8" fill="#fef3c7"/>
+  <text x="180" y="489" text-anchor="middle" font-size="13" font-weight="700" fill="#b45309">สลิปปลอม — ใช้สำหรับฝึกเท่านั้น</text>
+  <text x="180" y="546" text-anchor="middle" font-size="11" fill="#94a3b8">ตัวอย่างประกอบการฝึกใช้งาน ไม่ใช่การโอนเงินจริง</text>
+</svg>

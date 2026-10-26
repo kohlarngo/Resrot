@@ -229,12 +229,40 @@ async function boWaitlist(main) {
   const res = await supa.from('sd_waitlist').select('*').in('hotel_id', hotels.map(h => h.id)).order('created_at', { ascending: false }).limit(300);
   if (res.error) { main.innerHTML = pageHead('คิวรอห้อง', '') + `<section class="card"><div class="notice warn"><i class="fa-solid fa-triangle-exclamation"></i><div>ยังใช้งานคิวรอห้องไม่ได้: ${esc(res.error.message)}</div></div></section>`; return; }
   const rows = res.data, today = todayISO();
-  main.innerHTML = pageHead('คิวรอห้อง', `${rows.filter(r => r.status === 'waiting').length} รายรอติดต่อ`) + pmsHelp('wl', 'คิวรอห้อง ใช้ยังไง', ['เมื่อห้องเต็ม ลูกค้ากด “เข้าคิวรอห้อง” ที่หน้ารีสอร์ท ชื่อและเบอร์จะมาอยู่ที่นี่', 'ถ้ามีคนยกเลิก ช่อง “ห้องว่างตอนนี้” จะขึ้นป้ายเขียว — กดเบอร์โทรเพื่อโทรหาลูกค้าได้เลย', 'ติดต่อแล้วให้เปลี่ยนสถานะเป็น “ติดต่อแล้ว” หรือ “เสร็จสิ้น”']) + `<section class="card flush"><div class="table-scroll"><table class="tbl"><thead><tr><th>ลูกค้า</th><th>ที่พัก / ห้อง</th><th>วันที่ต้องการ</th><th>ห้องว่างตอนนี้</th><th>สถานะ</th><th></th></tr></thead><tbody>${rows.map(w => {
+  main.innerHTML = pageHead('คิวรอห้อง', `${rows.filter(r => r.status === 'waiting').length} รายรอติดต่อ`) + pmsHelp('wl', 'คิวรอห้อง ใช้ยังไง', ['เมื่อห้องเต็ม ลูกค้ากด “เข้าคิวรอห้อง” ที่หน้ารีสอร์ท ชื่อและเบอร์จะมาอยู่ที่นี่', 'มีคนเข้าคิวหรือห้องว่างตรงกับคิว ระบบแจ้งเตือนเจ้าของทาง Telegram / แจ้งเตือนในเครื่องที่เชื่อมไว้ (ตั้งค่าที่เมนูแจ้งเตือน)', 'กด “แจ้งลูกค้า” เพื่อส่ง SMS / อีเมล / LINE พร้อมข้อความสำเร็จรูป ส่งแล้วสถานะจะเปลี่ยนเป็น “ติดต่อแล้ว” ให้เอง']) + `<section class="card flush"><div class="table-scroll"><table class="tbl"><thead><tr><th>ลูกค้า</th><th>ที่พัก / ห้อง</th><th>วันที่ต้องการ</th><th>ห้องว่างตอนนี้</th><th>สถานะ</th><th></th></tr></thead><tbody>${rows.map(w => {
     const h = DB.hotel(w.hotel_id), r = h?.rooms.find(x => x.id === w.room_id), free = r && w.check_in >= today ? Math.max(0, r.total - DB.bookedCount(r.id, w.check_in, w.check_out)) : null;
     return `<tr><td><b>${esc(w.name)}</b><div class="small"><a href="tel:${esc(w.phone)}">${esc(w.phone)}</a>${w.email ? ' · ' + esc(w.email) : ''}</div>${w.note ? `<div class="small muted">${esc(w.note)}</div>` : ''}</td><td>${esc(h?.name || '')}<div class="small muted">${esc(r?.name || 'ทุกประเภท')} × ${w.qty}</div></td>
-      <td class="small">${fmtDate(w.check_in, false)} – ${fmtDate(w.check_out, false)}</td><td>${free == null ? '<span class="muted">—</span>' : free >= w.qty ? `<span class="pill ok">ว่าง ${free} ห้อง — ติดต่อเลย</span>` : '<span class="pill bad">ยังเต็ม</span>'}</td>
-      <td><select data-ws="${esc(w.id)}">${Object.entries(ST).map(([k, [l]]) => `<option value="${k}" ${w.status === k ? 'selected' : ''}>${l}</option>`).join('')}</select></td><td><button class="btn btn-ghost btn-sm red" data-wd="${esc(w.id)}"><i class="fa-solid fa-trash"></i></button></td></tr>`; }).join('') || '<tr><td colspan="6" class="muted">ยังไม่มีคิวรอห้อง — จะมีรายการเมื่อลูกค้ากดเข้าคิวตอนห้องเต็ม</td></tr>'}</tbody></table></div></section>`;
+      <td class="small">${fmtDate(w.check_in, false)} – ${fmtDate(w.check_out, false)}</td><td>${free == null ? '<span class="muted">—</span>' : free >= w.qty ? `<span class="pill ok">ว่าง ${free} ห้อง — ติดต่อเลย</span>` : '<span class="pill bad">ยังเต็ม</span>'}${w.notified_at ? '<div class="small muted">แจ้งเจ้าของแล้ว</div>' : ''}</td>
+      <td><select data-ws="${esc(w.id)}">${Object.entries(ST).map(([k, [l]]) => `<option value="${k}" ${w.status === k ? 'selected' : ''}>${l}</option>`).join('')}</select></td><td style="white-space:nowrap"><button class="btn btn-outline btn-sm" data-wn="${esc(w.id)}"><i class="fa-solid fa-paper-plane"></i> แจ้งลูกค้า</button> <button class="btn btn-ghost btn-sm red" data-wd="${esc(w.id)}"><i class="fa-solid fa-trash"></i></button></td></tr>`; }).join('') || '<tr><td colspan="6" class="muted">ยังไม่มีคิวรอห้อง — จะมีรายการเมื่อลูกค้ากดเข้าคิวตอนห้องเต็ม</td></tr>'}</tbody></table></div></section>`;
   pmsHelpBind(main);
+  $$('[data-wn]', main).forEach(b => b.onclick = () => notifyGuestModal(rows.find(x => x.id === b.dataset.wn), () => boWaitlist(main)));
   $$('[data-ws]', main).forEach(s => s.onchange = async () => { const r = await supa.from('sd_waitlist').update({ status: s.value }).eq('id', s.dataset.ws); if (r.error) toast('บันทึกไม่สำเร็จ: ' + r.error.message, 'err'); else toast('อัปเดตแล้ว'); });
   $$('[data-wd]', main).forEach(b => b.onclick = async () => { if (!(await confirmBox('ลบรายการนี้?', 'ลบ'))) return; const r = await supa.from('sd_waitlist').delete().eq('id', b.dataset.wd); if (r.error) return toast('ลบไม่สำเร็จ: ' + r.error.message, 'err'); boWaitlist(main); });
+}
+
+// แจ้งลูกค้าที่รอคิว: ข้อความสำเร็จรูป + ลิงก์จองพร้อมวันที่ → ส่งทาง SMS / อีเมล / LINE (ระบบยังไม่มีบริการส่งอัตโนมัติ — เจ้าของกดส่งเอง 1 คลิก)
+function notifyGuestModal(w, done) {
+  if (!w) return;
+  const h = DB.hotel(w.hotel_id), r = h?.rooms.find(x => x.id === w.room_id);
+  const link = h ? resortLink(h, '', { in: w.check_in, out: w.check_out, a: 2, r: w.qty }) : '';
+  const text = `สวัสดีค่ะ/ครับ คุณ${w.name} 🙏\nห้องพัก ${h?.name || ''}${r ? ' (' + r.name + ')' : ''} วันที่ ${fmtDate(w.check_in, false)} – ${fmtDate(w.check_out, false)} ตอนนี้มีห้องว่างแล้ว\nสนใจจองได้ที่ลิงก์นี้ (ห้องมีจำนวนจำกัด) 👇\n${link}`;
+  const m = openModal(`<h2><i class="fa-solid fa-paper-plane"></i> แจ้งลูกค้า</h2>
+    <p class="small muted" style="margin:4px 0 10px">${esc(w.name)} · ${esc(w.phone)}${w.email ? ' · ' + esc(w.email) : ''} — แก้ข้อความได้ก่อนส่ง</p>
+    <textarea id="wn-t" rows="6" style="width:100%">${esc(text)}</textarea>
+    <div class="row wrap" style="gap:8px;margin-top:12px">
+      <a class="btn btn-primary" id="wn-sms" href="#"><i class="fa-solid fa-comment-sms"></i> SMS</a>
+      ${w.email ? '<a class="btn btn-outline" id="wn-mail" href="#"><i class="fa-solid fa-envelope"></i> อีเมล</a>' : ''}
+      <a class="btn btn-outline" id="wn-line" href="#" target="_blank" rel="noopener"><i class="fa-brands fa-line"></i> LINE</a>
+      <button type="button" class="btn btn-ghost" id="wn-copy"><i class="fa-regular fa-copy"></i> คัดลอก</button></div>
+    <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn btn-ghost" data-close>ปิด</button></div>`);
+  const t = () => $('#wn-t', m).value;
+  const sync = () => {
+    $('#wn-sms', m).href = `sms:${w.phone.replace(/[^\d+]/g, '')}?body=${encodeURIComponent(t())}`;
+    const ml = $('#wn-mail', m); if (ml) ml.href = `mailto:${w.email}?subject=${encodeURIComponent('ห้องพักว่างแล้ว — ' + (h?.name || ''))}&body=${encodeURIComponent(t())}`;
+    $('#wn-line', m).href = `https://line.me/R/share?text=${encodeURIComponent(t())}`;
+  };
+  sync(); $('#wn-t', m).oninput = sync;
+  const sent = async () => { if (w.status !== 'waiting') return; const r2 = await supa.from('sd_waitlist').update({ status: 'contacted' }).eq('id', w.id); if (!r2.error) { toast('บันทึกว่าติดต่อแล้ว'); setTimeout(() => done?.(), 600); } };
+  ['#wn-sms', '#wn-mail', '#wn-line'].forEach(s => $(s, m)?.addEventListener('click', sent));
+  $('#wn-copy', m).onclick = () => { copyText(t()); toast('คัดลอกข้อความแล้ว'); sent(); };
 }

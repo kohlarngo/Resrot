@@ -21,6 +21,12 @@ const LOCAL_KEYS = ['search', 'recent', 'favs', 'mybk'];
 const TAX_RATE = 0; // ไม่คิดภาษี/ค่าธรรมเนียมเพิ่ม (เดิม 0.177 = ค่าบริการ 10% + VAT 7%) — ต้องตรงกับ sd_create_booking ในฐานข้อมูล
 
 // แคชข้อมูลจากฐานข้อมูล — แต่ละคนเห็นเฉพาะแถวที่ RLS อนุญาต
+// ข้อมูลตัวอย่างชุดเก่า (สร้างก่อนมีสลิปปลอม) → แนบสลิปปลอมให้การจองภารกิจ “อนุมัติ” ตอนแสดงผล ไม่แตะฐานข้อมูล
+const demoSlip = b => {
+  if (b?.practice?.kind === 'approve' && b.status === 'pending' && !b.payment?.slip && !b.payment?.paid)
+    return { ...b, payment: { ...b.payment, slip: 'assets/demo/slip-demo.svg', claimedAt: b.createdAt } };
+  return b;
+};
 const CACHE = { pubAds: [], ads: [], pubCoupons: null, loaded: false, hotels: [], owners: {}, kv: {}, occ: [], pubReviews: [], me: null, bookings: [], profiles: [], coupons: [], reviews: [], audit: [], errors: [], sos: [] };
 let lastLocalWrite = 0;
 
@@ -75,7 +81,12 @@ const DB = {
     CACHE.pubAds = pubAds;
     CACHE.owners = Object.fromEntries(owners.map(o => [o.id, { ...o, phone: cleanContact(o.phone), line: cleanContact(o.line), facebook: /^https:\/\//i.test(o.facebook || '') ? o.facebook : '' }]));
     if (kv.error) throw kv.error;
-    CACHE.hotels = hotels.map(r => r.data).sort(byNaturalId);
+    // รีสอร์ทที่สร้างจากระบบ (ตัวอย่าง/ฝึกใช้งาน) อาจยังไม่มีฟิลด์รายการ — เติมค่าว่างกันหน้าเว็บพัง
+    CACHE.hotels = hotels.map(r => {
+      const h = { highlights: [], amenities: [], images: [], rooms: [], checkIn: '14:00', checkOut: '12:00', address: '', description: '', ...r.data };
+      h.rooms = h.rooms.map((rm, i) => ({ img: h.images[i % (h.images.length || 1)] || 'assets/demo/demo-1.jpg', ...rm }));
+      return h;
+    }).sort(byNaturalId);
     CACHE.kv = Object.fromEntries(kv.data.map(r => [r.key, r.value]));
     CACHE.occ = occ.map(r => ({ roomId: r.room_id, checkIn: r.check_in, checkOut: r.check_out, qty: r.qty }));
     CACHE.pubReviews = pub; CACHE.pubCoupons = pubCp;
@@ -90,7 +101,7 @@ const DB = {
     if (CACHE.me) {
       const none = Promise.resolve([]);
       const [bookings, profiles, coupons, reviews, audit, errors, sos, ads] = await Promise.all([
-        fetchAll(() => supa.from('sd_bookings').select('data').order('created_at', { ascending: false })).then(r => r.map(x => x.data)),
+        fetchAll(() => supa.from('sd_bookings').select('data').order('created_at', { ascending: false })).then(r => r.map(x => x.data).map(demoSlip)),
         isAdmin(CACHE.me) || can('staff.manage') ? fetchAll(() => supa.from('sd_profiles').select('*').order('created_at')).then(r => r.map(toUser)) : Promise.resolve([CACHE.me]),
         can('coupons.edit') ? fetchAll(() => supa.from('sd_coupons').select('*').order('created_at')).then(r => r.map(toCoupon)) : none,
         fetchAll(() => supa.from('sd_reviews').select('*').order('created_at')).then(r => r.map(toReview)),
@@ -270,7 +281,10 @@ const DB = {
     if (error) throw new Error(error.message);
     return this._replaceBooking(await rpc('sd_submit_slip', { p_id: b.id, p_pin: b.pin, p_path: path }));
   },
+  // บริการเสริมหลังจอง: ส่ง [{id, qty}] — เซิร์ฟเวอร์ดึงชื่อ/ราคาจากรายการที่นักพัฒนากำหนด (settings.extraServices)
+  async requestAddons(b, items) { return this._replaceBooking(await rpc('sd_request_addons', { p_id: b.id, p_pin: b.pin, p_items: items })); },
   async slipUrl(path) {
+    if (/^assets\/demo\//.test(path)) return path; // สลิปปลอมของข้อมูลตัวอย่าง (ไฟล์ในเว็บ ไม่ได้อยู่ใน bucket)
     const { data, error } = await supa.storage.from('sd-slips').createSignedUrl(path, 600);
     return error ? null : data.signedUrl;
   },
@@ -671,6 +685,8 @@ function resortLink(h, src, trip) {
   const qs = p.toString();
   return `${base}#/hotel/${h.slug || h.id}${qs ? '?' + qs : ''}`;
 }
+// ลิงก์เว็บจองส่วนตัว (VIP) ของรีสอร์ท — หน้าแบรนด์ของรีสอร์ทเอง ไม่มีรีสอร์ทอื่นปน
+function vipLink(h) { return location.href.split('#')[0].replace(/[^/]*$/, '') + SITE_URL + '#/vip/' + (h.slug || h.id); }
 // ลิงก์เปิดโปรไฟล์โซเชียลของรีสอร์ท (รับทั้ง URL เต็ม @ไอดี หรือชื่อเฉยๆ)
 // เบอร์/LINE ตัวอย่างที่หลุดมาจากข้อมูลทดลอง (เช่น 081-888-8888, @demo-h8) — ถือว่าไม่มีค่า จะได้ไม่โทร/แชทไปหาคนที่ไม่เกี่ยวข้อง
 function isDemoContact(v) {

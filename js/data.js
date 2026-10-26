@@ -22,7 +22,7 @@ const IMG = {
   food: 'photo-1414235077428-338989a2e8c0',
   spa: 'photo-1544161515-4ab6ce6db874',
 };
-const imgUrl = (id, w = 800) => id.startsWith('http') || id.startsWith('data:') ? id : `https://images.unsplash.com/${id}?w=${w}&q=70&auto=format&fit=crop`;
+const imgUrl = (id, w = 800) => id.startsWith('http') || id.startsWith('data:') || id.startsWith('assets/') ? id : `https://images.unsplash.com/${id}?w=${w}&q=70&auto=format&fit=crop`;
 
 // จุดหมายบนเกาะล้าน (ชายหาด/ย่าน) — ใช้ฟิลด์ city ของที่พักเป็นชื่อหาด
 const DESTINATIONS = [

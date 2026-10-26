@@ -39,6 +39,11 @@ Deno.serve(async (req) => {
     return data && TEAM_ROLES.includes(data.role) ? data : null;
   };
 
+  const memberTarget = async (id: string) => {
+    const { data } = await admin.from('sd_profiles').select('id, email, role').eq('id', id).maybeSingle();
+    return data && data.role === 'user' ? data : null;
+  };
+
   switch (body.action) {
     case 'create': {
       const email = String(body.email ?? '').trim().toLowerCase();
@@ -78,6 +83,32 @@ Deno.serve(async (req) => {
       const t = await staffTarget(body.id);
       if (!t) return fail('ไม่พบบัญชีทีมงาน', 404);
       // ลบเฉพาะโปรไฟล์ทีมงาน (สิทธิ์ทั้งหมดหายทันที) — ไม่ลบบัญชี Auth เพราะอาจใช้กับระบบอื่นในโปรเจกต์เดียวกัน
+      const { error } = await admin.from('sd_profiles').delete().eq('id', t.id);
+      return error ? fail(error.message) : json({ ok: true });
+    }
+    // สมาชิก (ลูกค้า role = user) — นักพัฒนาแก้ข้อมูล / ลบได้ทุกคน · ไม่แตะบัญชีเจ้าของรีสอร์ทหรือทีมงาน
+    case 'member_update': {
+      const t = await memberTarget(body.id);
+      if (!t) return fail('ไม่พบสมาชิก', 404);
+      const name = String(body.name ?? '').trim().slice(0, 100);
+      const phone = String(body.phone ?? '').trim().slice(0, 30);
+      const email = String(body.email ?? '').trim().toLowerCase();
+      if (!name) return fail('กรุณากรอกชื่อ');
+      if (!/^\S+@\S+\.\S+$/.test(email)) return fail('รูปแบบอีเมลไม่ถูกต้อง');
+      const password = String(body.password ?? '');
+      if (password && password.length < 8) return fail('รหัสผ่านอย่างน้อย 8 ตัวอักษร');
+      const emailChanged = email !== String(t.email).toLowerCase();
+      if (emailChanged || password) {
+        const { error } = await admin.auth.admin.updateUserById(t.id, { ...(emailChanged ? { email, email_confirm: true } : {}), ...(password ? { password } : {}) });
+        if (error) return fail(/already|exists|registered/i.test(error.message) ? 'อีเมลนี้ถูกใช้งานแล้ว' : error.message);
+      }
+      const { error } = await admin.from('sd_profiles').update({ name, phone, email }).eq('id', t.id);
+      return error ? fail(error.message) : json({ ok: true });
+    }
+    case 'member_delete': {
+      const t = await memberTarget(body.id);
+      if (!t) return fail('ไม่พบสมาชิก', 404);
+      // ลบโปรไฟล์ StayDee (การจองเดิมยังอยู่) — ไม่ลบบัญชี Auth เพราะใช้ร่วมกับระบบอื่นในโปรเจกต์เดียวกัน
       const { error } = await admin.from('sd_profiles').delete().eq('id', t.id);
       return error ? fail(error.message) : json({ ok: true });
     }

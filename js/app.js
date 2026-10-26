@@ -4,6 +4,7 @@ const ROUTES = [
   [/^\/search$/, pageSearch],
   [/^\/deals$/, pageDeals],
   [/^\/hotel\/([\w-]+)$/, pageHotel],
+  [/^\/vip\/([\w-]+)$/, pageVip],
   [/^\/book$/, pageBook],
   [/^\/booking\/(\w+)$/, pageBookingView],
   [/^\/checkin\/(\w+)$/, pageSelfCheckin],
@@ -35,9 +36,15 @@ function render() {
   }
   const isBO = !!PORTAL;
   document.body.classList.toggle('bo', isBO);
+  // เว็บจองส่วนตัว VIP: หัว/ท้ายเว็บเป็นแบรนด์ของรีสอร์ท (คงอยู่ต่อในหน้าจองและหน้ายืนยันการจอง)
+  const vh = !isBO && vipSiteHotel(path, params);
+  document.body.classList.toggle('vip-site', !!vh);
+  document.body.classList.remove('vip-app'); // หน้าแบบแอปของเว็บ VIP (pageVip ใส่กลับเอง)
+  if (vh) document.body.style.setProperty('--vip', vipColor(vh)); else document.body.style.removeProperty('--vip');
   const app = $('#app');
   // ระบบหลังบ้านมีแถบด้านบนของตัวเอง — ไม่ใช้ header ของหน้าเว็บ
   if (isBO) $('#header').innerHTML = '';
+  else if (vh) $('#header').innerHTML = vipHeaderHtml(vh);
   else {
     const set = DB.settings();
     $('#header').innerHTML = (set.announceOn && set.announce.trim() ? `<div class="announce ${set.announceType}"><i class="fa-solid fa-bullhorn"></i> ${esc(set.announce)}</div>` : '') + headerHtml();
@@ -50,7 +57,8 @@ function render() {
   else if (route) route[1](app, params, ...path.match(route[0]).slice(1));
   else app.innerHTML = '<div class="container"><div class="empty" style="margin-top:30px"><h3>ไม่พบหน้านี้</h3><a href="#/" class="btn btn-primary">กลับหน้าแรก</a></div></div>';
   $('footer')?.remove();
-  if (!isBO) { document.body.insertAdjacentHTML('beforeend', footerHtml()); bindSosLinks($('footer')); }
+  if (vh) document.body.insertAdjacentHTML('beforeend', vipFooterHtml(vh));
+  else if (!isBO) { document.body.insertAdjacentHTML('beforeend', footerHtml()); bindSosLinks($('footer')); }
   if (!PORTAL) afterRender(); // เนื้อหาที่แก้สด + โหมดแก้ไข (editor.js)
   if (!PORTAL) showSideAds(); // แบนเนอร์ลอยข้างจอ
   if (path !== lastPath) scrollTo(0, 0);
@@ -73,7 +81,7 @@ function boot() {
     render();
     if (oauthErr) toast(`เข้าสู่ระบบด้วยบัญชีโซเชียลไม่สำเร็จ: ${oauthErr}`, 'err');
     else if (back && CACHE.me) toast(`ยินดีต้อนรับ ${CACHE.me.name}`);
-    termsGate();
+    if (!/[?&]preview=1/.test(location.hash)) termsGate(); // ไม่เด้งในจอตัวอย่างของหน้าตั้งค่าเว็บ VIP
   }).catch(e => {
     console.error(e);
     $('#app').innerHTML = `<div class="container"><div class="empty" style="margin-top:60px"><i class="fa-solid fa-wifi"></i><h3>เชื่อมต่อฐานข้อมูลไม่สำเร็จ</h3><p class="muted small">${esc(e.message || String(e))}</p><button class="btn btn-primary" id="retry">ลองอีกครั้ง</button></div></div>`;

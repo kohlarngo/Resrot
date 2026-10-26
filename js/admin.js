@@ -10,21 +10,22 @@ const BO_NAV_BY_ROLE = {
     { g: 'งานประจำวัน', items: [
       ['today', 'fa-sun', 'ภาพรวมวันนี้', 'ops.view', () => boToday],
       ['housekeeping', 'fa-broom', 'งานแม่บ้าน · สถานะห้อง', 'housekeeping', () => boHousekeeping],
-      ['tape', 'fa-table-cells-large', 'ผังห้อง · ลากย้ายห้อง', 'bookings.view', () => boTape],
+      ['tape', 'fa-table-cells-large', 'ผังห้อง & ตารางห้องว่าง', null, () => boBoard, () => can('bookings.view') || can('inventory')],
       ['bookings', 'fa-calendar-check', 'การจอง', 'bookings.view', () => boOwnerBookings],
       ['allbookings', 'fa-table-list', 'รายการจองทั้งหมด / ส่งออก Excel', 'bookings.view', () => boBookings],
       ['frontdesk', 'fa-bell-concierge', 'แขกเข้า-ออกวันนี้', 'frontdesk', () => boFrontdesk],
       ['approvals', 'fa-clipboard-check', 'ตรวจสลิป (มุมมองการ์ด)', 'frontdesk', () => boApprovals],
-      ['calendar', 'fa-table-cells', 'ตารางห้องว่าง / ปิดห้อง', 'inventory', () => admCalendar],
+      ['calendar', 'fa-table-cells', 'ตารางห้องว่าง / ปิดห้อง', 'inventory', () => boCalRedirect, () => false],
       ['channels', 'fa-arrows-rotate', 'จองจากช่องทางอื่น', 'inventory', () => boChannels],
       ['waitlist', 'fa-hourglass-half', 'คิวรอห้อง', 'bookings.view', () => boWaitlist],
       ['links', 'fa-link', 'ลิงก์ส่งลูกค้า', 'hotels.edit', () => boLinks],
     ] },
     { g: 'ตั้งค่ารีสอร์ท', items: [
       ['rooms', 'fa-bed', 'ห้องพัก', 'hotels.edit', () => boRoomsPage],
-      ['prices', 'fa-tags', 'ราคาตามวัน', 'hotels.edit', () => boPrices],
+      ['prices', 'fa-tags', 'ตั้งราคา', 'hotels.edit', () => boPrices],
       ['restrict', 'fa-ban', 'ข้อจำกัดการขาย (MinLOS / CTA / CTD)', 'hotels.edit', () => boRestrict],
       ['shop', 'fa-store', 'หน้ารีสอร์ท', 'hotels.edit', () => boShopPage],
+      ['vipsite', 'fa-crown', 'เว็บจองส่วนตัว (VIP)', 'hotels.edit', () => boVipSite],
       ['coupons', 'fa-ticket', 'โค้ดส่วนลด', 'coupons.edit', () => admCoupons],
       ['payout', 'fa-building-columns', 'บัญชีรับเงิน', 'payout.edit', () => boPayout],
       ['notify', 'fa-bell', 'การแจ้งเตือน', 'team.manage', () => boNotify],
@@ -73,6 +74,7 @@ const BO_NAV_BY_ROLE = {
     { g: 'รีสอร์ททุกแห่ง', items: [
       ['media', 'fa-images', 'สไลด์ & รูปรีสอร์ท', 'hotels.media', () => boDevMedia],
       ['ical', 'fa-arrows-rotate', 'ซิงก์ปฏิทิน iCal (Plus)', 'hotels.media', () => boDevIcal],
+      ['vip', 'fa-crown', 'รีสอร์ท VIP / แนะนำ', 'hotels.media', () => boDevVip],
       ['devrooms', 'fa-bed', 'ห้อง & รูปห้อง', 'hotels.media', () => boRoomsPage],
       ['content', 'fa-pen-to-square', 'แก้หน้าเว็บ (ข้อความ / สี / รูป)', 'hotels.media', () => boDevContent],
       ['siteimg', 'fa-image', 'รูปทั้งเว็บ (โลโก้ แบนเนอร์ ชายหาด)', 'hotels.media', () => boDevSiteImages],
@@ -87,6 +89,9 @@ const BO_NAV_BY_ROLE = {
     ] },
     { g: 'ทีม & เว็บไซต์', items: [
       ['staff', 'fa-users-gear', 'ทีมผู้ดูแล & นักพัฒนา', 'staff.manage', () => boStaff],
+      ['addons', 'fa-bell-concierge', 'บริการเสริมหลังจอง (ลูกค้าทั่วไป)', 'settings.business', () => boAddons],
+      ['members', 'fa-user-group', 'สมาชิก (ลบ / แก้ไขข้อมูล)', 'staff.manage', () => boMembers],
+      ['demo', 'fa-flask', 'บัญชีทดลองใช้ (Demo) สำหรับลูกค้า', 'staff.manage', () => boDemo],
       ['audit', 'fa-clock-rotate-left', 'บันทึกการใช้งาน (Audit log)', 'audit.view', () => boAudit],
       ['settings', 'fa-gear', 'ตั้งค่าเว็บไซต์', 'settings.business', () => boSettings],
     ] },
@@ -100,9 +105,14 @@ const navSavePref = p => { try { p && (p.hidden?.length || p.order?.length) ? lo
 function navArrange(items, cur, keepHidden = false) {
   if (portalRole(DB.currentUser()) !== 'owner') return items;
   const p = navPref(), hid = new Set(p.hidden || []), ord = p.order || [];
+  if (!keepHidden && typeof obHidden === 'function') obHidden().forEach(k => hid.add(k)); // โหมดเมนูพื้นฐานของมือใหม่ (onboard.js)
   const rank = k => { const i = ord.indexOf(k); return i < 0 ? 1e6 : i; };
   return items.filter(i => keepHidden || !hid.has(i[0]) || i[0] === cur || i[0] === 'menuset').sort((a, b) => rank(a[0]) - rank(b[0]));
 }
+// เมนูที่ซ่อนอยู่ (โหมดพื้นฐาน / เจ้าของซ่อนเอง) — ไม่ลบทิ้ง แต่พับไว้ล่างสุดของแต่ละหมวด กด “แสดงเมนูเพิ่ม” เพื่อกางออก
+const navMore = (all, shown, cur) => portalRole(DB.currentUser()) !== 'owner' ? [] : navArrange(all, cur, true).filter(i => !shown.includes(i));
+const navOpenGet = g => { try { return sessionStorage.getItem('bo_navopen_' + g) === '1'; } catch { return false; } };
+const navOpenSet = (g, v) => { try { v ? sessionStorage.setItem('bo_navopen_' + g, '1') : sessionStorage.removeItem('bo_navopen_' + g); } catch { /* ไม่เก็บ */ } };
 const BO_PROFILE = ['profile', 'fa-user-gear', 'บัญชีของฉัน', null, () => boProfile];
 
 // ---------- helpers ----------
@@ -198,13 +208,13 @@ function pageAdmin(app, params, section) {
   const group = nav.find(g => g.items.includes(item))?.g || 'บัญชี';
   const r = ROLES[u.role];
   const alerts = boAlerts();
-  const menuBadge = alerts.sos + alerts.arrivals + alerts.approvals + alerts.apps + alerts.svc; // จุดแดงบนปุ่มเมนูมือถือ: มีงานค้างในเมนูด้านใน (ตัวเลขเท่ากับป้ายแดงข้างเมนู)
+  const menuBadge = alerts.sos + alerts.arrivals + alerts.approvals + alerts.apps; // จุดแดงบนปุ่มเมนูมือถือ: มีงานค้างในเมนูด้านใน (ตัวเลขเท่ากับป้ายแดงข้างเมนู)
   const sideTop = $('#bo-side')?.scrollTop || 0; // จำตำแหน่งเลื่อนของเมนูด้านข้าง
   app.innerHTML = `<div class="bo">
     <aside class="bo-side" id="bo-side">
-      <a href="#/admin" class="bo-brand"><span class="bo-logo"><img src="${esc(siteImgId('icon', 'assets/icon-192.png'))}" alt=""></span><div><b>${esc(u.role === 'owner' ? (u.biz?.resortName || u.name) : DB.settings().bizName)}</b><small>${PORTAL_INFO[portalRole(u)].title} · v${APP_VERSION}</small></div></a>
+      <a href="#/admin" class="bo-brand"><span class="bo-logo"><img src="${esc(u.role === 'owner' && /^https:\/\//i.test(u.biz?.logo || '') ? u.biz.logo : siteImgId('icon', 'assets/icon-192.png'))}" alt=""></span><div><b>${esc(u.role === 'owner' ? (u.biz?.resortName || u.name) : DB.settings().bizName)}</b><small>${PORTAL_INFO[portalRole(u)].title} · v${APP_VERSION}</small></div></a>
       <div class="bo-me" style="--rc:${r.color}"><span class="bo-av" style="background:${r.color}">${esc(u.name[0] || '?')}</span><div><b>${esc(u.name)}</b><small><i class="fa-solid ${r.icon}"></i> ${r.label}</small></div></div>
-      <nav class="bo-nav">${nav.map(g => { const its = navArrange(g.items.filter(i => (!i[3] || can(i[3])) && (!i[5] || i[5]() || i[0] === item[0])), item[0]); return its.length ? `<div class="bo-g">${g.g}</div>${its.map(([k, ic, l]) => `<a href="#/admin/${k}" class="${k === item[0] ? 'active' : ''}"><i class="fa-solid ${ic}"></i><span>${l}</span>${k === 'sos' && alerts.sos ? `<em>${alerts.sos}</em>` : k === 'frontdesk' && alerts.arrivals ? `<em>${alerts.arrivals}</em>` : k === 'approvals' && alerts.approvals ? `<em>${alerts.approvals}</em>` : k === 'partners' && alerts.apps ? `<em>${alerts.apps}</em>` : k === 'media' && alerts.svc ? `<em>${alerts.svc}</em>` : ''}</a>`).join('')}` : ''; }).join('')}</nav>
+      <nav class="bo-nav">${nav.map((g, gi) => { const gl = g.items.filter(i => (!i[3] || can(i[3])) && (!i[5] || i[5]() || i[0] === item[0])), its = navArrange(gl, item[0]), more = navMore(gl, its, item[0]); const lk = ([k, ic, l]) => `<a href="#/admin/${k}" class="${k === item[0] ? 'active' : ''}"><i class="fa-solid ${ic}"></i><span>${l}</span>${k === 'sos' && alerts.sos ? `<em>${alerts.sos}</em>` : k === 'frontdesk' && alerts.arrivals ? `<em>${alerts.arrivals}</em>` : k === 'approvals' && alerts.approvals ? `<em>${alerts.approvals}</em>` : k === 'partners' && alerts.apps ? `<em>${alerts.apps}</em>` : ''}</a>`; const open = navOpenGet(g.g); return its.length || more.length ? `<div class="bo-g">${g.g}</div>${its.map(lk).join('')}${more.length ? `<button type="button" class="nav-more${open ? ' open' : ''}" data-nm="${gi}" data-gn="${g.g}"><i class="fa-solid fa-chevron-down"></i> ${open ? 'ซ่อนเมนูที่ไม่ได้ใช้' : `แสดงเมนูเพิ่ม (+${more.length})`}</button><div class="nav-extra" data-ne="${gi}"${open ? '' : ' hidden'}>${more.map(lk).join('')}</div>` : ''}` : ''; }).join('')}</nav>
     </aside>
     <div class="bo-scrim" id="bo-scrim"></div>
     <div class="bo-body">
@@ -225,10 +235,11 @@ function pageAdmin(app, params, section) {
   if (item[3] && !can(item[3])) main.innerHTML = `<div class="bo-empty"><i class="fa-solid fa-lock"></i><h3>ไม่มีสิทธิ์เข้าถึงหน้านี้</h3><p class="muted">บทบาท "${r.label}" ไม่มีสิทธิ์ "${PERMS[item[3]]}"</p><a class="btn btn-primary" href="#/admin">กลับหน้าหลัก</a></div>`;
   else item[4]()(main, params);
   bindShell(alerts);
+  if (typeof obAfterShell === 'function') obAfterShell();
 }
 
 function boAlerts() {
-  const today = todayISO(), bks = DB.bookings().filter(b => b.status !== 'cancelled');
+  const today = todayISO(), bks = DB.bookings().filter(b => b.status !== 'cancelled' && b.source !== 'external');
   const list = [];
   let approvals = 0, arrivals = 0, apps = 0;
   // เจ้าของรีสอร์ท: งานที่ต้องตัดสินใจ
@@ -249,7 +260,7 @@ function boAlerts() {
     if (!isPromptpayId(p.promptpayId) && !(p.bankInfo || '').trim()) list.push(['fa-building-columns', 'warn', 'ยังไม่ได้ตั้งค่าบัญชีรับเงิน — ลูกค้าโอนเงินออนไลน์ไม่ได้', '#/admin/payout']);
   }
   // เจ้าของรีสอร์ท: ขั้นตอนเริ่มต้นใช้งานที่ยังไม่ครบ (ลิงก์ไปขั้นถัดไปที่ต้องทำ)
-  if (DB.currentUser()?.role === 'owner' && typeof ownerSetupData === 'function') {
+  if (DB.currentUser()?.role === 'owner' && typeof ownerSetupData === 'function' && !(typeof prShowing === 'function' && prShowing())) {
     const todo = ownerSetupData().steps.filter(s => !s[0]);
     if (todo.length) list.push(['fa-list-check', 'warn', `เริ่มต้นใช้งาน — เหลืออีก ${todo.length} ขั้นตอน: ${todo[0][1]}`, todo[0][3]]);
   }
@@ -270,9 +281,7 @@ function boAlerts() {
     const fails = DB.audit().filter(a => a.action === 'auth.fail' && Date.now() - new Date(a.at) < 864e5).length;
     if (fails >= 3) list.push(['fa-shield-halved', 'bad', `มีการใส่รหัสผ่านผิด ${fails} ครั้งใน 24 ชม.`, '#/admin/audit']);
   }
-  const svc = can('hotels.media') ? DB.serviceRequests().length : 0;
-  if (svc) list.push(['fa-arrows-rotate', 'bad', `รีสอร์ทขอใช้ซิงก์ iCal (Plus) ${svc} รายการ`, '#/admin/media']);
-  return { list, sos, arrivals, approvals, apps, svc };
+  return { list, sos, arrivals, approvals, apps };
 }
 
 function bindShell(alerts) {
@@ -707,7 +716,8 @@ function boApprovals(main) {
 
 // ================= เจ้าของรีสอร์ท: บัญชีรับเงิน & ข้อมูลรีสอร์ท =================
 function boPayout(main, params) {
-  const u = DB.currentUser(), b = u.biz || {}, p = u.payout || {};
+  // บัญชีทดลอง (DEMO): ไม่มีอีเมลจริงรับ OTP จึงใช้บัญชีรับเงินตัวอย่างที่เก็บใน biz.demoPayout (ไม่แตะ payout จริง · ระบบยืนยัน OTP ของบัญชีจริงไม่เปลี่ยน)
+  const u = DB.currentUser(), b = u.biz || {}, p = (b.demo ? b.demoPayout : u.payout) || {};
   const maskNum = s => String(s ?? '').replace(/\d[\d\s-]{5,}\d/g, m => { const d = m.replace(/\D/g, ''); return '•'.repeat(Math.max(0, d.length - 4)) + d.slice(-4); });
   const fg = (k, l, v, attrs = '', full = false) => `<div class="fg ${full ? 'full' : ''}"><label>${l}</label><input name="${k}" value="${esc(v ?? '')}" ${attrs}></div>`;
   let shown = false;
@@ -721,9 +731,14 @@ function boPayout(main, params) {
       <section class="card"><div class="card-h"><h3><i class="fa-solid fa-qrcode"></i> บัญชีรับเงิน</h3><button type="button" class="btn btn-ghost btn-sm" id="po-eye"><i class="fa-regular fa-eye"></i> แสดงเลขเต็ม</button></div>
         <div id="po-sum">${sum()}</div>
         <div class="row wrap" style="gap:8px;margin-top:14px"><button type="button" class="btn btn-primary" id="po-edit"><i class="fa-solid fa-pen"></i> เปลี่ยนบัญชีรับเงิน</button></div>
+        ${b.demo ? '<div class="notice warn" style="margin-top:12px"><i class="fa-solid fa-flask"></i><div><b>โหมด DEMO</b> — บัญชีทดลองไม่ต้องยืนยัน OTP และข้อมูลที่กรอกเป็นบัญชีรับเงิน<b>ตัวอย่าง</b> (ไม่ใช่บัญชีจริง) บัญชีที่ใช้งานจริงยังต้องยืนยัน OTP ทางอีเมลตามเดิม</div></div>' : ''}
         <div class="notice info" style="margin-top:12px"><i class="fa-solid fa-shield-halved"></i><div>เพื่อความปลอดภัย การเปลี่ยนบัญชีต้องยืนยันด้วย <b>รหัส OTP ทางอีเมล</b> และรหัสผ่าน (ถ้าบัญชีมี) · ระบบจะแจ้งเตือนคุณทาง Telegram / แจ้งเตือนมือถือทุกครั้งที่มีการเปลี่ยน</div></div>
         <h4 style="margin:16px 0 6px"><i class="fa-solid fa-clock-rotate-left"></i> ประวัติการเปลี่ยนบัญชี</h4><div id="po-hist" class="small muted">กำลังโหลด...</div></section>
-      <form id="po-f"><section class="card"><div class="card-h"><h3><i class="fa-solid fa-store"></i> ข้อมูลรีสอร์ท (แสดงให้ลูกค้า)</h3></div><div class="form-grid">
+      <form id="po-f"><section class="card"><div class="card-h"><h3><i class="fa-solid fa-store"></i> ข้อมูลรีสอร์ท (แสดงให้ลูกค้า)</h3></div>
+        <div class="row" style="gap:14px;align-items:center;margin-bottom:14px"><span class="bo-logo" style="width:64px;height:64px;border-radius:14px"><img id="lg-img" src="${esc(/^https:\/\//i.test(b.logo || '') ? b.logo : siteImgId('icon', 'assets/icon-192.png'))}" alt=""></span>
+          <div><b>โลโก้รีสอร์ท</b><div class="small muted" style="margin:2px 0 8px">โลโก้เดียวใช้ทุกที่: มุมซ้ายบนของเมนู · หัวใบเสร็จ/ใบกำกับภาษี · หน้ารีสอร์ท · แนะนำรูปสี่เหลี่ยมจัตุรัส พื้นโปร่งใสหรือพื้นขาว</div>
+            <div class="row wrap" style="gap:8px"><button type="button" class="btn btn-outline btn-sm" id="lg-pick"><i class="fa-solid fa-image"></i> ${b.logo ? 'เปลี่ยนโลโก้' : 'อัปโหลดโลโก้'}</button>${b.logo ? '<button type="button" class="btn btn-ghost btn-sm" id="lg-del"><i class="fa-regular fa-trash-can"></i> ใช้โลโก้แพลตฟอร์ม</button>' : ''}</div></div></div>
+        <div class="form-grid">
         ${fg('resortName', 'ชื่อรีสอร์ท / ชื่อที่แสดง', b.resortName, 'maxlength="100"', true)}
         ${fg('phone', 'เบอร์ติดต่อ', b.phone, 'type="tel" maxlength="20"')}${fg('line', 'LINE', b.line, 'maxlength="60"')}
         ${fg('facebook', 'ลิงก์ Facebook เพจ (https://...)', b.facebook, 'type="url" maxlength="200" placeholder="https://facebook.com/ชื่อเพจ"', true)}
@@ -745,7 +760,25 @@ function boPayout(main, params) {
     let msg = r.error.message; try { msg = (await r.error.context.json()).error || msg; } catch { /* ใช้ข้อความเดิม */ }
     return { error: msg };
   };
+  // DEMO: กรอกบัญชีรับเงินตัวอย่างได้เลย ไม่ต้อง OTP
+  const demoPayoutModal = () => {
+    const m = openModal(`<h2><i class="fa-solid fa-flask"></i> บัญชีรับเงินตัวอย่าง (DEMO)</h2><form id="pd-f" class="form-grid" style="margin-top:12px" novalidate>
+      ${fg('promptpayId', 'หมายเลขพร้อมเพย์ (ใส่เบอร์ตัวอย่างได้ เช่น 0812345678)', p.promptpayId, 'inputmode="numeric" maxlength="13" placeholder="0812345678" autocomplete="off"', true)}
+      ${fg('promptpayName', 'ชื่อบัญชีพร้อมเพย์', p.promptpayName, 'maxlength="80" placeholder="เช่น นายสมชาย ตัวอย่าง"', true)}
+      <div class="fg full"><label>บัญชีธนาคาร (ไม่บังคับ)</label><textarea name="bankInfo" rows="3" maxlength="300" placeholder="ธนาคาร... เลขที่บัญชี... ชื่อบัญชี...">${esc(p.bankInfo || '')}</textarea></div>
+      <div class="full row" style="justify-content:flex-end;gap:8px"><button type="button" class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> บันทึก (ตัวอย่าง)</button></div></form>`);
+    $('#pd-f', m).onsubmit = async e => {
+      e.preventDefault();
+      const v = Object.fromEntries(new FormData(e.currentTarget)), pid = v.promptpayId.replace(/\D/g, '');
+      if (!pid && !v.bankInfo.trim()) return toast('ใส่พร้อมเพย์หรือบัญชีธนาคารอย่างน้อย 1 อย่าง (ตัวเลขตัวอย่างได้)', 'err');
+      if (pid && !isPromptpayId(pid)) return toast('พร้อมเพย์ต้องเป็นเบอร์มือถือ 10 หลัก หรือเลข 13 หลัก', 'err');
+      await DB.saveBusiness({ demoPayout: { promptpayId: pid, promptpayName: v.promptpayName.trim(), bankInfo: v.bankInfo.trim() } });
+      DB.log('payout.save', 'บัญชีรับเงินตัวอย่าง (DEMO)');
+      closeModal(); toast('บันทึกบัญชีรับเงินตัวอย่างแล้ว'); render();
+    };
+  };
   $('#po-edit').onclick = async () => {
+    if (b.demo) return demoPayoutModal();
     const info = (await call({ action: 'info' })).data || { hasPassword: false, email: '' };
     const m = openModal(`<h2><i class="fa-solid fa-pen"></i> เปลี่ยนบัญชีรับเงิน</h2><form id="pe-f" class="form-grid" style="margin-top:12px" novalidate>
       ${fg('promptpayId', 'หมายเลขพร้อมเพย์ (เบอร์มือถือ 10 หลัก หรือเลข 13 หลัก)', p.promptpayId, 'inputmode="numeric" maxlength="13" placeholder="0812345678" autocomplete="off"', true)}
@@ -775,6 +808,15 @@ function boPayout(main, params) {
       closeModal(); toast(r.data?.unchanged ? 'ไม่มีการเปลี่ยนแปลง' : 'เปลี่ยนบัญชีรับเงินแล้ว — ส่งแจ้งเตือนให้คุณแล้ว'); DB.load().then(render);
     };
   };
+
+  $('#lg-pick')?.addEventListener('click', async e => {
+    const btn = e.currentTarget; btn.disabled = true;
+    try {
+      const url = await pickAndUploadImage(256);
+      if (url) { await DB.saveBusiness({ logo: url }); DB.hotels(true).filter(h => !h.practice && !h.logo).forEach(h => DB.saveHotel({ ...h, logo: url })); DB.log('payout.save', 'โลโก้รีสอร์ท'); toast('เปลี่ยนโลโก้แล้ว'); render(); } else btn.disabled = false;
+    } catch (err) { btn.disabled = false; toast('อัปโหลดโลโก้ไม่สำเร็จ: ' + (err?.message || err), 'err'); }
+  });
+  $('#lg-del')?.addEventListener('click', async () => { await DB.saveBusiness({ logo: '' }); DB.log('payout.save', 'ลบโลโก้รีสอร์ท'); toast('กลับไปใช้โลโก้แพลตฟอร์มแล้ว'); render(); });
 
   $('#po-f').onsubmit = e => {
     e.preventDefault();
@@ -1100,6 +1142,105 @@ function boStaff(main) {
     DB.log('staff.delete', u.email); toast('ลบออกจากทีมแล้ว'); render();
   });
 }
+// ================= นักพัฒนา: บริการเสริมหลังจอง =================
+// บริการของแพลตฟอร์ม (ไม่ใช่ของเจ้าของรีสอร์ท): ผู้ให้บริการภายนอก เช่น เช่ามอเตอร์ไซค์ / เช่าเรือ มาฝากปล่อยและจ่ายค่าบริการให้นักพัฒนา
+// แสดงในใบยืนยันการจองของลูกค้าทั่วไป (รีสอร์ทที่ไม่ใช่ VIP) · ลูกค้าติ๊กขอ → คำขอเข้าหน้านี้ (เฉพาะนักพัฒนาเห็น) · ยังไม่รวมในยอดค่าห้อง
+function boAddons(main) {
+  let list = (DB.settings().extraServices || []).map(x => ({ ...x })), tab = 'cat';
+  const draw = () => {
+    main.innerHTML = pageHead('บริการเสริมหลังจอง', 'บริการของผู้ให้บริการภายนอกที่ฝากปล่อย (เช่าเรือ เช่ามอเตอร์ไซค์ ฯลฯ) — แสดงให้ลูกค้าทั่วไป (ไม่ใช่ VIP) เลือกขอหลังจองเสร็จ · คำขอเข้ามาที่นักพัฒนาเท่านั้น') + `
+      <div class="row" style="gap:8px;margin-bottom:12px"><button class="btn btn-sm ${tab === 'cat' ? 'btn-primary' : 'btn-outline'}" data-tab="cat">รายการบริการ</button><button class="btn btn-sm ${tab === 'req' ? 'btn-primary' : 'btn-outline'}" data-tab="req">คำขอจากลูกค้า</button></div>
+      <section class="card" id="ad-body"></section>`;
+    $$('[data-tab]', main).forEach(b => b.onclick = () => { tab = b.dataset.tab; draw(); });
+    tab === 'cat' ? drawCat() : drawReq();
+  };
+  const drawCat = () => {
+    $('#ad-body').innerHTML = `<div class="row between" style="margin-bottom:10px"><b>${list.length} บริการ</b><button class="btn btn-primary btn-sm" id="ad-add"><i class="fa-solid fa-plus"></i> เพิ่มบริการ</button></div>
+      ${list.length ? list.map((x, i) => `<div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:end;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #eee">
+        <div class="fg"><label>ชื่อบริการ</label><input data-k="name" data-i="${i}" value="${esc(x.name)}" maxlength="60" placeholder="เช่น เช่าเรือเที่ยวรอบเกาะ"></div>
+        <div class="fg"><label>รายละเอียด</label><input data-k="desc" data-i="${i}" value="${esc(x.desc || '')}" maxlength="120"></div>
+        <div class="fg"><label>ราคาที่ลูกค้าเห็น (฿)</label><input type="number" min="0" step="1" data-k="price" data-i="${i}" value="${+x.price || 0}"></div>
+        <div class="fg"><label>ผู้ให้บริการ (เห็นเฉพาะ dev)</label><input data-k="provider" data-i="${i}" value="${esc(x.provider || '')}" maxlength="80"></div>
+        <div class="fg"><label>เบอร์ผู้ให้บริการ</label><input data-k="providerPhone" data-i="${i}" value="${esc(x.providerPhone || '')}" maxlength="30"></div>
+        <button class="btn btn-sm btn-ghost red" data-del="${i}" title="ลบ"><i class="fa-solid fa-trash"></i></button></div>`).join('') : '<div class="bo-empty sm"><i class="fa-solid fa-bell-concierge"></i><p class="muted">ยังไม่มีบริการเสริม — ลูกค้าจะไม่เห็นส่วนนี้</p></div>'}
+      <div class="save-bar"><button class="btn btn-primary" id="ad-save"><i class="fa-solid fa-floppy-disk"></i> บันทึก</button></div>`;
+    $$('[data-k]', main).forEach(el => el.oninput = () => { list[+el.dataset.i][el.dataset.k] = el.dataset.k === 'price' ? Math.max(0, +el.value || 0) : el.value; });
+    $$('[data-del]', main).forEach(b => b.onclick = () => { list.splice(+b.dataset.del, 1); drawCat(); });
+    $('#ad-add').onclick = () => { list.push({ id: 'x' + Date.now().toString(36), name: '', desc: '', price: 0, provider: '', providerPhone: '' }); drawCat(); };
+    $('#ad-save').onclick = () => {
+      if (list.some(x => !x.name.trim())) return toast('กรุณากรอกชื่อบริการให้ครบ', 'err');
+      DB.saveSettings({ extraServices: list.map(x => ({ id: x.id, name: x.name.trim(), desc: (x.desc || '').trim(), price: Math.max(0, +x.price || 0), provider: (x.provider || '').trim(), providerPhone: (x.providerPhone || '').trim() })) });
+      DB.log('settings.addons', `${list.length} รายการ`); toast('บันทึกบริการเสริมแล้ว');
+    };
+  };
+  const drawReq = async () => {
+    const box = $('#ad-body'); box.innerHTML = '<p class="muted small">กำลังโหลด...</p>';
+    const { data, error } = await supa.from('sd_addon_requests').select('*').order('created_at', { ascending: false }).limit(200);
+    if (error) return box.innerHTML = `<p class="red small">โหลดไม่สำเร็จ: ${esc(error.message)}</p>`;
+    const byId = Object.fromEntries(list.map(x => [x.id, x]));
+    box.innerHTML = (data || []).length ? `<div class="table-scroll"><table class="tbl"><thead><tr><th>ลูกค้า / การจอง</th><th>บริการที่ขอ</th><th>ขอเมื่อ</th><th>สถานะ</th></tr></thead><tbody>
+      ${data.map(r => `<tr><td><b>${esc(r.guest?.name || '-')}</b><div class="small muted">${r.guest?.phone ? `<a href="tel:${esc(r.guest.phone)}">${esc(r.guest.phone)}</a> · ` : ''}${esc(r.guest?.email || '')}</div><div class="small muted">${esc(r.guest?.hotel || '')} · ${esc(r.booking_id)} · ${esc(r.guest?.checkIn || '')} → ${esc(r.guest?.checkOut || '')}</div></td>
+        <td>${(r.items || []).length ? r.items.map(a => `${esc(a.name)}${a.qty > 1 ? ' x' + a.qty : ''} <span class="muted small">${money(a.price * a.qty)}${byId[a.id]?.provider ? ' · ' + esc(byId[a.id].provider) : ''}</span>`).join('<br>') : '<span class="muted">ยกเลิกคำขอแล้ว</span>'}</td>
+        <td class="small muted">${relTime(r.updated_at)}</td>
+        <td><label class="switch"><input type="checkbox" data-done="${r.id}" ${r.status === 'done' ? 'checked' : ''}><span></span>${r.status === 'done' ? 'ติดต่อแล้ว' : 'ใหม่'}</label></td></tr>`).join('')}</tbody></table></div>` : '<div class="bo-empty sm"><i class="fa-solid fa-inbox"></i><p class="muted">ยังไม่มีคำขอ</p></div>';
+    $$('[data-done]', box).forEach(c => c.onchange = async () => {
+      const { error } = await supa.from('sd_addon_requests').update({ status: c.checked ? 'done' : 'new' }).eq('id', c.dataset.done);
+      if (error) { c.checked = !c.checked; return toast(error.message, 'err'); }
+      drawReq();
+    });
+  };
+  draw();
+}
+
+// ================= นักพัฒนา: สมาชิก (ลูกค้าที่สมัครบัญชี) — แก้ไขข้อมูล / ระงับ / ลบได้ทุกคน =================
+function boMembers(main) {
+  const all = DB.users().filter(u => u.role === 'user').sort((a, b) => (b.createdAt || '') < (a.createdAt || '') ? -1 : 1);
+  let q = '';
+  main.innerHTML = pageHead('สมาชิก', `${all.length} ราย · แก้ไขข้อมูล ระงับ หรือลบได้ทุกคน (เจ้าของรีสอร์ท/ทีมงานจัดการที่หน้าอื่น)`) + `
+    <div class="filters"><div class="f-search"><i class="fa-solid fa-magnifying-glass"></i><input id="mb-q" placeholder="ชื่อ / อีเมล / เบอร์"></div></div>
+    <section class="card flush" id="mb-list"></section>`;
+  const draw = () => {
+    const list = all.filter(u => !q || [u.name, u.email, u.phone].join(' ').toLowerCase().includes(q));
+    $('#mb-list').innerHTML = list.length ? `<div class="table-scroll"><table class="tbl"><thead><tr><th>สมาชิก</th><th>สถานะ</th><th>เข้าใช้ล่าสุด</th><th></th></tr></thead><tbody>
+      ${list.slice(0, 300).map(u => `<tr><td><div class="row" style="gap:10px"><span class="bo-av sm">${esc(u.name?.[0] || '?')}</span><div><b>${esc(u.name)}</b><div class="small muted">${esc(u.email)}${u.phone ? ' · ' + esc(u.phone) : ''}</div></div></div></td>
+        <td>${u.active === false ? '<span class="pill bad">ระงับ</span>' : '<span class="pill ok">ใช้งาน</span>'}</td><td class="small muted">${u.lastLogin ? relTime(u.lastLogin) : 'ยังไม่เคยเข้าใช้'}</td>
+        <td style="text-align:right;white-space:nowrap"><button class="btn btn-sm btn-outline" data-me="${u.id}"><i class="fa-solid fa-pen"></i> แก้ไข</button> <button class="btn btn-sm btn-ghost" data-msus="${u.id}" title="${u.active === false ? 'เปิดใช้งาน' : 'ระงับ'}"><i class="fa-solid ${u.active === false ? 'fa-user-check' : 'fa-user-slash'}"></i></button> <button class="btn btn-sm btn-ghost red" data-mdel="${u.id}" title="ลบสมาชิก"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('')}</tbody></table></div>` : '<div class="bo-empty sm"><i class="fa-solid fa-users"></i><p class="muted">ไม่พบสมาชิก</p></div>';
+    $$('[data-me]', main).forEach(b => b.onclick = () => memberForm(all.find(u => u.id === b.dataset.me)));
+    $$('[data-msus]', main).forEach(b => b.onclick = async () => {
+      const u = all.find(x => x.id === b.dataset.msus), suspend = u.active !== false;
+      if (!(await confirmBox(`${suspend ? 'ระงับ' : 'เปิดใช้งาน'}บัญชี <b>${esc(u.name)}</b>?`, suspend ? 'ระงับบัญชี' : 'เปิดใช้งาน'))) return;
+      DB.updateUser(u.id, { active: !suspend }); DB.log(suspend ? 'member.suspend' : 'member.activate', u.email); toast('อัปเดตแล้ว'); render();
+    });
+    $$('[data-mdel]', main).forEach(b => b.onclick = async () => {
+      const u = all.find(x => x.id === b.dataset.mdel);
+      if (!(await confirmBox(`ลบสมาชิก <b>${esc(u.name)}</b> (${esc(u.email)})? ข้อมูลโปรไฟล์จะหายถาวร (ประวัติการจองยังอยู่)`, 'ลบสมาชิก'))) return;
+      const r = await DB.staffAdmin('member_delete', { id: u.id });
+      if (r.error) return toast(r.error, 'err');
+      DB.log('member.delete', u.email); toast('ลบสมาชิกแล้ว'); render();
+    });
+  };
+  $('#mb-q').oninput = debounce(e => { q = e.target.value.trim().toLowerCase(); draw(); }, 200);
+  draw();
+}
+function memberForm(u) {
+  const m = openModal(`<h2>แก้ไขสมาชิก</h2>
+    <form id="mf" class="form-grid" style="margin-top:14px" novalidate>
+      <div class="fg full"><label>ชื่อ-นามสกุล <span class="req">*</span></label><input name="name" value="${esc(u.name || '')}"></div>
+      <div class="fg"><label>อีเมล <span class="req">*</span></label><input name="email" type="email" value="${esc(u.email || '')}"></div>
+      <div class="fg"><label>เบอร์โทร</label><input name="phone" value="${esc(u.phone || '')}"></div>
+      <div class="fg full"><label>ตั้งรหัสผ่านใหม่ (เว้นว่างถ้าไม่เปลี่ยน)</label><input name="pass" class="mono" autocomplete="off" placeholder="อย่างน้อย 8 ตัวอักษร"></div>
+      <div class="full row" style="justify-content:flex-end"><button type="button" class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary">บันทึก</button></div></form>`);
+  $('#mf', m).onsubmit = async e => {
+    e.preventDefault();
+    const v = Object.fromEntries(new FormData(e.target));
+    if (!v.name.trim()) return toast('กรุณากรอกชื่อ', 'err');
+    const btn = $('button.btn-primary', e.target); btn.disabled = true;
+    const r = await DB.staffAdmin('member_update', { id: u.id, name: v.name.trim(), email: v.email.trim(), phone: v.phone.trim(), password: v.pass || '' });
+    btn.disabled = false;
+    if (r.error) return toast(r.error, 'err');
+    DB.log('member.edit', u.email); closeModal(); toast('บันทึกแล้ว'); render();
+  };
+}
 function genPassword() { const c = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'; let s = ''; const a = crypto.getRandomValues(new Uint32Array(10)); a.forEach(n => s += c[n % c.length]); return s; }
 function showCredential(email, pw, title, role) {
   const url = new URL(portalUrl(role), location.href).href; // ลิงก์หน้าหลังบ้านของบทบาทนั้น
@@ -1152,15 +1293,15 @@ function staffForm(u) {
 
 // ================= Ops: Today =================
 function boToday(main) {
-  const today = todayISO(), bks = DB.bookings().filter(b => b.status !== 'cancelled');
+  const today = todayISO(), bks = DB.bookings().filter(b => b.status !== 'cancelled' && b.source !== 'external'); // “ปิดห้อง” ไม่ใช่แขก — ดูได้ที่ตารางห้องว่าง
   const arr = bks.filter(b => b.checkIn === today), dep = bks.filter(b => b.checkOut === today);
   const inh = bks.filter(b => b.checkIn <= today && b.checkOut > today);
   const rooms = totalRooms(), occRooms = inh.reduce((s, b) => s + b.qty, 0);
   const pending = bks.filter(b => b.status === 'pending').sort((a, c) => (readyToApprove(c) - readyToApprove(a)) || (a.createdAt < c.createdAt ? -1 : 1));
-  const newToday = DB.bookings().filter(b => isoOf(new Date(b.createdAt)) === today);
+  const newToday = DB.bookings().filter(b => b.source !== 'external' && isoOf(new Date(b.createdAt)) === today);
   const hotels = DB.hotels(true).map(h => { const tot = h.rooms.reduce((s, r) => s + +r.total, 0); const used = inh.filter(b => b.hotelId === h.id).reduce((s, b) => s + b.qty, 0); return [h.name, used, tot]; }).filter(x => x[1]).sort((a, b) => b[1] / b[2] - a[1] / a[2]).slice(0, 8);
   const d = new Date();
-  const u = DB.currentUser(), isOwner = u.role === 'owner', myHotels = DB.hotels(true);
+  const u = DB.currentUser(), isOwner = u.role === 'owner', myHotels = DB.hotels(true), realHotels = myHotels.filter(h => !h.practice);
   // ปุ่มลัด + ขั้นตอนเริ่มต้น + คำอธิบายการทำงาน (เฉพาะเจ้าของรีสอร์ท)
   let hint = '';
   if (isOwner) {
@@ -1174,13 +1315,13 @@ function boToday(main) {
     ].filter(Boolean);
     const po = u.payout || {};
     const steps = [
-      [myHotels.some(h => h.rooms.length), 'เพิ่มรีสอร์ทและห้องพัก', 'ใส่ชื่อ รูป ห้อง ราคา และจำนวนห้อง', '#/admin/hotels'],
+      [realHotels.some(h => h.rooms.length), 'เพิ่มรีสอร์ทและห้องพัก', 'ใส่ชื่อ รูป ห้อง ราคา และจำนวนห้อง', '#/admin/hotels'],
       [isPromptpayId(po.promptpayId) || !!(po.bankInfo || '').trim(), 'ตั้งบัญชีรับเงิน', 'ใส่พร้อมเพย์หรือเลขบัญชี เพื่อให้ลูกค้าโอนเงินให้คุณได้', '#/admin/payout'],
-      [myHotels.some(h => Object.keys(h.social || {}).length), 'ใส่ลิงก์ Facebook / TikTok / LINE ของรีสอร์ท', 'ใช้แสดงในหน้ารีสอร์ทและข้อความโปรโมต', '#/admin/hotels'],
+      [realHotels.some(h => Object.keys(h.social || {}).length), 'ใส่ลิงก์ Facebook / TikTok / LINE ของรีสอร์ท', 'ใช้แสดงในหน้ารีสอร์ทและข้อความโปรโมต', '#/admin/hotels'],
     ];
-    const todo = steps.filter(s => !s[0]).length;
+    const todo = typeof prShowing === 'function' && prShowing() ? 0 : steps.filter(s => !s[0]).length;
     let howHidden = false; try { howHidden = localStorage.getItem('sd_howto_hidden') === '1'; } catch {}
-    hint = `<div class="qa-grid">${tiles.join('')}</div>
+    hint = `${typeof prCard === 'function' ? prCard() : ''}<div class="qa-grid">${tiles.join('')}</div>
       ${todo ? `<section class="card checklist"><div class="card-h"><h3><i class="fa-solid fa-list-check"></i> เริ่มต้นใช้งาน — เหลืออีก ${todo} ขั้นตอน</h3><span class="small muted">${steps.length - todo}/${steps.length} เสร็จแล้ว</span></div>
         ${steps.map(([ok, t, s, h], i) => `<a class="ck-step ${ok ? 'done' : ''}" href="${h}"><span class="ck-n">${ok ? '<i class="fa-solid fa-check"></i>' : i + 1}</span><div><b>${t}</b><small>${s}</small></div>${ok ? '' : '<i class="fa-solid fa-chevron-right muted"></i>'}</a>`).join('')}</section>` : ''}
       ${howHidden ? '' : `<section class="card howto"><div class="card-h"><h3><i class="fa-solid fa-circle-question"></i> ระบบนี้ทำงานยังไง?</h3><button class="btn btn-ghost btn-sm" id="howto-hide">ซ่อน</button></div>
@@ -1209,8 +1350,9 @@ function boToday(main) {
       <section class="card"><div class="card-h"><h3>ห้องมีแขกคืนนี้ตามที่พัก</h3></div>
         ${hotels.length ? `<div class="hbars">${hotels.map(([n, u, t]) => `<div class="hbar"><div class="row between small"><span>${esc(n)}</span><b>${u}/${t} ห้อง</b></div><div class="track"><span style="width:${u / t * 100}%"></span></div></div>`).join('')}</div>` : '<p class="muted small">คืนนี้ยังไม่มีแขกเข้าพัก</p>'}</section>
     </div>
-    <section class="card"><div class="card-h"><h3>การจองล่าสุด</h3><a class="small" href="#/admin/bookings">ทั้งหมด →</a></div>${bkRows(DB.bookings().slice(0, 6), { right: b => `<span class="small muted hide-m">${relTime(b.createdAt)}</span> ${stChip(b)}` })}</section>`;
+    <section class="card"><div class="card-h"><h3>การจองล่าสุด</h3><a class="small" href="#/admin/bookings">ทั้งหมด →</a></div>${bkRows(DB.bookings().filter(b => b.source !== 'external').slice(0, 6), { right: b => `<span class="small muted hide-m">${relTime(b.createdAt)}</span> ${stChip(b)}` })}</section>`;
   bindBk(main);
+  if (typeof prBind === 'function') { prBind(main); prCheckDone(); }
   $('#howto-hide', main)?.addEventListener('click', () => { try { localStorage.setItem('sd_howto_hidden', '1'); } catch {} boToday(main); });
   $$('[data-qa-do]', main).forEach(b => b.onclick = () => pickHotel(b.dataset.qaDo === 'block' ? 'ปิดห้องของรีสอร์ทไหน?' : 'แชร์โปรโมตรีสอร์ทไหน?', h => b.dataset.qaDo === 'block' ? blockRoomsModal(h, {}, () => boToday(main)) : sharePromo(h)));
 }
@@ -1226,7 +1368,7 @@ function pickHotel(title, cb) {
 // ================= Ops: Front desk =================
 function boFrontdesk(main, params) {
   const tab = params.get('tab') || 'arrivals', date = params.get('d') || todayISO();
-  const bks = DB.bookings().filter(b => b.status !== 'cancelled');
+  const bks = DB.bookings().filter(b => b.status !== 'cancelled' && b.source !== 'external'); // “ปิดห้อง” ไม่ใช่แขก
   const sets = {
     arrivals: ['fa-plane-arrival', 'แขกเข้า', bks.filter(b => b.checkIn === date)],
     inhouse: ['fa-bed', 'กำลังเข้าพัก', bks.filter(b => b.checkedInAt && !b.checkedOutAt)],
@@ -1308,25 +1450,26 @@ function boBookings(main, params) {
 }
 
 // ปิดห้อง: ลูกค้ามาจากช่องทางอื่น (เว็บอื่น โทร LINE walk-in) หรือปิดซ่อม → ตัดห้องออกจากระบบทันที กันลูกค้าบนเว็บจองซ้ำ
-const BLOCK_CHANNELS = ['Agoda', 'Booking.com', 'Traveloka', 'Trip.com', 'Airbnb', 'โทรศัพท์ / LINE', 'หน้าเคาน์เตอร์', 'ปิดห้อง'];
+const BLOCK_CHANNELS = ['Agoda', 'Booking.com', 'Traveloka', 'Trip.com', 'Airbnb', 'Facebook', 'TikTok', 'โทรศัพท์ / LINE', 'หน้าเคาน์เตอร์', 'ปิดห้อง'];
 function blockRoomsModal(h, preset, done) {
   if (!h?.rooms?.length) return toast('ที่พักนี้ยังไม่มีห้องพัก', 'err');
   const ci0 = preset.date || todayISO(), room0 = h.rooms.find(r => r.id === preset.roomId) || h.rooms[0];
-  const m = openModal(`<h2><i class="fa-solid fa-ban"></i> ปิดห้อง / บันทึกการจองช่องทางอื่น</h2>
-    <p class="muted small" style="margin:4px 0 12px">${esc(h.name)} — เลือกห้องและวันที่ที่ไม่ต้องการให้ลูกค้าบนเว็บจอง (เช่น มีลูกค้าจอง Agoda / Booking.com / โทรศัพท์แล้ว)</p>
+  const guestMode = preset.mode === 'guest'; // + ผู้มาพัก: บันทึกแขกที่มาพัก (walk-in / โทร) — ตัดห้องเหมือนปิดห้อง
+  const m = openModal(`<h2><i class="fa-solid ${guestMode ? 'fa-user-plus' : 'fa-ban'}"></i> ${guestMode ? '+ ผู้มาพัก' : 'ปิดห้อง / บันทึกการจองช่องทางอื่น'}</h2>
+    <p class="muted small" style="margin:4px 0 12px">${esc(h.name)} — ${guestMode ? 'ใส่ชื่อผู้มาพัก ห้อง และวันที่ ระบบจะตัดห้องออกจากเว็บทันที' : 'เลือกห้องและวันที่ที่ไม่ต้องการให้ลูกค้าบนเว็บจอง (เช่น มีลูกค้าจอง Agoda / Booking.com / โทรศัพท์แล้ว)'}</p>
     <form id="bl-f" class="form-grid" novalidate>
       <div class="fg full"><label>จองมาจากช่องทางไหน</label><select name="channel">${BLOCK_CHANNELS.map(c => `<option value="${esc(c)}" ${c === (preset.channel || 'ปิดห้อง') ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></div>
       <div class="fg full"><label>ประเภทห้อง</label><select name="roomId">${h.rooms.map(r => `<option value="${r.id}" ${r.id === room0.id ? 'selected' : ''}>${esc(r.name)} (${r.total} ห้อง)</option>`).join('')}</select></div>
       <div class="fg"><label>เข้าพัก</label><input name="checkIn" type="date" value="${ci0}"></div>
       <div class="fg"><label>เช็คเอาท์</label><input name="checkOut" type="date" value="${addDays(ci0, 1)}"></div>
       <div class="fg"><label>จำนวนห้อง</label><input name="qty" type="number" min="1" value="1"></div>
-      <div class="fg"><label>ชื่อลูกค้า (ไม่บังคับ)</label><input name="guestName" placeholder="เช่น คุณสมชาย"></div>
+      <div class="fg"><label>${guestMode ? 'ชื่อผู้มาพัก' : 'ชื่อลูกค้า (ไม่บังคับ)'}</label><input name="guestName" placeholder="เช่น คุณสมชาย"></div>
       <div class="fg"><label>เบอร์โทร (ไม่บังคับ)</label><input name="phone" type="tel"></div>
       <div class="fg full"><label>เลขที่จอง / หมายเหตุ</label><input name="note" placeholder="เช่น เลขที่จอง Agoda 12345"></div>
     </form>
     <div class="notice info" id="bl-hint" style="margin-top:8px"></div>
     <div class="red small" id="bl-err" style="margin-top:6px"></div>
-    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary" id="bl-go"><i class="fa-solid fa-ban"></i> ปิดห้อง</button></div>`);
+    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary" id="bl-go"><i class="fa-solid ${guestMode ? 'fa-user-plus' : 'fa-ban'}"></i> ${guestMode ? 'บันทึกผู้มาพัก' : 'ปิดห้อง'}</button></div>`);
   const f = $('#bl-f', m), val = n => f.elements[n].value;
   const hint = () => {
     const r = h.rooms.find(x => x.id === val('roomId')), ci = val('checkIn'), co = val('checkOut');
@@ -1346,7 +1489,7 @@ function blockRoomsModal(h, preset, done) {
     try {
       await DB.blockRooms({ hotelId: h.id, roomId: r.id, checkIn: ci, checkOut: co, qty, channel: val('channel') || 'ปิดห้อง', guestName: val('guestName'), phone: val('phone'), note: val('note') });
       DB.log('booking.block', `${h.name} · ${r.name} × ${qty} · ${ci} → ${co}`);
-      closeModal(); toast(`ปิดห้อง ${qty} ห้อง (${fmtDate(ci, false)} – ${fmtDate(co, false)}) แล้ว`); done?.();
+      closeModal(); toast(`${guestMode ? 'บันทึกผู้มาพัก' : 'ปิดห้อง'} ${qty} ห้อง (${fmtDate(ci, false)} – ${fmtDate(co, false)}) แล้ว`); done?.();
     } catch (e) { btn.disabled = false; err.textContent = e.message; }
   };
 }
@@ -1454,8 +1597,9 @@ function admCalendar(main) {
       const m = openModal('<h2><i class="fa-regular fa-calendar"></i> ' + fmtDate(d) + '</h2><div class="tl-detail">' +
         h.rooms.map(r => '<div><small>' + esc(r.name) + '</small><b>ว่าง ' + Math.max(0, r.total - DB.bookedCount(r.id, d, next)) + ' / ' + r.total + ' ห้อง · ' + money(DB.nightPrice(r, d).final) + '</b></div>').join('') + '</div>' +
         (bks.length ? '<h3 style="margin:14px 0 6px;font-size:15px">การจองคืนนี้</h3>' + bks.map(b => '<div class="row between small" style="padding:6px 0;border-top:1px solid var(--border)"><span><b>' + esc(guestName(b)) + '</b> · ' + esc(b.roomName) + ' × ' + b.qty + (b.source === 'external' ? ' · ปิดห้อง' : '') + '</span><button class="btn btn-primary btn-sm" data-bk2="' + b.id + '"><i class="fa-regular fa-eye"></i> ดู</button></div>').join('') : '<p class="small muted" style="margin-top:12px">ไม่มีการจองคืนนี้</p>') +
-        '<div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn btn-ghost" data-close><i class="fa-solid fa-arrow-left"></i> ย้อนกลับ</button><button class="btn btn-primary" id="mc-block"><i class="fa-solid fa-ban"></i> ปิดห้องวันนี้</button></div>');
+        '<div class="row wrap" style="justify-content:flex-end;gap:8px;margin-top:14px"><button class="btn btn-ghost" data-close><i class="fa-solid fa-arrow-left"></i> ย้อนกลับ</button><button class="btn btn-outline" id="mc-block"><i class="fa-solid fa-ban"></i> ปิดห้องวันนี้</button><button class="btn btn-primary" id="mc-guest"><i class="fa-solid fa-user-plus"></i> + ผู้มาพัก</button></div>');
       $('#mc-block', m).onclick = () => { closeModal(); blockRoomsModal(h, { date: d }, draw); };
+      $('#mc-guest', m).onclick = () => { closeModal(); blockRoomsModal(h, { date: d, mode: 'guest', channel: 'หน้าเคาน์เตอร์' }, draw); };
       $$('[data-bk2]', m).forEach(b => b.onclick = () => { closeModal(); bookingDrawer(b.dataset.bk2, draw); });
     });
   };
@@ -1761,7 +1905,8 @@ function resizeImage(file, max) {
     img.onload = () => {
       const s = Math.min(1, max / Math.max(img.width, img.height));
       const c = document.createElement('canvas'); c.width = img.width * s; c.height = img.height * s;
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); // JPEG ไม่มีความโปร่งใส — เติมพื้นขาว (กันโลโก้ PNG พื้นโปร่งใสกลายเป็นพื้นดำ)
+      g.drawImage(img, 0, 0, c.width, c.height);
       c.toBlob(b => res(b), 'image/jpeg', 0.82); URL.revokeObjectURL(img.src);
     };
     img.src = URL.createObjectURL(file);

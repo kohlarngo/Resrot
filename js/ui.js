@@ -17,6 +17,11 @@ function fmtDate(iso, withDow = true) {
   const d = new Date(iso + 'T00:00:00');
   return `${withDow ? TH_DOW[d.getDay()] + ' ' : ''}${d.getDate()} ${TH_MON[d.getMonth()]} ${d.getFullYear() + 543}`;
 }
+// ช่วงวันแบบสั้น: 28-30 ต.ค. · ข้ามเดือน: 30 ต.ค.-2 พ.ย.
+function fmtRange(a, b) {
+  const x = new Date(a + 'T00:00:00'), y = new Date(b + 'T00:00:00');
+  return x.getMonth() === y.getMonth() ? `${x.getDate()}-${y.getDate()} ${TH_MON[y.getMonth()]}` : `${x.getDate()} ${TH_MON[x.getMonth()]}-${y.getDate()} ${TH_MON[y.getMonth()]}`;
+}
 const fmtDateTime = iso => { const d = new Date(iso); return `${fmtDate(isoOf(d), false)} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 function scoreWord(s) { return s >= 9 ? 'ยอดเยี่ยม' : s >= 8.5 ? 'ดีเยี่ยม' : s >= 8 ? 'ดีมาก' : s >= 7 ? 'ดี' : 'พอใช้'; }
 const starsHtml = n => `<span class="stars">${'<i class="fa-solid fa-star"></i>'.repeat(n)}</span>`;
@@ -24,6 +29,19 @@ const starsHtml = n => `<span class="stars">${'<i class="fa-solid fa-star"></i>'
 const scoreHtml = (s, c) => !+s && !c ? '' : `<span class="score"><b>${(+s).toFixed(1)}</b><span><span class="w">${scoreWord(s)}</span>${c != null ? `<br><span class="c">${c.toLocaleString()} รีวิว</span>` : ''}</span></span>`;
 const fallback = seed => `this.onerror=null;this.src='https://picsum.photos/seed/${seed}/800/600'`;
 const imgTag = (id, w = 800, cls = '', seed = id) => `<img src="${imgUrl(id, w)}" class="${cls}" loading="lazy" alt="" onerror="${fallback(String(seed).replace(/[^a-z0-9]/gi, '').slice(-12))}">`;
+// รีสอร์ทตัวอย่าง (DEMO / ฝึกใช้งาน): ใส่ลายน้ำ DEMO ทับรูปทุกที่ที่แสดงให้ลูกค้าเห็น กันเข้าใจผิดว่าเป็นที่พักจริง
+// วางไว้ในกล่องรูปที่ position:relative (ตัวลายน้ำเต็มกล่อง ไม่รับคลิก)
+const isDemoHotel = h => !!(h && (h.demo || h.practice));
+const demoWm = h => isDemoHotel(h) ? '<span class="demo-wm" aria-hidden="true"><b>DEMO</b></span>' : '';
+const demoBanner = h => isDemoHotel(h) ? '<div class="demo-banner"><i class="fa-solid fa-flask"></i> <b>DEMO</b> — รีสอร์ทตัวอย่างสำหรับทดลองระบบ รูปและข้อมูลทั้งหมดเป็นของปลอม ไม่ใช่ที่พักจริง · จองทดลองได้เพื่อฝึกใช้งาน (ไม่มีการเรียกเก็บเงินจริง)</div>' : '';
+(function demoStyle() {
+  const s = document.createElement('style');
+  s.textContent = `.demo-wm{position:absolute;inset:0;z-index:3;pointer-events:none;display:grid;place-items:center;overflow:hidden}
+.demo-wm b{transform:rotate(-24deg);font:900 clamp(26px,7vw,72px)/1 Arial,sans-serif;letter-spacing:.14em;color:rgba(255,255,255,.55);-webkit-text-stroke:2px rgba(185,28,28,.55);text-shadow:0 2px 10px rgba(0,0,0,.35)}
+.demo-wm::after{content:'ตัวอย่าง · ไม่ใช่ที่พักจริง';position:absolute;left:0;right:0;bottom:0;background:rgba(185,28,28,.88);color:#fff;font:700 11px/1.6 system-ui,sans-serif;text-align:center}
+.demo-banner{background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:10px;padding:10px 14px;margin:12px 0;font-size:.92rem}`;
+  document.head.appendChild(s);
+})();
 const isMobile = () => innerWidth <= 820; // ตรงกับ breakpoint ใน style.css
 function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
 
@@ -344,7 +362,7 @@ function authModal(mode = 'login', after) {
     <h2>${isLogin ? 'เข้าสู่ระบบ' : 'สร้างบัญชีใหม่'}</h2>
     <p class="muted small" style="margin:0 0 16px">${isLogin ? 'เข้าสู่ระบบเพื่อจัดการการจองและรับส่วนลดพิเศษสำหรับสมาชิก' : 'สมัครฟรี รับส่วนลดสมาชิกทันที'}</p>
     ${isLogin ? '' : `<div class="panel" style="padding:10px 12px;margin:0 0 14px">
-      <label class="small" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="auth-terms" style="margin-top:3px"><span>${TERMS_GUEST_LABEL}</span></label>
+      <label class="small" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="auth-terms" style="margin-top:3px"><span class="terms-lbl">${TERMS_GUEST_LABEL}</span></label>
       <details id="auth-terms-box" style="margin-top:8px"><summary class="small" style="cursor:pointer;color:var(--primary)">อ่านเงื่อนไขทั้งหมด</summary>
         <div style="max-height:200px;overflow:auto;margin:8px 0;font-size:13px;border:1px solid var(--line,#e3e6ec);border-radius:8px;padding:4px 10px">${termsHtml('guest')}</div>
         <button type="button" class="btn btn-sm btn-primary" id="auth-terms-ok"><i class="fa-solid fa-check"></i> ยอมรับเงื่อนไข</button></details>
@@ -429,7 +447,7 @@ function termsGate() {
   let m = openModal(`<h2><i class="fa-solid fa-file-contract"></i> เงื่อนไขการใช้งาน</h2>
     <p class="muted small" style="margin:4px 0 10px">กรุณาอ่านและยอมรับเงื่อนไขก่อนใช้งานบัญชีนี้</p>
     <div style="max-height:46vh;overflow:auto;font-size:13px;border:1px solid var(--line,#e3e6ec);border-radius:8px;padding:4px 10px">${termsHtml('guest')}</div>
-    <label class="small" style="display:flex;gap:8px;align-items:flex-start;margin:12px 0"><input type="checkbox" id="tg-ok" style="margin-top:3px"><span>${TERMS_GUEST_LABEL}</span></label>
+    <label class="small" style="display:flex;gap:8px;align-items:flex-start;margin:12px 0"><input type="checkbox" id="tg-ok" style="margin-top:3px"><span class="terms-lbl">${TERMS_GUEST_LABEL}</span></label>
     <div class="red small" id="tg-err"></div>
     <div class="row" style="justify-content:flex-end;gap:8px"><button class="btn btn-ghost" id="tg-no">ไม่ยอมรับ (ออกจากระบบ)</button><button class="btn btn-primary" id="tg-yes" disabled>ยอมรับและใช้งานต่อ</button></div>`);
   const c = m.cloneNode(true); m.replaceWith(c); m = c; // ปิดด้วยการคลิกพื้นหลังไม่ได้ ต้องเลือกยอมรับหรือออกจากระบบ
