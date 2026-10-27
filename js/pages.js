@@ -810,7 +810,7 @@ function pageBook(app, params) {
     $('#book-main').innerHTML = `${timerHtml()}
       ${adList.length ? `<div class="panel" id="ad-panel"><h2><i class="fa-solid fa-bell-concierge"></i> บริการเสริม <span class="small muted" style="font-weight:400">(ไม่บังคับ)</span></h2>
         <p class="small muted" style="margin-top:0">เลือกบริการที่ต้องการได้เลย — ราคารวมในยอดชำระครั้งเดียวด้านล่าง ไม่ต้องจ่ายแยก</p>
-        ${adList.map(x => `<label class="row between" style="gap:10px;padding:8px 0;border-top:1px solid #eee"><span style="flex:1"><input type="checkbox" data-ad="${esc(x.id)}" ${st.ad[x.id] ? 'checked' : ''}> <b>${esc(x.name)}</b>${x.desc ? `<span class="small muted" style="display:block;margin-left:22px">${esc(x.desc)}</span>` : ''}</span><b>${+x.price ? money(x.price) : 'ฟรี'}</b></label>`).join('')}</div>` : ''}
+        <div class="ad-list">${adList.map(x => `<label class="ad-row${st.ad[x.id] ? ' on' : ''}"><span class="ad-ic"><i class="fa-solid ${vipSvcIcon(x.name + ' ' + (x.desc || ''))}"></i></span><div><b>${esc(x.name)}</b>${x.desc ? `<small>${esc(x.desc)}</small>` : ''}</div><span class="ad-pr">${+x.price ? money(x.price) : 'ฟรี'}</span><input type="checkbox" data-ad="${esc(x.id)}" ${st.ad[x.id] ? 'checked' : ''}></label>`).join('')}</div></div>` : ''}
       ${payPanelHtml()}
       <div class="panel small muted"><i class="fa-solid fa-shield-halved"></i> ${ow ? `ชำระเงินตรงถึงเจ้าของรีสอร์ท <b>${esc(ow.name)}</b> · ` : ''}การจองจะสมบูรณ์เมื่อเจ้าของรีสอร์ทยืนยัน · การกด "ยืนยันการจอง" ถือว่าคุณยอมรับ<a href="#/terms" target="_blank" rel="noopener">ข้อกำหนดและเงื่อนไข</a></div>
       <label class="panel small" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="tc-ok" ${st.terms ? 'checked' : ''} style="margin-top:3px"><span class="terms-lbl">${TERMS_GUEST_LABEL} <a href="#/terms" target="_blank" rel="noopener">(อ่านเงื่อนไข)</a></span></label>
@@ -820,7 +820,7 @@ function pageBook(app, params) {
         <button class="btn btn-primary btn-lg" id="confirm" ${methods.length ? '' : 'disabled'}><i class="fa-solid fa-lock"></i> ยืนยันการจอง</button></div>
       </div>`;
     bindPayPanel();
-    $$('[data-ad]', $('#ad-panel') || document).forEach(c => c.onchange = () => { st.ad[c.dataset.ad] = c.checked; $('#book-sum').innerHTML = summary(); bindSum(); });
+    $$('[data-ad]', $('#ad-panel') || document).forEach(c => c.onchange = () => { st.ad[c.dataset.ad] = c.checked; c.closest('.ad-row')?.classList.toggle('on', c.checked); $('#book-sum').innerHTML = summary(); bindSum(); });
     $('#back1').onclick = () => { st.step = 1; draw(); };
     $('#tc-ok').onchange = e => { st.terms = e.target.checked; };
     $('#confirm').onclick = () => {

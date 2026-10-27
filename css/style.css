@@ -944,3 +944,13 @@ body.vip-edit [data-vedit] { user-select: none; -webkit-user-select: none; }
 .va-gal-room .va-gal-n { bottom: 12px; }
 .va-thumbs button.on { outline: 3px solid var(--vip); outline-offset: -3px; }
 .va-thumbs { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+
+/* บริการเสริมตอนชำระเงิน — หน้าตาเดียวกับรายการบริการของเว็บ VIP (ไอคอนวงกลม ชื่อ/รายละเอียด ราคา ช่องติ๊ก) */
+.ad-list { --ad: var(--vip, var(--primary)); }
+.ad-row { display: flex; align-items: center; gap: 14px; padding: 12px 10px; border-bottom: 1px solid #eef0f4; cursor: pointer; border-radius: 12px; }
+.ad-row:last-child { border-bottom: 0; }
+.ad-row.on { background: #f4f7fd; box-shadow: inset 0 0 0 1.5px var(--ad); }
+.ad-ic { flex: none; width: 46px; height: 46px; border-radius: 50%; border: 1px solid #e6e9ef; background: #fff; display: grid; place-items: center; color: var(--ad); font-size: 18px; }
+.ad-row > div { flex: 1; min-width: 0; } .ad-row b, .ad-row small { display: block; } .ad-row small { color: var(--muted); font-size: 12px; }
+.ad-pr { font-weight: 700; white-space: nowrap; }
+.ad-row input { accent-color: var(--ad); width: 20px; height: 20px; flex: none; }
