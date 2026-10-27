@@ -812,7 +812,7 @@ function pageBook(app, params) {
     $('#book-main').innerHTML = `${timerHtml()}
       ${adList.length ? `<div class="panel" id="ad-panel"><h2><i class="fa-solid fa-bell-concierge"></i> บริการเสริม <span class="small muted" style="font-weight:400">(ไม่บังคับ)</span></h2>
         <p class="small muted" style="margin-top:0">เลือกบริการที่ต้องการได้เลย — ราคารวมในยอดชำระครั้งเดียวด้านล่าง ไม่ต้องจ่ายแยก</p>
-        <div class="ad-list">${adList.map(x => `<label class="ad-row${st.ad[x.id] ? ' on' : ''}"><span class="ad-ic"><i class="fa-solid ${vipSvcIcon(x.name + ' ' + (x.desc || ''))}"></i></span><div><b>${esc(x.name)}</b>${x.desc ? `<small>${esc(x.desc)}</small>` : ''}${adChips(x)}</div><span class="ad-pr">${+x.price ? money(x.price) : 'ฟรี'}${x.unit ? `<small>${esc(x.unit)}</small>` : ''}</span><input type="checkbox" data-ad="${esc(x.id)}" ${st.ad[x.id] ? 'checked' : ''}></label>`).join('')}</div></div>` : ''}
+        <div class="ad-list">${adList.map(x => `<label class="ad-row${st.ad[x.id] ? ' on' : ''}">${x.image ? `<img class="ad-img" src="${esc(x.image)}" alt="${esc(x.name)}" data-adimg="${esc(x.id)}">` : `<span class="ad-ic"><i class="fa-solid ${vipSvcIcon(x.name + ' ' + (x.desc || ''))}"></i></span>`}<div><b>${esc(x.name)}</b>${x.desc ? `<small>${esc(x.desc)}</small>` : ''}${adChips(x)}</div><span class="ad-pr">${+x.price ? money(x.price) : 'ฟรี'}${x.unit ? `<small>${esc(x.unit)}</small>` : ''}</span><input type="checkbox" data-ad="${esc(x.id)}" ${st.ad[x.id] ? 'checked' : ''}></label>`).join('')}</div></div>` : ''}
       ${payPanelHtml()}
       <div class="panel small muted"><i class="fa-solid fa-shield-halved"></i> ${ow ? `ชำระเงินตรงถึงเจ้าของรีสอร์ท <b>${esc(ow.name)}</b> · ` : ''}การจองจะสมบูรณ์เมื่อเจ้าของรีสอร์ทยืนยัน · การกด "ยืนยันการจอง" ถือว่าคุณยอมรับ<a href="#/terms" target="_blank" rel="noopener">ข้อกำหนดและเงื่อนไข</a></div>
       <label class="panel small" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="tc-ok" ${st.terms ? 'checked' : ''} style="margin-top:3px"><span class="terms-lbl">${TERMS_GUEST_LABEL} <a href="#/terms" target="_blank" rel="noopener">(อ่านเงื่อนไข)</a></span></label>
@@ -823,6 +823,7 @@ function pageBook(app, params) {
       </div>`;
     bindPayPanel();
     $$('[data-ad]', $('#ad-panel') || document).forEach(c => c.onchange = () => { st.ad[c.dataset.ad] = c.checked; c.closest('.ad-row')?.classList.toggle('on', c.checked); $('#book-sum').innerHTML = summary(); bindSum(); });
+    $$('[data-adimg]', $('#ad-panel') || document).forEach(im => im.onclick = e => { e.preventDefault(); e.stopPropagation(); const x = adList.find(a => a.id === im.dataset.adimg); if (x) openModal(`<img src="${esc(x.image)}" alt="" style="width:100%;border-radius:12px;display:block"><h3 style="margin:12px 0 4px">${esc(x.name)}</h3>${x.desc ? `<p class="small muted" style="margin:0 0 6px">${esc(x.desc)}</p>` : ''}${adChips(x)}<div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn btn-primary" data-close>ปิด</button></div>`); });
     $('#back1').onclick = () => { st.step = 1; draw(); };
     $('#tc-ok').onchange = e => { st.terms = e.target.checked; };
     $('#confirm').onclick = () => {

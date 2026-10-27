@@ -957,3 +957,4 @@ body.vip-edit [data-vedit] { user-select: none; -webkit-user-select: none; }
 .ad-pr { text-align: right; } .ad-pr small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
 .ad-chips { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px; }
 .ad-chips i { font-style: normal; font-size: 12px; background: #eef7f0; color: #1f6b3a; border-radius: 999px; padding: 2px 9px; } .ad-chips em { font-size: 10px; }
+.ad-img { flex: none; width: 64px; height: 64px; object-fit: cover; border-radius: 12px; border: 1px solid #e6e9ef; cursor: zoom-in; }

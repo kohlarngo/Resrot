@@ -1161,6 +1161,7 @@ function boAddons(main) {
         <div class="fg"><label>ชื่อบริการ</label><input data-k="name" data-i="${i}" value="${esc(x.name)}" maxlength="60" placeholder="เช่น เช่าเรือเที่ยวรอบเกาะ"></div>
         <div class="fg"><label>รายละเอียด</label><input data-k="desc" data-i="${i}" value="${esc(x.desc || '')}" maxlength="120"></div>
         <div class="fg"><label>ราคาที่ลูกค้าเห็น (฿)</label><input type="number" min="0" step="1" data-k="price" data-i="${i}" value="${+x.price || 0}"></div>
+        <div class="fg"><label>รูปภาพ <span class="small muted">— ลูกค้ากดดูขยายได้</span></label><div class="row" style="gap:8px;align-items:center">${x.image ? `<img src="${esc(x.image)}" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid #e6e9ef">` : '<span class="small muted">ยังไม่มีรูป</span>'}<button type="button" class="btn btn-outline btn-sm" data-upimg="${i}"><i class="fa-solid fa-camera"></i> ${x.image ? 'เปลี่ยน' : 'อัปโหลด'}</button>${x.image ? `<button type="button" class="btn btn-ghost btn-sm red" data-rmimg="${i}">ลบรูป</button>` : ''}</div></div>
         <div class="fg"><label>หน่วยราคา</label><input data-k="unit" data-i="${i}" value="${esc(x.unit || '')}" maxlength="20" placeholder="เช่น ต่อท่าน / ต่อแพ็กเกจ"></div>
         <div class="fg" style="grid-column:1/-1"><label>สิ่งที่รวมในแพ็กเกจ <span class="small muted">— 1 บรรทัด = 1 อย่าง ลูกค้าเห็นเป็นรายการติ๊กถูก (ถ้าเป็นบริการเดี่ยวเว้นว่างได้)</span></label><textarea rows="3" data-k="items" data-i="${i}" maxlength="500" placeholder="เจ็ทสกี 15 นาที&#10;ดำน้ำตื้น 1 ชั่วโมง&#10;เรือกล้วย 1 รอบ">${esc(x.items || '')}</textarea></div>
         <div class="fg"><label>ผู้ให้บริการ (เห็นเฉพาะ dev)</label><input data-k="provider" data-i="${i}" value="${esc(x.provider || '')}" maxlength="80"></div>
@@ -1169,10 +1170,12 @@ function boAddons(main) {
       <div class="save-bar"><button class="btn btn-primary" id="ad-save"><i class="fa-solid fa-floppy-disk"></i> บันทึก</button></div>`;
     $$('[data-k]', main).forEach(el => el.oninput = () => { list[+el.dataset.i][el.dataset.k] = el.dataset.k === 'price' ? Math.max(0, +el.value || 0) : el.value; });
     $$('[data-del]', main).forEach(b => b.onclick = () => { list.splice(+b.dataset.del, 1); drawCat(); });
+    $$('[data-upimg]', main).forEach(b => b.onclick = async () => { try { toast('เลือกรูปจากเครื่อง...', 'info'); const u = await pickAndUploadImage(900); if (u) { list[+b.dataset.upimg].image = u; drawCat(); toast('อัปโหลดรูปแล้ว — กด “บันทึก” เพื่อใช้งาน'); } } catch (e) { toast('อัปโหลดรูปไม่สำเร็จ: ' + e.message, 'err'); } });
+    $$('[data-rmimg]', main).forEach(b => b.onclick = () => { list[+b.dataset.rmimg].image = ''; drawCat(); });
     $('#ad-add').onclick = () => { list.push({ id: 'x' + Date.now().toString(36), name: '', desc: '', price: 0, provider: '', providerPhone: '' }); drawCat(); };
     $('#ad-save').onclick = () => {
       if (list.some(x => !x.name.trim())) return toast('กรุณากรอกชื่อบริการให้ครบ', 'err');
-      DB.saveSettings({ extraServices: list.map(x => ({ id: x.id, name: x.name.trim(), desc: (x.desc || '').trim(), price: Math.max(0, +x.price || 0), unit: (x.unit || '').trim().slice(0, 20), items: String(x.items || '').split('\n').map(t => t.trim().slice(0, 60)).filter(Boolean).slice(0, 8).join('\n'), provider: (x.provider || '').trim(), providerPhone: (x.providerPhone || '').trim() })) });
+      DB.saveSettings({ extraServices: list.map(x => ({ id: x.id, name: x.name.trim(), desc: (x.desc || '').trim(), price: Math.max(0, +x.price || 0), unit: (x.unit || '').trim().slice(0, 20), image: /^(https?:|data:image\/)/.test(x.image || '') ? x.image : '', items: String(x.items || '').split('\n').map(t => t.trim().slice(0, 60)).filter(Boolean).slice(0, 8).join('\n'), provider: (x.provider || '').trim(), providerPhone: (x.providerPhone || '').trim() })) });
       DB.log('settings.addons', `${list.length} รายการ`); toast('บันทึกบริการเสริมแล้ว');
     };
   };
