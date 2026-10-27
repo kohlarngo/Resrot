@@ -1188,15 +1188,21 @@ function quoteForm(done, ex) { // ex = { h, q } เมื่อแก้ใบ�
     $$('[data-rd]', m).forEach(x => x.onclick = () => { readRows(); rows.splice(+x.dataset.rd, 1); if (!rows.length) rows.push({ name: '', qty: 1, price: 0 }); drawRows(); }); };
   f.hid.onchange = fillRooms; fillRooms(); drawRows(); if (eq) f.hid.value = ex.h.id;
   $('#qt-add', m).onclick = () => { readRows(); rows.push({ name: '', qty: 1, price: 0 }); drawRows(); };
-  $('#qt-room', m).onclick = () => {
+  let roomSig = ''; // ห้อง/วันที่/จำนวนที่เพิ่มเข้ารายการไปแล้ว — กันเพิ่มซ้ำตอนกดออกใบ
+  const roomPick = () => [f.hid.value, f.room.value, f.ci.value, f.co.value, f.rq.value].join('|');
+  const addRoom = () => {
     const r = hotel()?.rooms.find(x => x.id === f.room.value), n = Math.round((new Date(f.co.value) - new Date(f.ci.value)) / 864e5), q = Math.max(1, Math.round(+f.rq.value) || 1);
-    if (!r || !f.ci.value || !f.co.value || !(n > 0)) return toast('เลือกห้อง และวันเช็คอิน/เช็คเอาต์ให้ถูกต้อง', 'err');
+    if (!r || !f.ci.value || !f.co.value || !(n > 0)) { toast('เลือกห้อง และวันเช็คอิน/เช็คเอาต์ให้ถูกต้อง', 'err'); return false; }
     readRows(); const row = { name: `ห้องพัก ${r.name} (${fmtDate(f.ci.value, false)} – ${fmtDate(f.co.value, false)} · ${q} ห้อง × ${n} คืน)`, qty: q * n, price: r.price };
-    if (rows.length === 1 && !rows[0].name.trim() && !rows[0].price) rows[0] = row; else rows.push(row); drawRows();
+    if (rows.length === 1 && !rows[0].name.trim() && !rows[0].price) rows[0] = row; else rows.push(row);
+    drawRows(); roomSig = roomPick(); return true;
   };
+  $('#qt-room', m).onclick = addRoom;
   $('#qt-go', m).onclick = () => {
     readRows(); const v = k => f[k].value.trim(), h = hotel(), t = taxInfoOf(h);
     if (!v('cname')) return toast('กรุณากรอกชื่อลูกค้า', 'err');
+    // เลือกห้อง+วันที่ไว้แต่ยังไม่ได้กด "เพิ่ม" → ใส่เข้ารายการให้อัตโนมัติ
+    if ((f.ci.value || f.co.value) && roomPick() !== roomSig) { if (!addRoom()) return; }
     if (v('ctax') && !/^\d{13}$/.test(v('ctax'))) return toast('เลขผู้เสียภาษีต้องเป็นตัวเลข 13 หลัก', 'err');
     if (!t.address.trim()) return toast('กรุณากรอกที่อยู่ใน “ข้อมูลผู้ออก” ของรีสอร์ทนี้ก่อน', 'err');
     const items = rows.filter(r => r.name.trim() && r.price).map(r => ({ name: r.name.trim().slice(0, 160), qty: Math.max(1, Math.round(r.qty)), price: r2(r.price) }));
