@@ -1156,7 +1156,8 @@ function boAddons(main) {
     tab === 'cat' ? drawCat() : drawReq();
   };
   const drawCat = () => {
-    $('#ad-body').innerHTML = `<div class="row between" style="margin-bottom:10px"><b>${list.length} บริการ</b><button class="btn btn-primary btn-sm" id="ad-add"><i class="fa-solid fa-plus"></i> เพิ่มบริการ</button></div>
+    const on = DB.settings().extraServicesOn !== false;
+    $('#ad-body').innerHTML = `<div class="row between wrap" style="margin-bottom:10px;gap:8px"><label class="switch big"><input type="checkbox" id="ad-master" ${on ? 'checked' : ''}><span></span><b>${on ? 'เปิดให้ลูกค้าเลือกบริการเสริม' : 'ปิดอยู่ — ลูกค้าไม่เห็นบริการเสริม'}</b></label><b class="small muted">${list.length} บริการ</b><button class="btn btn-primary btn-sm" id="ad-add"><i class="fa-solid fa-plus"></i> เพิ่มบริการ</button></div>
       ${list.length ? list.map((x, i) => `<div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:end;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #eee">
         <div class="fg"><label>ชื่อบริการ</label><input data-k="name" data-i="${i}" value="${esc(x.name)}" maxlength="60" placeholder="เช่น เช่าเรือเที่ยวรอบเกาะ"></div>
         <div class="fg"><label>รายละเอียด</label><input data-k="desc" data-i="${i}" value="${esc(x.desc || '')}" maxlength="120"></div>
@@ -1166,16 +1167,19 @@ function boAddons(main) {
         <div class="fg" style="grid-column:1/-1"><label>สิ่งที่รวมในแพ็กเกจ <span class="small muted">— 1 บรรทัด = 1 อย่าง ลูกค้าเห็นเป็นรายการติ๊กถูก (ถ้าเป็นบริการเดี่ยวเว้นว่างได้)</span></label><textarea rows="3" data-k="items" data-i="${i}" maxlength="500" placeholder="เจ็ทสกี 15 นาที&#10;ดำน้ำตื้น 1 ชั่วโมง&#10;เรือกล้วย 1 รอบ">${esc(x.items || '')}</textarea></div>
         <div class="fg"><label>ผู้ให้บริการ (เห็นเฉพาะ dev)</label><input data-k="provider" data-i="${i}" value="${esc(x.provider || '')}" maxlength="80"></div>
         <div class="fg"><label>เบอร์ผู้ให้บริการ</label><input data-k="providerPhone" data-i="${i}" value="${esc(x.providerPhone || '')}" maxlength="30"></div>
+        <label class="switch"><input type="checkbox" data-on="${i}" ${x.off ? '' : 'checked'}><span></span>${x.off ? 'ซ่อน' : 'แสดง'}</label>
         <button class="btn btn-sm btn-ghost red" data-del="${i}" title="ลบ"><i class="fa-solid fa-trash"></i></button></div>`).join('') : '<div class="bo-empty sm"><i class="fa-solid fa-bell-concierge"></i><p class="muted">ยังไม่มีบริการเสริม — ลูกค้าจะไม่เห็นส่วนนี้</p></div>'}
       <div class="save-bar"><button class="btn btn-primary" id="ad-save"><i class="fa-solid fa-floppy-disk"></i> บันทึก</button></div>`;
     $$('[data-k]', main).forEach(el => el.oninput = () => { list[+el.dataset.i][el.dataset.k] = el.dataset.k === 'price' ? Math.max(0, +el.value || 0) : el.value; });
+    $('#ad-master').onchange = e => { DB.saveSettings({ extraServicesOn: e.target.checked }); DB.log('settings.addons', e.target.checked ? 'เปิดบริการเสริม' : 'ปิดบริการเสริม'); toast(e.target.checked ? 'เปิดบริการเสริมแล้ว' : 'ปิดบริการเสริมแล้ว — ลูกค้าไม่เห็นส่วนนี้'); drawCat(); };
+    $$('[data-on]', main).forEach(c => c.onchange = () => { list[+c.dataset.on].off = !c.checked; c.parentElement.lastChild.textContent = c.checked ? 'แสดง' : 'ซ่อน'; });
     $$('[data-del]', main).forEach(b => b.onclick = () => { list.splice(+b.dataset.del, 1); drawCat(); });
     $$('[data-upimg]', main).forEach(b => b.onclick = async () => { try { toast('เลือกรูปจากเครื่อง...', 'info'); const u = await pickAndUploadImage(900); if (u) { list[+b.dataset.upimg].image = u; drawCat(); toast('อัปโหลดรูปแล้ว — กด “บันทึก” เพื่อใช้งาน'); } } catch (e) { toast('อัปโหลดรูปไม่สำเร็จ: ' + e.message, 'err'); } });
     $$('[data-rmimg]', main).forEach(b => b.onclick = () => { list[+b.dataset.rmimg].image = ''; drawCat(); });
     $('#ad-add').onclick = () => { list.push({ id: 'x' + Date.now().toString(36), name: '', desc: '', price: 0, provider: '', providerPhone: '' }); drawCat(); };
     $('#ad-save').onclick = () => {
       if (list.some(x => !x.name.trim())) return toast('กรุณากรอกชื่อบริการให้ครบ', 'err');
-      DB.saveSettings({ extraServices: list.map(x => ({ id: x.id, name: x.name.trim(), desc: (x.desc || '').trim(), price: Math.max(0, +x.price || 0), unit: (x.unit || '').trim().slice(0, 20), image: /^(https?:|data:image\/)/.test(x.image || '') ? x.image : '', items: String(x.items || '').split('\n').map(t => t.trim().slice(0, 60)).filter(Boolean).slice(0, 8).join('\n'), provider: (x.provider || '').trim(), providerPhone: (x.providerPhone || '').trim() })) });
+      DB.saveSettings({ extraServices: list.map(x => ({ id: x.id, name: x.name.trim(), desc: (x.desc || '').trim(), price: Math.max(0, +x.price || 0), off: x.off ? true : undefined, unit: (x.unit || '').trim().slice(0, 20), image: /^(https?:|data:image\/)/.test(x.image || '') ? x.image : '', items: String(x.items || '').split('\n').map(t => t.trim().slice(0, 60)).filter(Boolean).slice(0, 8).join('\n'), provider: (x.provider || '').trim(), providerPhone: (x.providerPhone || '').trim() })) });
       DB.log('settings.addons', `${list.length} รายการ`); toast('บันทึกบริการเสริมแล้ว');
     };
   };

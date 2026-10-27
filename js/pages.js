@@ -665,6 +665,8 @@ function lightbox(imgs, i) {
 
 // ================= Booking =================
 let bookTimer = null;
+// บริการเสริมของ dev ที่เปิดอยู่ (สวิตช์รวมที่หน้า dev ปิด = ไม่มีเลย · บริการที่ซ่อนไว้ไม่แสดง)
+const extraSvcs = () => { const s = DB.settings(); return s.extraServicesOn === false ? [] : (s.extraServices || []).filter(x => !x.off); };
 // รายการที่รวมในแพ็กเกจ (x.items = ข้อความ 1 บรรทัดต่ออย่าง) แสดงเป็นแถบติ๊กถูกใต้ชื่อบริการ
 const adChips = x => { const l = String(x.items || '').split('\n').map(t => t.trim()).filter(Boolean).slice(0, 8); return l.length ? `<span class="ad-chips">${l.map(t => `<i><em class="fa-solid fa-check"></em> ${esc(t)}</i>`).join('')}</span>` : ''; };
 function pageBook(app, params) {
@@ -680,7 +682,7 @@ function pageBook(app, params) {
   const q = quoteOffer(room, offer, qty);
   const demoAcct = isDemoHotel(h) && u?.email === 'dev.demo@example.com'; // บัญชีทดสอบจองรีสอร์ทตัวอย่าง → เติมอีเมล/เบอร์ตัวอย่างให้
   const st = { step: 1, guest: { firstName: demoAcct ? 'ทดสอบ' : u?.name.split(' ')[0] || '', lastName: u?.name.split(' ').slice(1).join(' ') || '', email: demoAcct ? 'demo.demo@example.com' : u?.email || '', phone: demoAcct ? '01234567890' : u?.phone || '', country: 'ไทย', requests: [], note: '', arrival: '' }, pay: payMethods(offer, h)[0] || null, coupon: null, off: 0, ad: {} };
-  const adList = h.vip?.on === true ? (h.vip.addons || []) : (DB.settings().extraServices || []), adPicked = () => adList.filter(x => st.ad[x.id]), adSum = () => adPicked().reduce((t, x) => t + (+x.price || 0), 0); // บริการเสริม: VIP = เจ้าของรีสอร์ทกำหนด · ทั่วไป = dev กำหนด (รีสอร์ทจ่ายให้ dev ภายหลัง) — รวมในยอดชำระครั้งเดียว (เซิร์ฟเวอร์คิดราคาจากรายการของรีสอร์ทซ้ำ)
+  const adList = h.vip?.on === true ? (h.vip.addons || []) : extraSvcs(), adPicked = () => adList.filter(x => st.ad[x.id]), adSum = () => adPicked().reduce((t, x) => t + (+x.price || 0), 0); // บริการเสริม: VIP = เจ้าของรีสอร์ทกำหนด · ทั่วไป = dev กำหนด (รีสอร์ทจ่ายให้ dev ภายหลัง) — รวมในยอดชำระครั้งเดียว (เซิร์ฟเวอร์คิดราคาจากรายการของรีสอร์ทซ้ำ)
   const memberOff = u ? Math.round(q.sub * 0.05) : 0;
   const calc = () => {
     const sub = q.sub - memberOff - st.off;
@@ -922,7 +924,7 @@ function voucherHtml(b, st) {
 }
 // บริการเสริมหลังจอง — การจองทั่วไป: รายการนักพัฒนากำหนดที่ settings.extraServices · ถ้าเลือกไว้ตอนชำระเงิน (pageBook) ราคารวมในยอดชำระแล้ว จึงไม่แสดงส่วนนี้ · VIP ใช้รายการที่เจ้าของกำหนดที่ hotel.vip.addons · ติ๊กแล้วคำขอเข้าหน้า dev (ผู้ให้บริการเป็นของแพลตฟอร์ม ไม่ใช่เจ้าของรีสอร์ท)
 function addonsHtml(b, st) {
-  const h = DB.hotel(b.hotelId), list = DB.settings().extraServices || [];
+  const h = DB.hotel(b.hotelId), list = extraSvcs();
   if (!h || b.price?.addons > 0 || !list.length || ['cancelled', 'completed'].includes(st)) return '';
   const cur = Object.fromEntries((b.addons || []).map(a => [a.id, a.qty]));
   return `<div class="panel" id="addons-box"><h3 style="margin:0 0 4px"><i class="fa-solid fa-bell-concierge"></i> บริการเสริม</h3>
