@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
         { id: `${hid}-r3`, name: 'บ้านพักครอบครัว', bed: '2 เตียงใหญ่', size: 50, view: 'วิวสวน', price: 3500, total: 2, discount: 0, breakfast: true, maxGuests: 5, freeCancel: false, payAtHotel: false },
       ];
       const images = [1, 2, 3, 4, 5].map(n => `assets/demo/demo-${n}.jpg`);
-      const hotel = { id: hid, name: resortName, type: 'รีสอร์ท', city: beach.city, area: 'เกาะล้าน', lat: beach.lat, lng: beach.lng, stars: 0, active: false, demo: true, practice: true, vip: { on: true, tag: 'VIP' }, rooms, images, desc: 'DEMO — รีสอร์ทตัวอย่างสำหรับทดลองใช้ระบบ รูปภาพและข้อมูลทั้งหมดเป็นตัวอย่าง ไม่ใช่ที่พักจริง ไม่แสดงบนเว็บไซต์ลูกค้า แก้ไขได้อิสระ' };
+      const hotel = { id: hid, name: resortName, type: 'รีสอร์ท', city: beach.city, area: 'เกาะล้าน', lat: beach.lat, lng: beach.lng, stars: 0, active: false, demo: true, practice: true, vip: { on: true, tag: 'VIP', addons: [{ id: 'da1', name: 'รับส่งสนามบิน-ท่าเรือ', desc: 'รถตู้ไป-กลับ ไม่เกิน 6 ท่าน', price: 600 }, { id: 'da2', name: 'แพ็กเกจเจ็ทสกี + ดำน้ำ + เรือกล้วย', desc: 'เจ็ทสกี 15 นาที · ดำน้ำตื้น 1 ชม. · เรือกล้วย 1 รอบ', price: 1500 }, { id: 'da3', name: 'อาหารเช้าเพิ่ม', desc: 'ต่อท่าน', price: 150 }] }, rooms, images, desc: 'DEMO — รีสอร์ทตัวอย่างสำหรับทดลองใช้ระบบ รูปภาพและข้อมูลทั้งหมดเป็นตัวอย่าง ไม่ใช่ที่พักจริง ไม่แสดงบนเว็บไซต์ลูกค้า แก้ไขได้อิสระ' };
       const rh = await admin.from('sd_hotels').insert({ id: hid, owner_id: id, data: hotel });
       if (rh.error) return json({ id, email, password, expiresAt: expires, warn: 'สร้างบัญชีแล้ว แต่สร้างรีสอร์ทตัวอย่างไม่สำเร็จ: ' + rh.error.message });
 
@@ -137,6 +137,39 @@ Deno.serve(async (req) => {
         };
         return { id: bid, pin: data.pin, user_id: null, guest_email: '', hotel_id: hid, room_id: r.id, check_in: ci, check_out: co, qty: 1, status: data.status, data };
       });
+      // การจองตัวอย่างเพิ่ม (ไม่ผูกภารกิจฝึก) ให้ตารางห้อง รายงาน และรายรับดูเต็มตอนสาธิต · ใช้หมายเลขห้อง (units) ไม่ซ้อนกับชุดด้านบน
+      const mkExtra = (i: number, ri: number, a: number, b: number, first: string, last: string, units: number[], phase: string, method: string, folio: [string, number, number][]) => {
+        const r = rooms[ri], ci = addDays(t, a), co = addDays(t, b), nights = b - a, total = r.price * nights;
+        const bid = `SD${Date.now().toString().slice(-6)}x${i}${rnd(2, '0123456789')}`, ts = (d: number) => new Date(Date.now() + d * 86400000).toISOString();
+        const paid = method !== 'hotel';
+        const data: any = {
+          id: bid, pin: rnd(4, '0123456789'), qty: 1, rooms: 1, units, demo: true, source: 'web', status: 'confirmed', userId: null, ownerId: id, hotelId: hid, hotelName: resortName, roomId: r.id, roomName: r.name,
+          checkIn: ci, checkOut: co, nights, adults: 2, children: 0,
+          guest: { firstName: first, lastName: last || '(ตัวอย่าง)', email: '', phone: '0898765432', country: 'ไทย', note: '', requests: [], arrival: '' },
+          offer: { id: 'std', name: 'ราคามาตรฐาน', breakfast: r.breakfast, freeCancel: r.freeCancel, payAtHotel: method === 'hotel' },
+          price: { room: total, orig: total, sub: total, tax: 0, coupon: 0, member: 0, total },
+          payment: paid ? { paid: true, method, paidAt: ts(a) } : { paid: false, method },
+          createdAt: ts(a - 3),
+        };
+        if (phase === 'past' || phase === 'inhouse') { data.checkedInAt = ts(a); data.checkedInBy = 'ตัวอย่าง'; }
+        if (phase === 'past') { data.checkedOutAt = ts(b); data.checkedOutBy = 'ตัวอย่าง'; data.completedAt = ts(b); }
+        if (folio.length) data.folio = folio.map(([name, qty, price], k) => ({ id: `f${i}${k}`, at: ts(0), name, qty, price, by: 'ตัวอย่าง', paid: false }));
+        return { id: bid, pin: data.pin, user_id: null, guest_email: '', hotel_id: hid, room_id: r.id, check_in: ci, check_out: co, qty: 1, status: 'confirmed', data };
+      };
+      const extras: [number, number, number, string, string, number[], string, string, [string, number, number][]][] = [
+        [0, -6, -3, 'ประเสริฐ', 'ศรีสุข', [3], 'past', 'promptpay', []],
+        [0, -4, -1, 'Tanaka', 'Hiro', [2], 'past', 'bank', []],
+        [0, -1, 3, 'กมล', 'รุ่งเรือง', [4], 'inhouse', 'promptpay', [['ค่าอาหาร / เครื่องดื่ม', 2, 250]]],
+        [0, 1, 4, 'นภา', 'ดีงาม', [5], 'future', 'hotel', []],
+        [0, 3, 6, 'ณัฐ', 'พงษ์ไทย', [1], 'future', 'promptpay', []],
+        [1, -3, 0, 'Sarah', 'Miller', [3], 'past', 'bank', []],
+        [1, 0, 3, 'อรุณ', 'แสงทอง', [2], 'inhouse', 'promptpay', [['เช่ามอเตอร์ไซค์', 1, 300]]],
+        [1, 1, 4, 'พิมพ์', 'ใจดี', [1], 'future', 'promptpay', []],
+        [2, -3, -1, 'Wang', 'Lei', [1], 'past', 'promptpay', []],
+        [2, 0, 3, 'ครอบครัวสุขสันต์', '', [2], 'inhouse', 'bank', []],
+        [2, 3, 6, 'Anna', 'Schmidt', [1], 'future', 'promptpay', []],
+      ];
+      extras.forEach(([ri, a, b, f, l, u, ph, m, fo], i) => rows.push(mkExtra(i, ri, a, b, f, l, u, ph, m, fo)));
       const rbk = await admin.from('sd_bookings').insert(rows);
       // สถานะห้องเริ่มต้น: ห้องที่แขกกำลังจะเข้ามีสถานะ "สกปรก" ให้แม่บ้านลองกดทำความสะอาด
       await admin.from('sd_room_status').upsert([
