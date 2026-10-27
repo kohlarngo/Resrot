@@ -8,6 +8,7 @@ const BO_NAV_BY_ROLE = {
   // โครงสร้างแบบ kohlardgo: แท็บหลักมีแค่ 4 อัน (การจอง · ห้องพัก · หน้ารีสอร์ท · ตารางห้องว่าง) ที่เหลือรวมไว้ในกลุ่มเดียว
   owner: [
     { g: 'งานประจำวัน', items: [
+      ['apps', 'fa-grip', 'หน้ารวมไอคอน (มือถือ)', null, () => boApps],
       ['today', 'fa-sun', 'ภาพรวมวันนี้', 'ops.view', () => boToday],
       ['daily', 'fa-file-lines', 'รายงานรายวัน (PDF / Excel)', 'reports.view', () => boDaily],
       ['housekeeping', 'fa-broom', 'งานแม่บ้าน · สถานะห้อง', 'housekeeping', () => boHousekeeping],

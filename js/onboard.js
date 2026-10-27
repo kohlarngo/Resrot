@@ -3,7 +3,7 @@
 // - ตัวนำทาง: ไฮไลต์เมนูทีละจุดพร้อมคำอธิบาย (ถัดไป / ย้อนกลับ / ข้าม) · เปิดซ้ำได้จากปุ่มท้ายเมนู
 // ต่อเข้ากับ admin.js ผ่าน obHidden() (ใน navArrange) และ obAfterShell() (หลังวาดเมนู)
 
-const OB_BASIC = ['today', 'daily', 'tape', 'approvals', 'bookings', 'frontdesk', 'calendar', 'rooms', 'prices', 'shop', 'links', 'payout'];
+const OB_BASIC = ['apps', 'today', 'daily', 'tape', 'approvals', 'bookings', 'frontdesk', 'calendar', 'rooms', 'prices', 'shop', 'links', 'payout'];
 const OB_STEPS = [
   { k: null, t: 'ยินดีต้อนรับ 👋', d: 'ระบบนี้ช่วยรับจอง จัดห้อง และเก็บเงินแทนคุณ — เราจะพาดูเมนูหลักทีละจุด ใช้เวลาไม่ถึง 1 นาที (กด “ข้าม” เมื่อไหร่ก็ได้)' },
   { k: 'today', t: '1) ภาพรวมวันนี้', d: 'หน้าแรกของคุณ — ดูว่าวันนี้มีแขกเข้า-ออกกี่ห้อง และมีอะไรต้องทำบ้าง เปิดทุกเช้าเพื่อดูงานของวัน' },

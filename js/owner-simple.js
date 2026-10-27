@@ -1606,3 +1606,34 @@ function boMenuSettings(main) {
 .ms-row.ms-over-t{box-shadow:0 -3px 0 #38bdf8}.ms-row.ms-over-b{box-shadow:0 3px 0 #38bdf8}`;
   document.head.appendChild(st);
 })();
+
+// ================= หน้ารวมไอคอน (มือถือ) — ไอคอนทุกเมนูในหน้าเดียว กดเข้าได้เลย · ปรับแต่งซ่อน/เรียงลำดับได้ (เก็บในเครื่องนี้ รายบัญชี) =================
+const APPS_KEY = () => 'bo_apps_' + (DB.currentUser()?.id || '');
+const appsPref = () => { try { const p = JSON.parse(localStorage.getItem(APPS_KEY()) || '{}') || {}; return { hidden: p.hidden || [], order: p.order || [] }; } catch { return { hidden: [], order: [] }; } };
+const appsSave = p => { try { p.hidden.length || p.order.length ? localStorage.setItem(APPS_KEY(), JSON.stringify(p)) : localStorage.removeItem(APPS_KEY()); } catch { /* เบราว์เซอร์ไม่ให้เก็บ */ } };
+function boApps(main) {
+  const TONES = ['#2067da', '#0e9f6e', '#d97706', '#7c3aed', '#db2777', '#0891b2'], alerts = boAlerts();
+  const badge = { frontdesk: alerts.arrivals, approvals: alerts.approvals, sos: alerts.sos };
+  const tiles = navFor('owner').flatMap((g, gi) => g.items.filter(i => i[0] !== 'apps' && (!i[3] || can(i[3])) && (!i[5] || i[5]())).map(i => ({ k: i[0], ic: i[1], l: i[2], c: TONES[gi % TONES.length] })));
+  tiles.push({ k: 'profile', ic: 'fa-user-gear', l: 'บัญชีของฉัน', c: TONES[5] });
+  let edit = false, pref = appsPref();
+  const ordered = () => { const r = k => { const i = pref.order.indexOf(k); return i < 0 ? 1e6 : i; }; return tiles.map((t, i) => [t, i]).sort((a, b) => r(a[0].k) - r(b[0].k) || a[1] - b[1]).map(x => x[0]); };
+  const draw = () => {
+    const list = ordered(), vis = edit ? list : list.filter(t => !pref.hidden.includes(t.k));
+    main.innerHTML = pageHead('หน้ารวมไอคอน', edit ? 'กดรูปตา = ซ่อน/แสดง · กดลูกศร = เลื่อนตำแหน่ง · เสร็จแล้วกด “เสร็จสิ้น”' : 'กดไอคอนเพื่อเข้าเมนูได้เลย — เหมาะกับใช้บนมือถือ', `<button class="btn ${edit ? 'btn-primary' : 'btn-outline'} btn-sm" id="ap-edit"><i class="fa-solid ${edit ? 'fa-check' : 'fa-sliders'}"></i> ${edit ? 'เสร็จสิ้น' : 'ปรับแต่ง'}</button>`)
+      + `<div class="ap-grid${edit ? ' editing' : ''}">${vis.map((t, i) => {
+        const off = pref.hidden.includes(t.k), n = badge[t.k], inner = `<span class="ap-ic" style="background:${t.c}"><i class="fa-solid ${t.ic}"></i></span><span class="ap-l">${esc(t.l)}</span>${n && !edit ? `<em class="ap-n">${n}</em>` : ''}`;
+        return edit ? `<div class="ap-t${off ? ' off' : ''}">${inner}<div class="ap-ctl"><button type="button" data-mv="${t.k}|-1" ${i === 0 ? 'disabled' : ''} aria-label="เลื่อนไปก่อนหน้า"><i class="fa-solid fa-chevron-left"></i></button><button type="button" data-tg="${t.k}" aria-label="${off ? 'แสดง' : 'ซ่อน'}"><i class="fa-solid ${off ? 'fa-eye-slash' : 'fa-eye'}"></i></button><button type="button" data-mv="${t.k}|1" ${i === vis.length - 1 ? 'disabled' : ''} aria-label="เลื่อนไปถัดไป"><i class="fa-solid fa-chevron-right"></i></button></div></div>`
+          : `<a class="ap-t" href="#/admin/${esc(t.k)}">${inner}</a>`;
+      }).join('')}</div>` + (edit && (pref.hidden.length || pref.order.length) ? '<p style="text-align:center"><button class="btn btn-ghost btn-sm" id="ap-reset"><i class="fa-solid fa-rotate-left"></i> คืนค่าเดิม</button></p>' : '') + '<p class="small muted" style="text-align:center;margin-top:10px">การปรับแต่งนี้จำเฉพาะในเครื่อง/เบราว์เซอร์นี้</p>';
+    $('#ap-edit', main).onclick = () => { edit = !edit; draw(); };
+    $('#ap-reset', main)?.addEventListener('click', () => { pref = { hidden: [], order: [] }; appsSave(pref); draw(); });
+    $$('[data-tg]', main).forEach(b => b.onclick = () => { const k = b.dataset.tg; pref.hidden = pref.hidden.includes(k) ? pref.hidden.filter(x => x !== k) : [...pref.hidden, k]; appsSave(pref); draw(); });
+    $$('[data-mv]', main).forEach(b => b.onclick = () => {
+      const [k, d] = b.dataset.mv.split('|'), keys = ordered().map(t => t.k), i = keys.indexOf(k), j = i + +d;
+      if (j < 0 || j >= keys.length) return;
+      [keys[i], keys[j]] = [keys[j], keys[i]]; pref.order = keys; appsSave(pref); draw();
+    });
+  };
+  draw();
+}
