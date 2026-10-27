@@ -9,6 +9,7 @@ const BO_NAV_BY_ROLE = {
   owner: [
     { g: 'งานประจำวัน', items: [
       ['today', 'fa-sun', 'ภาพรวมวันนี้', 'ops.view', () => boToday],
+      ['daily', 'fa-file-lines', 'รายงานรายวัน (PDF / Excel)', 'reports.view', () => boDaily],
       ['housekeeping', 'fa-broom', 'งานแม่บ้าน · สถานะห้อง', 'housekeeping', () => boHousekeeping],
       ['tape', 'fa-table-cells-large', 'ผังห้อง & ตารางห้องว่าง', null, () => boBoard, () => can('bookings.view') || can('inventory')],
       ['bookings', 'fa-calendar-check', 'การจอง', 'bookings.view', () => boOwnerBookings],

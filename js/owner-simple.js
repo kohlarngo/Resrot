@@ -1134,15 +1134,29 @@ function bahtText(n) {
 // ชื่อผู้ประกอบการเริ่มต้น = ชื่อรีสอร์ท · ที่อยู่เริ่มต้น = ที่อยู่รีสอร์ท (แก้เป็นชื่อนิติบุคคลได้ที่ “ข้อมูลผู้ออก”)
 const taxInfoOf = h => { const t = { taxId: '', branch: 'สำนักงานใหญ่', phone: '', vat: false, svc: 0, ...(h?.taxInfo || {}) }; return { ...t, legalName: (t.legalName || '').trim() || h?.name || '', address: (t.address || '').trim() || h?.address || '' }; };
 
+// ================= รายงานรายวัน (เมนูของตัวเอง) =================
+function boDaily(main) {
+  const hotels = DB.hotels(true);
+  if (!hotels.length) { main.innerHTML = pageHead('รายงานรายวัน', '') + '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><p class="muted">เพิ่มรีสอร์ทก่อน แล้วจึงดูรายงานได้</p></div></section>'; return; }
+  const dayOf = n => { const d = new Date(); d.setDate(d.getDate() - n); return isoOf(d); };
+  main.innerHTML = pageHead('รายงานรายวัน', 'สรุปเช็คอิน-เช็คเอาต์ ผู้พัก จองใหม่ รายรับ และยอดค้างชำระ ของวันที่เลือก') + `
+    <section class="card">
+      ${hotels.length > 1 ? `<div class="fg"><label>รีสอร์ท</label><select id="dr-h">${hotels.map(h => `<option value="${esc(h.id)}">${esc(h.name)}</option>`).join('')}</select></div>` : `<input type="hidden" id="dr-h" value="${esc(hotels[0].id)}"><div class="bold" style="margin-bottom:8px">${esc(hotels[0].name)}</div>`}
+      <div class="fg"><label>วันที่</label><div class="row wrap" style="gap:8px"><input type="date" id="dr-d" value="${todayISO()}"><button type="button" class="btn btn-outline btn-sm" data-dn="0">วันนี้</button><button type="button" class="btn btn-outline btn-sm" data-dn="1">เมื่อวาน</button></div></div>
+      <div class="row wrap" style="gap:10px;margin-top:14px"><button class="btn btn-primary btn-lg" id="dr-go"><i class="fa-solid fa-file-pdf"></i> ดู / พิมพ์ PDF</button><button class="btn btn-outline btn-lg" id="dr-xl"><i class="fa-solid fa-file-excel"></i> ดาวน์โหลด Excel</button></div>
+      <p class="small muted" style="margin:10px 0 0">กด “ดู / พิมพ์ PDF” แล้วเลือก “บันทึกเป็น PDF” ได้ทั้งคอมและมือถือ</p></section>`;
+  $$('[data-dn]', main).forEach(b => b.onclick = () => { $('#dr-d', main).value = dayOf(+b.dataset.dn); });
+  const pick = () => { const day = $('#dr-d', main).value, h = DB.hotel($('#dr-h', main).value); if (!/^d{4}-d{2}-d{2}$/.test(day) || !h) { toast('เลือกวันที่ก่อน', 'err'); return null; } return { day, h }; };
+  $('#dr-go', main).onclick = () => { const x = pick(); if (x) printDailyReport(x.h, x.day); };
+  $('#dr-xl', main).onclick = () => { const x = pick(); if (x) { dailyReportXlsx(x.h, x.day); toast('ดาวน์โหลดไฟล์ Excel แล้ว'); } };
+}
+
 function boDocs(main) {
   const hotels = DB.hotels(true);
   if (!hotels.length) { main.innerHTML = pageHead('เอกสารการเงิน', '') + '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><p class="muted">เพิ่มรีสอร์ทก่อน แล้วจึงออกเอกสารได้</p></div></section>'; return; }
   const bks = DB.bookings().filter(b => b.source !== 'external' && b.status !== 'cancelled').sort((a, c) => (c.createdAt || '').localeCompare(a.createdAt || ''));
   main.innerHTML = pageHead('เอกสารการเงิน', 'ออกใบเสนอราคา ใบแจ้งหนี้ ใบเสร็จ ใบกำกับภาษี หรือเอกสารแบบที่คุณสร้างเอง · พิมพ์หรือบันทึกเป็น PDF', '<button class="btn btn-primary" id="dc-quote"><i class="fa-solid fa-file-invoice-dollar"></i> ออกใบเสนอราคา</button>') + `
     ${DB.hotels(true).some(h => (h.quotes || []).length) ? `<section class="card"><div class="card-h"><h3><i class="fa-solid fa-file-invoice-dollar"></i> ใบเสนอราคาที่ออกแล้ว</h3></div><div class="bo-list">${DB.hotels(true).flatMap(h => (h.quotes || []).map(q => ({ h, q }))).sort((a, c) => c.q.at.localeCompare(a.q.at)).slice(0, 20).map(({ h, q }) => `<div class="row wrap" style="gap:14px;align-items:center;padding:8px 0;border-top:1px solid var(--border,#e5e7eb)"><div><b>${esc(q.no)}</b> · ${esc(q.cust.name)}<div class="small muted">${esc(h.name)} · ${fmtDate(q.at.slice(0, 10), false)} · ยืนราคาถึง ${fmtDate(q.validUntil, false)} · ${money(q.items.reduce((s, x) => s + x.qty * x.price, 0))}</div></div><button class="btn btn-outline btn-sm" data-qp="${esc(h.id)}|${esc(q.no)}"><i class="fa-solid fa-print"></i> พิมพ์ซ้ำ</button> <button class="btn btn-outline btn-sm" data-qe="${esc(h.id)}|${esc(q.no)}"><i class="fa-solid fa-pen"></i> แก้ไข</button> <button class="btn btn-ghost btn-sm red" data-qd="${esc(h.id)}|${esc(q.no)}" title="ลบ"><i class="fa-solid fa-trash"></i></button></div>`).join('')}</div></section>` : ''}
-    <section class="card"><div class="card-h"><h3><i class="fa-solid fa-calendar-day"></i> รายงานรายวัน</h3></div>
-      <div class="row wrap" style="gap:8px;align-items:end"><div class="fg" style="min-width:180px"><label>รีสอร์ท</label><select id="dr-h">${hotels.map(h => `<option value="${esc(h.id)}">${esc(h.name)}</option>`).join('')}</select></div><div class="fg"><label>วันที่</label><input type="date" id="dr-d" value="${todayISO()}"></div><button class="btn btn-primary" id="dr-go"><i class="fa-solid fa-file-pdf"></i> PDF / พิมพ์</button><button class="btn btn-outline" id="dr-xl"><i class="fa-solid fa-file-excel"></i> Excel (.xlsx)</button></div>
-      <p class="small muted" style="margin:8px 0 0">สรุปห้อง เช็คอิน-เช็คเอาต์ ผู้พักคืนนี้ จองใหม่/ยกเลิก รายรับที่รับชำระ และยอดค้างชำระ ของวันที่เลือก · “PDF / พิมพ์” จะเปิดหน้าต่างพิมพ์ ให้เลือก “บันทึกเป็น PDF” (ใช้ได้ทั้งคอมและมือถือ)</p></section>
     <section class="card"><div class="card-h"><h3><i class="fa-solid fa-building"></i> ผู้ออกเอกสาร & รูปแบบเอกสาร</h3></div>
       <div class="bo-list">${hotels.map(h => { const t = taxInfoOf(h), c = docCfgOf(h); return `<div class="row between wrap" style="gap:10px;padding:8px 0;border-top:1px solid var(--border,#e5e7eb)"><div><b>${esc(h.name)}</b><div class="small muted">${esc(t.legalName)} · เลขผู้เสียภาษี ${esc(t.taxId || '-')} · ${t.vat ? 'จด VAT' : 'ไม่จด VAT'} · เอกสาร ${c.types.length} ประเภท</div></div>
         <div class="row" style="gap:6px"><button class="btn btn-outline btn-sm" data-ti="${h.id}"><i class="fa-solid fa-pen"></i> ข้อมูลผู้ออก</button><button class="btn btn-outline btn-sm" data-dc="${h.id}"><i class="fa-solid fa-sliders"></i> ปรับแต่งเอกสาร</button></div></div>`; }).join('')}</div></section>
@@ -1154,8 +1168,6 @@ function boDocs(main) {
     <p class="small muted">ปุ่มสีเข้ม = ออกเอกสารนั้นแล้ว กดเพื่อพิมพ์ซ้ำด้วยเลขที่เดิม · เพิ่ม ลบ หรือเปลี่ยนชื่อประเภทเอกสาร คำนำหน้าเลขที่ ข้อความท้ายเอกสาร สีและโลโก้ ได้ที่ “ปรับแต่งเอกสาร” · ข้อมูลนี้เป็นเครื่องมือช่วยออกเอกสาร กรุณาตรวจสอบกับนักบัญชีของคุณ</p>`;
   const q = $('#dc-q', main); q.oninput = () => { const t = q.value.trim().toLowerCase(); let n = 0; $$('#dc-body tr', main).forEach(r => { const ok = !t || (r.dataset.q || '').includes(t); r.style.display = ok ? '' : 'none'; if (ok) n++; }); $('#dc-n', main).textContent = n + ' รายการ'; };
   $('#dc-quote', main).onclick = () => quoteForm(() => boDocs(main));
-  $('#dr-go', main).onclick = () => { const day = $('#dr-d', main).value, h = DB.hotel($('#dr-h', main).value); if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !h) return toast('เลือกรีสอร์ทและวันที่ก่อน', 'err'); printDailyReport(h, day); };
-  $('#dr-xl', main).onclick = () => { const day = $('#dr-d', main).value, h = DB.hotel($('#dr-h', main).value); if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !h) return toast('เลือกรีสอร์ทและวันที่ก่อน', 'err'); dailyReportXlsx(h, day); toast('ดาวน์โหลดไฟล์ Excel แล้ว'); };
   const qOf = k => { const [hid, no] = k.split('|'), h = DB.hotel(hid); return { h, q: (h?.quotes || []).find(x => x.no === no) }; };
   $$('[data-qe]', main).forEach(b => b.onclick = () => { const x = qOf(b.dataset.qe); if (x.q) quoteForm(() => boDocs(main), x); });
   $$('[data-qd]', main).forEach(b => b.onclick = async () => {
