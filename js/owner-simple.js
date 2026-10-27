@@ -429,7 +429,7 @@ const VB_SCREENS = [
   ['search', 'fa-magnifying-glass', 'ค้นหา', ['searchTitle', 'gallery', 'galleryTitle']],
   ['rooms', 'fa-hotel', 'รายละเอียด & ห้องพัก', ['images', 'roomsTitle', 'pickBtn', 'about', 'aboutTitle']],
   ['room', 'fa-bed', 'เลือกห้องพัก', ['roomTitle', 'roomAmenTitle', 'bookBtn']],
-  ['services', 'fa-bell-concierge', 'บริการเพิ่มเติม', ['svc', 'svcPage', 'svcImg', 'svcTitle', 'services', 'svcNote']],
+  ['services', 'fa-bell-concierge', 'บริการเพิ่มเติม', ['svc', 'svcPage', 'svcImg', 'svcTitle', 'services', 'svcNote', 'addons']],
 ];
 // [ป้าย, ชนิด, ค่าตั้งต้น] · ชนิด: t = ข้อความใน vip · x = ข้อความใน vip.text · show = เปิด/ปิดส่วน (vip.hide) · img / imgs / color / services
 const VB_FIELDS = {
@@ -438,7 +438,7 @@ const VB_FIELDS = {
   tagline: ['ข้อความหัวเว็บ (ตัวใหญ่)', 't', () => 'พักผ่อน… ให้ทุกการเดินทางพิเศษกว่าเดิม'], sub: ['ข้อความรอง', 't', () => 'ที่พักคุณภาพ ในทุกช่วงเวลาของคุณ'],
   cta: ['ข้อความปุ่ม', 't', () => 'จองห้องพัก'], svcTitle: ['ข้อความบนแบนเนอร์', 't', () => 'เพิ่มความสะดวกสบาย ให้การเข้าพักของคุณ'],
   tabs: ['แถบเมนูล่าง', 'show'], gallery: ['รูปบรรยากาศรีสอร์ท', 'show'], about: ['ส่วน “เกี่ยวกับที่พัก”', 'show'], svc: ['หน้าบริการเพิ่มเติม', 'show'],
-  services: ['รายการบริการ', 'services'],
+  services: ['รายการบริการ', 'services'], addons: ['บริการเสริมที่ลูกค้าเลือกขอได้ตอนชำระเงิน', 'addons'],
   searchTitle: ['หัวข้อหน้า', 'x'], galleryTitle: ['หัวข้อรูปบรรยากาศ', 'x'], roomsTitle: ['หัวข้อรายการห้อง', 'x'], pickBtn: ['ข้อความปุ่มล่าง', 'x'], aboutTitle: ['หัวข้อเกี่ยวกับที่พัก', 'x'],
   roomTitle: ['หัวข้อหน้า', 'x'], roomAmenTitle: ['หัวข้อสิ่งอำนวยความสะดวก', 'x'], bookBtn: ['ข้อความปุ่มจอง', 'x'], svcPage: ['หัวข้อหน้า', 'x'], svcNote: ['ข้อความท้ายหน้า', 'x'],
 };
@@ -476,6 +476,8 @@ function vipBuilder(main, hotelId, back) {
       ${k === 'logo' ? moveHtml(k, false) + '<div class="small muted">ลากโลโก้บนจอมือถือเพื่อขยับได้</div>' : ''}</div>`;
     if (t === 'services') return `<div class="vb-f" data-f="${k}"><label>${label}</label><div id="vb-svc">${svcRows().map(([a, b], i) => `<div class="vb-svc-row"><input data-sa="${i}" value="${esc(a)}" placeholder="ชื่อบริการ เช่น สปา & นวด"><input data-sb="${i}" value="${esc(b)}" placeholder="รายละเอียดสั้นๆ"><button class="btn btn-ghost btn-sm" data-sx="${i}" aria-label="ลบ"><i class="fa-solid fa-trash"></i></button></div>`).join('')}</div>
       <button class="btn btn-outline btn-sm" id="vb-svc-add" style="margin-top:6px"><i class="fa-solid fa-plus"></i> เพิ่มบริการ</button></div>`;
+    if (t === 'addons') return `<div class="vb-f" data-f="${k}"><label>${label}</label><div class="small muted" style="margin-bottom:6px">แสดงในหน้าชำระเงิน/ใบยืนยันการจอง ลูกค้าติ๊กเลือกได้ — ราคายังไม่รวมในยอดค่าห้อง รีสอร์ทจะติดต่อลูกค้ากลับ (ดูคำขอได้ในรายละเอียดการจอง)</div><div id="vb-ad">${(d.addons || []).map((x, i) => `<div class="vb-svc-row"><input data-aa="${i}" value="${esc(x.name)}" placeholder="ชื่อบริการ เช่น รับส่งสนามบิน" maxlength="80"><input data-ab="${i}" value="${esc(x.desc || '')}" placeholder="รายละเอียดสั้นๆ" maxlength="120"><input data-ac="${i}" type="number" min="0" step="1" value="${+x.price || 0}" placeholder="ราคา (฿)" style="max-width:100px"><button class="btn btn-ghost btn-sm" data-ax="${i}" aria-label="ลบ"><i class="fa-solid fa-trash"></i></button></div>`).join('')}</div>
+      <button class="btn btn-outline btn-sm" id="vb-ad-add" style="margin-top:6px"><i class="fa-solid fa-plus"></i> เพิ่มบริการเสริม</button></div>`;
     const col = d.tcolor[k];
     const ctaHtml = k !== 'cta' ? '' : `<div class="vb-cta"><div class="small muted" style="margin:8px 0 4px">รูปแบบกรอบปุ่ม</div><div class="vb-cta-opts">${[['pill', 'ขาวโค้ง'], ['solid', 'สีธีม'], ['outline', 'เส้นขอบ'], ['glass', 'กระจกใส'], ['square', 'เหลี่ยม'], ['gold', 'ทอง']].map(([s, l]) => `<button class="vb-cta-o${(d.ctaStyle || 'pill') === s ? ' on' : ''}" data-cta-st="${s}"><span class="va-pill va-pill--${s}" style="--vip:${esc(vipColor({ vip: d }))}">จอง</span><small>${l}</small></button>`).join('')}</div>
       <div class="vb-cols" style="margin-top:8px">${['#ffffff', '#12305a', '#d4a017', '#dc2626', '#16a34a', '#111827'].map(c => `<button class="vb-sw-c sm" data-cta-bg="${c}" style="background:${c}" title="${c}"></button>`).join('')}<label class="vb-col sm" title="เลือกสีเอง"><i class="fa-solid fa-palette"></i><input type="color" data-cta-bg-in value="${esc(d.ctaBg || '#ffffff')}"></label><span class="small muted">สีกรอบปุ่ม</span>${d.ctaBg ? '<button class="btn btn-ghost btn-sm" data-cta-bg="">สีเดิม</button>' : ''}</div></div>`;
@@ -517,6 +519,10 @@ function vipBuilder(main, hotelId, back) {
     $$('#vb-svc input', p).forEach(i => i.oninput = svcSave);
     $$('[data-sx]', p).forEach(b => b.onclick = () => { b.parentElement.remove(); svcSave(); drawPanel('services'); });
     $('#vb-svc-add', p)?.addEventListener('click', () => { d.services = (d.services ? d.services + '\n' : '') + 'บริการใหม่'; changed(); drawPanel('services'); setTimeout(() => { const l = $$('#vb-svc [data-sa]', p).pop(); l?.select(); }, 0); });
+    const adSave = () => { d.addons = $$('#vb-ad .vb-svc-row', p).map((r, i) => ({ id: d.addons?.[i]?.id || 'a' + Date.now().toString(36) + i, name: $('[data-aa]', r).value.trim().slice(0, 80), desc: $('[data-ab]', r).value.trim().slice(0, 120), price: Math.max(0, Math.round(+$('[data-ac]', r).value) || 0) })).filter(x => x.name).slice(0, 20); changed(); };
+    $$('#vb-ad input', p).forEach(i => i.oninput = adSave);
+    $$('[data-ax]', p).forEach(b => b.onclick = () => { b.parentElement.remove(); adSave(); drawPanel('addons'); });
+    $('#vb-ad-add', p)?.addEventListener('click', () => { adSave(); d.addons = [...(d.addons || []), { id: 'a' + Date.now().toString(36), name: 'บริการใหม่', desc: '', price: 0 }]; changed(); drawPanel('addons'); setTimeout(() => $$('#vb-ad [data-aa]', p).pop()?.select(), 0); });
     if (focus) { const f = $(`[data-f="${focus}"]`, p); if (f) { f.classList.add('hl'); f.scrollIntoView({ block: 'center', behavior: 'smooth' }); $('input:not([type=checkbox]):not([type=color])', f)?.focus(); setTimeout(() => f.classList.remove('hl'), 1600); } }
   };
   const setScreen = (k, focus) => {
@@ -1182,7 +1188,7 @@ function quoteHtml(q, h, o = {}) {
       <tr><td colspan="4" class="r"><b>จำนวนเงินรวมทั้งสิ้น</b></td><td class="r"><b>${fmt2(total)}</b></td></tr></tbody></table>
     <div class="box">(${bahtText(total)})</div>` : ""}
     ${q.note ? `<div class="box"><b>หมายเหตุ / เงื่อนไข:</b> ${E(q.note)}</div>` : ''}${cfg.footer ? `<div class="box">${E(cfg.footer)}</div>` : ''}
-    <div class="sig"><div>${E(cfg.signer || t.legalName)}<br><span class="m">ผู้เสนอราคา</span></div><div>ลูกค้า<br><span class="m">ผู้อนุมัติ / ตกลงตามใบเสนอราคา</span></div></div>
+    <div class="sig"><div>${cfg.sigUrl ? `<img src="${E(cfg.sigUrl)}" alt="" style="max-height:56px;max-width:180px;object-fit:contain;display:block;margin:-62px auto 6px">` : ''}${E(cfg.signer || t.legalName)}<br><span class="m">ผู้เสนอราคา (ผู้มีอำนาจลงนาม)</span></div><div>ลูกค้า<br><span class="m">ผู้อนุมัติ / ตกลงตามใบเสนอราคา</span></div></div>
     <div class="m" style="margin-top:18px">ออกโดย ${E(q.by || '')} · ${E(fmtDateTime(q.at))} · ใบเสนอราคานี้ไม่ใช่การยืนยันการจอง ห้องว่างเป็นไปตามจริง ณ วันที่ยืนยัน</div>
     ${o.preview ? '' : '<script>addEventListener("load", function () { setTimeout(function () { window.print(); }, 400); });<\/script>'}
   </body></html>`;

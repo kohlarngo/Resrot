@@ -677,12 +677,13 @@ function pageBook(app, params) {
   const u = DB.currentUser();
   const q = quoteOffer(room, offer, qty);
   const demoAcct = isDemoHotel(h) && u?.email === 'dev.demo@example.com'; // บัญชีทดสอบจองรีสอร์ทตัวอย่าง → เติมอีเมล/เบอร์ตัวอย่างให้
-  const st = { step: 1, guest: { firstName: demoAcct ? 'ทดสอบ' : u?.name.split(' ')[0] || '', lastName: u?.name.split(' ').slice(1).join(' ') || '', email: demoAcct ? 'demo.demo@example.com' : u?.email || '', phone: demoAcct ? '01234567890' : u?.phone || '', country: 'ไทย', requests: [], note: '', arrival: '' }, pay: payMethods(offer, h)[0] || null, coupon: null, off: 0 };
+  const st = { step: 1, guest: { firstName: demoAcct ? 'ทดสอบ' : u?.name.split(' ')[0] || '', lastName: u?.name.split(' ').slice(1).join(' ') || '', email: demoAcct ? 'demo.demo@example.com' : u?.email || '', phone: demoAcct ? '01234567890' : u?.phone || '', country: 'ไทย', requests: [], note: '', arrival: '' }, pay: payMethods(offer, h)[0] || null, coupon: null, off: 0, ad: {} };
+  const adList = h.vip?.on === true ? (h.vip.addons || []) : (DB.settings().extraServices || []), adPicked = () => adList.filter(x => st.ad[x.id]), adSum = () => adPicked().reduce((t, x) => t + (+x.price || 0), 0); // บริการเสริม: VIP = เจ้าของรีสอร์ทกำหนด · ทั่วไป = dev กำหนด (รีสอร์ทจ่ายให้ dev ภายหลัง) — รวมในยอดชำระครั้งเดียว (เซิร์ฟเวอร์คิดราคาจากรายการของรีสอร์ทซ้ำ)
   const memberOff = u ? Math.round(q.sub * 0.05) : 0;
   const calc = () => {
     const sub = q.sub - memberOff - st.off;
     const tax = Math.round(sub * TAX_RATE);
-    return { sub, tax, total: sub + tax };
+    return { sub, tax, total: sub + tax + adSum() };
   };
   let deadline = Date.now() + 20 * 60 * 1000;
 
@@ -699,7 +700,9 @@ function pageBook(app, params) {
       ${memberOff ? `<div class="sum-row green"><span>ส่วนลดสมาชิก 5%</span><span>-${money(memberOff)}</span></div>` : ''}
       ${st.off ? `<div class="sum-row green"><span>โค้ด ${esc(st.coupon.code)}</span><span>-${money(st.off)}</span></div>` : ''}
       ${c.tax ? `<div class="sum-row"><span>ภาษีและค่าธรรมเนียม</span><span>${money(c.tax)}</span></div>` : ''}
+      ${adSum() ? `<div class="sum-row"><span>บริการเสริม</span><span>${money(adSum())}</span></div>` : ''}
       <div class="sum-row total"><span>ราคารวมทั้งหมด</span><span class="red">${money(c.total)}</span></div>
+      ${adPicked().length ? `<hr style="border:0;border-top:1px solid var(--border);margin:12px 0"><div class="small"><b>บริการเสริมที่เลือก</b> <span class="muted">(รวมในยอดชำระด้านล่าง)</span></div>${adPicked().map(x => `<div class="sum-row"><span>${esc(x.name)}</span><span>${+x.price ? money(x.price) : 'ฟรี'}</span></div>`).join('')}`: ''}
       <div class="coupon-row"><input id="cp" placeholder="ใส่โค้ดส่วนลด" value="${st.coupon ? esc(st.coupon.code) : ''}"><button class="btn btn-outline" id="cp-btn">${st.coupon ? 'ลบ' : 'ใช้ส่วนลด'}</button></div>
       ${st.coupon ? `<div class="small green" style="margin-top:6px"><i class="fa-solid fa-circle-check"></i> ${esc(st.coupon.code)}: ลด ${couponOffText(st.coupon)} · ${couponCondText(st.coupon)}</div>` : '<div class="small muted" style="margin-top:6px">โค้ดบางรายการมีเงื่อนไข เช่น ยอดจองขั้นต่ำหรือจำนวนครั้งที่ใช้ได้</div>'}
     </div>`;
@@ -805,6 +808,9 @@ function pageBook(app, params) {
     const c = calc(), set = DB.settings(), methods = payMethods(offer, h), ow = DB.owner(h.ownerId);
     if (!methods.includes(st.pay)) st.pay = methods[0] || null;
     $('#book-main').innerHTML = `${timerHtml()}
+      ${adList.length ? `<div class="panel" id="ad-panel"><h2><i class="fa-solid fa-bell-concierge"></i> บริการเสริม <span class="small muted" style="font-weight:400">(ไม่บังคับ)</span></h2>
+        <p class="small muted" style="margin-top:0">เลือกบริการที่ต้องการได้เลย — ราคารวมในยอดชำระครั้งเดียวด้านล่าง ไม่ต้องจ่ายแยก</p>
+        ${adList.map(x => `<label class="row between" style="gap:10px;padding:8px 0;border-top:1px solid #eee"><span style="flex:1"><input type="checkbox" data-ad="${esc(x.id)}" ${st.ad[x.id] ? 'checked' : ''}> <b>${esc(x.name)}</b>${x.desc ? `<span class="small muted" style="display:block;margin-left:22px">${esc(x.desc)}</span>` : ''}</span><b>${+x.price ? money(x.price) : 'ฟรี'}</b></label>`).join('')}</div>` : ''}
       ${payPanelHtml()}
       <div class="panel small muted"><i class="fa-solid fa-shield-halved"></i> ${ow ? `ชำระเงินตรงถึงเจ้าของรีสอร์ท <b>${esc(ow.name)}</b> · ` : ''}การจองจะสมบูรณ์เมื่อเจ้าของรีสอร์ทยืนยัน · การกด "ยืนยันการจอง" ถือว่าคุณยอมรับ<a href="#/terms" target="_blank" rel="noopener">ข้อกำหนดและเงื่อนไข</a></div>
       <label class="panel small" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="tc-ok" ${st.terms ? 'checked' : ''} style="margin-top:3px"><span class="terms-lbl">${TERMS_GUEST_LABEL} <a href="#/terms" target="_blank" rel="noopener">(อ่านเงื่อนไข)</a></span></label>
@@ -814,6 +820,7 @@ function pageBook(app, params) {
         <button class="btn btn-primary btn-lg" id="confirm" ${methods.length ? '' : 'disabled'}><i class="fa-solid fa-lock"></i> ยืนยันการจอง</button></div>
       </div>`;
     bindPayPanel();
+    $$('[data-ad]', $('#ad-panel') || document).forEach(c => c.onchange = () => { st.ad[c.dataset.ad] = c.checked; $('#book-sum').innerHTML = summary(); bindSum(); });
     $('#back1').onclick = () => { st.step = 1; draw(); };
     $('#tc-ok').onchange = e => { st.terms = e.target.checked; };
     $('#confirm').onclick = () => {
@@ -825,7 +832,7 @@ function pageBook(app, params) {
       // ราคา โค้ดส่วนลด และห้องว่างถูกคำนวณ/ตรวจซ้ำที่เซิร์ฟเวอร์ (sd_create_booking)
       DB.createBooking({
         hotelId: h.id, roomId: room.id, offerId: offer.id, qty, checkIn: S.checkIn, checkOut: S.checkOut,
-        adults: S.adults, children: S.children, rooms: S.rooms, guest: { ...st.guest }, payment: { method: st.pay }, couponCode: st.coupon?.code || null,
+        adults: S.adults, children: S.children, rooms: S.rooms, guest: { ...st.guest }, payment: { method: st.pay }, couponCode: st.coupon?.code || null, addons: adPicked().map(x => ({ id: x.id, qty: 1 })),
       }).then(b => {
         clearInterval(bookTimer);
         go(`/booking/${b.id}?new=1`);
@@ -895,7 +902,7 @@ function voucherHtml(b, st) {
         <tr><td>ผู้เข้าพักหลัก</td><td>${esc(b.guest.firstName)} ${esc(b.guest.lastName)}<br><span class="small muted">${esc(b.guest.email)} · ${esc(b.guest.phone)}</span></td></tr>
         <tr><td>ห้องพัก</td><td>${b.qty} x ${esc(b.roomName)} · ${b.nights} คืน<br><span class="small muted">ผู้ใหญ่ ${b.adults}${b.children ? `, เด็ก ${b.children}` : ''}</span></td></tr>
         <tr><td>สิทธิประโยชน์</td><td>${b.offer.breakfast ? 'รวมอาหารเช้า' : 'ไม่รวมอาหารเช้า'} · ${b.offer.freeCancel ? `ยกเลิกได้ล่วงหน้า ${CANCEL_MIN_DAYS} วัน (ได้ถึงวันที่ ${fmtDate(addDays(b.checkIn, -CANCEL_MIN_DAYS), false)}) — เจ้าของที่พักยืนยันและโอนเงินคืน` : 'ไม่สามารถคืนเงินได้'}</td></tr>
-        ${b.addons?.length ? `<tr><td>บริการเสริมที่ขอ</td><td>${b.addons.map(a => `${esc(a.name)}${a.qty > 1 ? ' x' + a.qty : ''} (${+a.price ? money(a.price * a.qty) : 'ฟรี'})`).join('<br>')}<br><span class="small muted">ยังไม่รวมในยอดค่าห้อง — ทีมงาน kohlarngo จะติดต่อกลับ</span></td></tr>` : ''}
+        ${b.addons?.length ? `<tr><td>บริการเสริมที่ขอ</td><td>${b.addons.map(a => `${esc(a.name)}${a.qty > 1 ? ' x' + a.qty : ''} (${+a.price ? money(a.price * a.qty) : 'ฟรี'})`).join('<br>')}<br><span class="small muted">${b.price?.addons > 0 ? 'รวมในยอดชำระแล้ว' : 'ยังไม่รวมในยอดค่าห้อง — ทีมงาน kohlarngo จะติดต่อกลับ'}</span></td></tr>` : ''}
         ${b.guest.requests?.length || b.guest.note ? `<tr><td>คำขอพิเศษ</td><td>${esc([...(b.guest.requests || []), b.guest.note].filter(Boolean).join(', '))}</td></tr>` : ''}
         <tr><td>การชำระเงิน</td><td>${PAY_TH[b.payment.method]}${b.payment.last4 ? ` (${b.payment.brand} •••• ${b.payment.last4})` : ''} — ${b.payment.paid ? '<span class="green bold">ชำระแล้ว</span>' : b.payment.slip ? '<span class="bold">ส่งสลิปแล้ว รอตรวจสอบ</span>' : '<span class="red bold">ยังไม่ได้ชำระ</span>'}</td></tr>
         ${b.refund != null ? `<tr><td>การคืนเงิน</td><td>${b.refund > 0 ? money(b.refund) + ' (เจ้าของรีสอร์ทเป็นผู้คืนเงิน)' : 'ไม่มีการคืนเงิน'}</td></tr>` : ''}
@@ -910,10 +917,10 @@ function voucherHtml(b, st) {
       </div>
     </div>`;
 }
-// บริการเสริมหลังจอง — เฉพาะการจองทั่วไป (ไม่ใช่ VIP) · รายการนักพัฒนากำหนดที่ settings.extraServices · ติ๊กแล้วคำขอเข้าหน้า dev (ผู้ให้บริการเป็นของแพลตฟอร์ม ไม่ใช่เจ้าของรีสอร์ท)
+// บริการเสริมหลังจอง — การจองทั่วไป: รายการนักพัฒนากำหนดที่ settings.extraServices · ถ้าเลือกไว้ตอนชำระเงิน (pageBook) ราคารวมในยอดชำระแล้ว จึงไม่แสดงส่วนนี้ · VIP ใช้รายการที่เจ้าของกำหนดที่ hotel.vip.addons · ติ๊กแล้วคำขอเข้าหน้า dev (ผู้ให้บริการเป็นของแพลตฟอร์ม ไม่ใช่เจ้าของรีสอร์ท)
 function addonsHtml(b, st) {
   const h = DB.hotel(b.hotelId), list = DB.settings().extraServices || [];
-  if (!h || isVip(h) || !list.length || ['cancelled', 'completed'].includes(st)) return '';
+  if (!h || b.price?.addons > 0 || !list.length || ['cancelled', 'completed'].includes(st)) return '';
   const cur = Object.fromEntries((b.addons || []).map(a => [a.id, a.qty]));
   return `<div class="panel" id="addons-box"><h3 style="margin:0 0 4px"><i class="fa-solid fa-bell-concierge"></i> บริการเสริม</h3>
     <p class="small muted" style="margin:0 0 10px">เลือกบริการที่ต้องการ ทีมงาน kohlarngo จะติดต่อกลับเพื่อยืนยัน (ราคาด้านล่างยังไม่รวมในยอดค่าห้อง)</p>
