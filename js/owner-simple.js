@@ -1138,17 +1138,34 @@ const taxInfoOf = h => { const t = { taxId: '', branch: 'สำนักงา�
 function boDaily(main) {
   const hotels = DB.hotels(true);
   if (!hotels.length) { main.innerHTML = pageHead('รายงานรายวัน', '') + '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><p class="muted">เพิ่มรีสอร์ทก่อน แล้วจึงดูรายงานได้</p></div></section>'; return; }
-  const dayOf = n => { const d = new Date(); d.setDate(d.getDate() - n); return isoOf(d); };
-  main.innerHTML = pageHead('รายงานรายวัน', 'สรุปเช็คอิน-เช็คเอาต์ ผู้พัก จองใหม่ รายรับ และยอดค้างชำระ ของวันที่เลือก') + `
+  const ago = n => { const d = new Date(); d.setDate(d.getDate() - n); return isoOf(d); };
+  main.innerHTML = pageHead('รายงานรายวัน', 'เลือกวันเดียว หรือเลือกเป็นช่วง “จากวันที่ … ถึงวันที่ …” — รายงานจะขึ้นด้านล่างทันที') + `
     <section class="card">
       ${hotels.length > 1 ? `<div class="fg"><label>รีสอร์ท</label><select id="dr-h">${hotels.map(h => `<option value="${esc(h.id)}">${esc(h.name)}</option>`).join('')}</select></div>` : `<input type="hidden" id="dr-h" value="${esc(hotels[0].id)}"><div class="bold" style="margin-bottom:8px">${esc(hotels[0].name)}</div>`}
-      <div class="fg"><label>วันที่</label><div class="row wrap" style="gap:8px"><input type="date" id="dr-d" value="${todayISO()}"><button type="button" class="btn btn-outline btn-sm" data-dn="0">วันนี้</button><button type="button" class="btn btn-outline btn-sm" data-dn="1">เมื่อวาน</button></div></div>
-      <div class="row wrap" style="gap:10px;margin-top:14px"><button class="btn btn-primary btn-lg" id="dr-go"><i class="fa-solid fa-file-pdf"></i> ดู / พิมพ์ PDF</button><button class="btn btn-outline btn-lg" id="dr-xl"><i class="fa-solid fa-file-excel"></i> ดาวน์โหลด Excel</button></div>
-      <p class="small muted" style="margin:10px 0 0">กด “ดู / พิมพ์ PDF” แล้วเลือก “บันทึกเป็น PDF” ได้ทั้งคอมและมือถือ</p></section>`;
-  $$('[data-dn]', main).forEach(b => b.onclick = () => { $('#dr-d', main).value = dayOf(+b.dataset.dn); });
-  const pick = () => { const day = $('#dr-d', main).value, h = DB.hotel($('#dr-h', main).value); if (!/^d{4}-d{2}-d{2}$/.test(day) || !h) { toast('เลือกวันที่ก่อน', 'err'); return null; } return { day, h }; };
-  $('#dr-go', main).onclick = () => { const x = pick(); if (x) printDailyReport(x.h, x.day); };
-  $('#dr-xl', main).onclick = () => { const x = pick(); if (x) { dailyReportXlsx(x.h, x.day); toast('ดาวน์โหลดไฟล์ Excel แล้ว'); } };
+      <div class="row wrap" style="gap:10px;align-items:end"><div class="fg"><label>จากวันที่</label><input type="date" id="dr-f" value="${todayISO()}"></div><div class="fg"><label>ถึงวันที่</label><input type="date" id="dr-t" value="${todayISO()}"></div></div>
+      <div class="row wrap" style="gap:6px;margin-top:8px"><button type="button" class="btn btn-outline btn-sm" data-r="0,0">วันนี้</button><button type="button" class="btn btn-outline btn-sm" data-r="1,1">เมื่อวาน</button><button type="button" class="btn btn-outline btn-sm" data-r="6,0">7 วันล่าสุด</button><button type="button" class="btn btn-outline btn-sm" data-r="29,0">30 วันล่าสุด</button><button type="button" class="btn btn-outline btn-sm" data-r="m">เดือนนี้</button></div>
+      <div class="row wrap" style="gap:10px;margin-top:14px"><button class="btn btn-primary" id="dr-go"><i class="fa-solid fa-file-pdf"></i> พิมพ์ / บันทึก PDF</button><button class="btn btn-outline" id="dr-xl"><i class="fa-solid fa-file-excel"></i> ดาวน์โหลด Excel</button></div></section>
+    <section class="card flush"><iframe id="dr-view" title="รายงาน" sandbox style="width:100%;height:70vh;border:0;background:#fff"></iframe></section>`;
+  const get = () => {
+    let f = $('#dr-f', main).value, t = $('#dr-t', main).value; const ok = /^\d{4}-\d{2}-\d{2}$/;
+    if (!ok.test(f) && !ok.test(t)) return null;
+    if (!ok.test(f)) f = t;
+    if (!ok.test(t)) t = f;
+    if (t < f) [f, t] = [t, f];
+    const h = DB.hotel($('#dr-h', main).value); if (!h) return null;
+    if ((new Date(t) - new Date(f)) / 864e5 > 366) { toast('เลือกช่วงได้ไม่เกิน 1 ปี', 'err'); return null; }
+    return { h, f, t };
+  };
+  const show = () => { const x = get(); if (x) $('#dr-view', main).srcdoc = dailyReportHtml(x.h, x.f, x.t, { by: DB.currentUser()?.name || '', preview: true }); };
+  $$('[data-r]', main).forEach(b => b.onclick = () => {
+    const r = b.dataset.r; let f, t = todayISO();
+    if (r === 'm') f = t.slice(0, 8) + '01'; else { const [a, z] = r.split(',').map(Number); f = ago(a); t = ago(z); }
+    $('#dr-f', main).value = f; $('#dr-t', main).value = t; show();
+  });
+  ['#dr-h', '#dr-f', '#dr-t'].forEach(id => { const el = $(id, main); el.onchange = show; el.oninput = show; });
+  $('#dr-go', main).onclick = () => { const x = get(); if (x) printDailyReport(x.h, x.f, x.t); else toast('เลือกวันที่ก่อน', 'err'); };
+  $('#dr-xl', main).onclick = () => { const x = get(); if (x) { dailyReportXlsx(x.h, x.f, x.t); toast('ดาวน์โหลดไฟล์ Excel แล้ว'); } else toast('เลือกวันที่ก่อน', 'err'); };
+  show();
 }
 
 function boDocs(main) {
@@ -1217,13 +1234,16 @@ function printQuote(q, h) {
 }
 // ================= รายงานรายวัน (เลือกรีสอร์ท + วันที่ → พิมพ์/บันทึก PDF) =================
 // สรุปห้องพัก เช็คอิน/เช็คเอาต์ ผู้พักคืนนี้ จองใหม่/ยกเลิก รายรับที่รับชำระในวันนั้น และยอดค้างชำระ · คำนวณจากข้อมูลการจองที่มีอยู่ ไม่เก็บสำเนา
-function dailyData(h, day) {
+function dailyData(h, from, to = from) {
   const dOf = x => x ? isoOf(new Date(x)) : '', gName = b => `${b.guest?.firstName || ''} ${b.guest?.lastName || ''}`.trim() || 'ผู้เข้าพัก (ช่องทางภายนอก)';
-  const all = DB.bookings().filter(b => b.hotelId === h.id), live = all.filter(b => b.status !== 'cancelled');
-  const arr = live.filter(b => b.checkIn === day), dep = live.filter(b => b.checkOut === day), inh = live.filter(b => b.checkIn <= day && day < b.checkOut);
-  const created = all.filter(b => dOf(b.createdAt) === day && b.source !== 'external'), canc = all.filter(b => dOf(b.cancelledAt) === day);
-  const paidToday = all.filter(b => b.payment?.paid && dOf(b.payment.paidAt) === day);
-  const roomsTotal = (h.rooms || []).reduce((s, r) => s + (+r.total || 0), 0), occ = inh.reduce((s, b) => s + (+b.qty || 1), 0), occPct = roomsTotal ? Math.round(occ * 100 / roomsTotal) : 0;
+  const inR = d => d >= from && d <= to, all = DB.bookings().filter(b => b.hotelId === h.id), live = all.filter(b => b.status !== 'cancelled');
+  const arr = live.filter(b => inR(b.checkIn)), dep = live.filter(b => inR(b.checkOut)), inh = live.filter(b => b.checkIn <= to && b.checkOut > from);
+  const created = all.filter(b => inR(dOf(b.createdAt)) && b.source !== 'external'), canc = all.filter(b => b.cancelledAt && inR(dOf(b.cancelledAt)));
+  const paidToday = all.filter(b => b.payment?.paid && b.payment.paidAt && inR(dOf(b.payment.paidAt)));
+  const roomsTotal = (h.rooms || []).reduce((s, r) => s + (+r.total || 0), 0);
+  let days = 0, nightsSum = 0;
+  for (let d = new Date(from + 'T00:00:00'); isoOf(d) <= to && days < 400; d.setDate(d.getDate() + 1)) { const k = isoOf(d); days++; nightsSum += live.filter(b => b.checkIn <= k && k < b.checkOut).reduce((s, b) => s + (+b.qty || 1), 0); }
+  const occ = days ? Math.round(nightsSum / days) : 0, occPct = roomsTotal ? Math.round(occ * 100 / roomsTotal) : 0;
   const PAY = { promptpay: 'พร้อมเพย์', bank: 'โอนผ่านธนาคาร', hotel: 'ชำระที่ที่พัก', card: 'บัตร' };
   const byPay = {}; paidToday.forEach(b => { const k = PAY[b.payment.method] || b.payment.method || 'อื่นๆ'; byPay[k] = (byPay[k] || 0) + (b.price?.total || 0); });
   const revenue = Object.values(byPay).reduce((s, v) => s + v, 0);
@@ -1231,14 +1251,15 @@ function dailyData(h, day) {
   const dueSum = due.reduce((s, b) => s + (b.price?.total || 0), 0);
   return { gName, PAY, arr, dep, inh, created, canc, paidToday, roomsTotal, occ, occPct, byPay, revenue, due, dueSum };
 }
-function dailyReportHtml(h, day, o = {}) {
+function dailyReportHtml(h, from, to = from, o = {}) {
+  const one = from === to, W = one ? 'วันนี้' : 'ในช่วงนี้', V = one ? 'คืนนี้' : 'ในช่วงนี้', per = one ? fmtDate(from, true) : `${fmtDate(from, true)} – ${fmtDate(to, true)}`;
   const cfg = docCfgOf(h), t = taxInfoOf(h), E = x => esc(x == null ? '' : String(x)), ac = /^#[0-9a-f]{6}$/i.test(cfg.accent) ? cfg.accent : '#1a5fd0';
-  const { gName, PAY, arr, dep, inh, created, canc, paidToday, roomsTotal, occ, occPct, byPay, revenue, due, dueSum } = dailyData(h, day);
+  const { gName, PAY, arr, dep, inh, created, canc, paidToday, roomsTotal, occ, occPct, byPay, revenue, due, dueSum } = dailyData(h, from, to);
   const kpi = (l, v, s = '') => `<div class="k"><div class="m">${l}</div><b>${v}</b>${s ? `<div class="m">${s}</div>` : ''}</div>`;
   const tbl = (title, rows, head, fn) => `<h3>${title} <span class="m">(${rows.length})</span></h3>${rows.length ? `<table><thead><tr>${head.map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(fn).join('')}</tbody></table>` : '<div class="m" style="padding:6px 0">— ไม่มี —</div>'}`;
   const stay = b => `${E(b.qty || 1)} × ${E(b.roomName || '')}`, paidTag = b => b.source === 'external' ? '<span class="m">ช่องทางภายนอก</span>' : b.payment?.paid ? 'ชำระแล้ว' : '<b style="color:#b45309">ค้างชำระ</b>';
   const logoSrc = resortLogo(h), logo = cfg.logo && logoSrc ? `<img src="${E(logoSrc)}" alt="" style="max-height:48px;max-width:150px;object-fit:contain;margin-bottom:4px;display:block">` : '';
-  return `<!doctype html><html lang="th"><head><meta charset="utf-8"><title>รายงานรายวัน ${E(day)}</title><style>
+  return `<!doctype html><html lang="th"><head><meta charset="utf-8"><title>รายงานรายวัน ${E(from)}${one ? '' : ' ถึง ' + E(to)}</title><style>
     body { font: 13px/1.5 'Sarabun', 'Noto Sans Thai', Tahoma, sans-serif; color: #111; max-width: 840px; margin: 0 auto; padding: 22px; }
     h1 { font-size: 21px; margin: 0; color: ${ac}; } h3 { font-size: 14px; margin: 18px 0 4px; color: ${ac}; } .m { color: #666; font-size: 12px; font-weight: 400; }
     .top { display: flex; justify-content: space-between; gap: 18px; padding-bottom: 10px; border-bottom: 3px solid ${ac}; }
@@ -1248,40 +1269,40 @@ function dailyReportHtml(h, day, o = {}) {
     @media print { body { padding: 0; } th { -webkit-print-color-adjust: exact; print-color-adjust: exact; } h3, table { break-inside: avoid; } }
   </style></head><body>
     <div class="top"><div>${logo}<b style="font-size:16px">${E(h.name)}</b><div class="m">${E(t.address)}${t.phone ? ' · โทร ' + E(t.phone) : ''}</div></div>
-      <div style="text-align:right"><h1>รายงานรายวัน</h1><div class="m">Daily Report</div><div style="margin-top:6px">ประจำวันที่ <b>${E(fmtDate(day, true))}</b></div></div></div>
-    <div class="kpis">${kpi('ห้องทั้งหมด', roomsTotal)}${kpi('ผู้พักคืนนี้', occ + ' ห้อง', 'อัตราเข้าพัก ' + occPct + '%')}${kpi('เช็คอินวันนี้', arr.length, arr.filter(b => b.checkedInAt).length + ' เช็คอินแล้ว')}${kpi('เช็คเอาต์วันนี้', dep.length, dep.filter(b => b.checkedOutAt).length + ' เช็คเอาต์แล้ว')}
-      ${kpi('จองใหม่วันนี้', created.length, money(created.reduce((s, b) => s + (b.price?.total || 0), 0)))}${kpi('ยกเลิกวันนี้', canc.length)}${kpi('รับชำระวันนี้', money(revenue), paidToday.length + ' รายการ')}${kpi('ยอดค้างชำระ', money(dueSum), due.length + ' การจอง')}</div>
-    ${tbl('เช็คอินวันนี้', arr, ['การจอง', 'ผู้เข้าพัก', 'ห้อง', 'คืน', 'สถานะ', 'ชำระ'], b => `<tr><td>${E(b.id)}</td><td>${E(gName(b))}</td><td>${stay(b)}</td><td>${E(b.nights || '')}</td><td>${b.checkedInAt ? 'เช็คอินแล้ว' : 'รอเช็คอิน'}</td><td>${paidTag(b)}</td></tr>`)}
-    ${tbl('เช็คเอาต์วันนี้', dep, ['การจอง', 'ผู้เข้าพัก', 'ห้อง', 'สถานะ', 'ชำระ'], b => `<tr><td>${E(b.id)}</td><td>${E(gName(b))}</td><td>${stay(b)}</td><td>${b.checkedOutAt ? 'เช็คเอาต์แล้ว' : 'ยังไม่เช็คเอาต์'}</td><td>${paidTag(b)}</td></tr>`)}
-    ${tbl('ผู้เข้าพักคืนนี้', inh, ['การจอง', 'ผู้เข้าพัก', 'ห้อง', 'เข้าพัก', 'เช็คเอาต์', 'โทร'], b => `<tr><td>${E(b.id)}</td><td>${E(gName(b))}</td><td>${stay(b)}</td><td>${E(fmtDate(b.checkIn, false))}</td><td>${E(fmtDate(b.checkOut, false))}</td><td>${E(b.guest?.phone || '')}</td></tr>`)}
-    ${tbl('การจองใหม่ที่เข้ามาวันนี้', created, ['การจอง', 'ผู้จอง', 'เข้าพัก', 'ห้อง', 'ยอดรวม', 'สถานะ'], b => `<tr><td>${E(b.id)}</td><td>${E(gName(b))}</td><td>${E(fmtDate(b.checkIn, false))} – ${E(fmtDate(b.checkOut, false))}</td><td>${stay(b)}</td><td class="r">${fmt2(b.price?.total || 0)}</td><td>${b.status === 'cancelled' ? 'ยกเลิก' : b.status === 'confirmed' ? 'ยืนยันแล้ว' : 'รอยืนยัน'}</td></tr>`)}
-    ${canc.length ? tbl('ยกเลิกวันนี้', canc, ['การจอง', 'ผู้จอง', 'เข้าพัก', 'เหตุผล'], b => `<tr><td>${E(b.id)}</td><td>${E(gName(b))}</td><td>${E(fmtDate(b.checkIn, false))}</td><td>${E(b.cancelReason || '')}</td></tr>`) : ''}
-    <h3>รายรับที่รับชำระวันนี้ <span class="m">(${paidToday.length} รายการ)</span></h3>${paidToday.length ? `<table><thead><tr><th>วิธีชำระ</th><th class="r">จำนวนเงิน (บาท)</th></tr></thead><tbody>${Object.entries(byPay).map(([k, v]) => `<tr><td>${E(k)}</td><td class="r">${fmt2(v)}</td></tr>`).join('')}<tr><td><b>รวม</b></td><td class="r"><b>${fmt2(revenue)}</b></td></tr></tbody></table>` : '<div class="m" style="padding:6px 0">— ไม่มี —</div>'}
-    ${due.length ? tbl('ยอดค้างชำระ (ผู้พักปัจจุบัน / เช็คเอาต์วันนี้)', due, ['การจอง', 'ผู้เข้าพัก', 'วิธีชำระ', 'ยอด (บาท)'], b => `<tr><td>${E(b.id)}</td><td>${E(gName(b))}</td><td>${E(PAY[b.payment?.method] || '')}</td><td class="r">${fmt2(b.price?.total || 0)}</td></tr>`) : ''}
+      <div style="text-align:right"><h1>รายงานรายวัน</h1><div class="m">Daily Report</div><div style="margin-top:6px">${one ? 'ประจำวันที่' : 'ช่วงวันที่'} <b>${E(per)}</b></div></div></div>
+    <div class="kpis">${kpi('ห้องทั้งหมด', roomsTotal)}${kpi('ผู้พัก' + V + '', occ + ' ห้อง', (one ? '' : 'เฉลี่ยต่อคืน · ') + 'อัตราเข้าพัก ' + occPct + '%')}${kpi('เช็คอิน' + W + '', arr.length, arr.filter(b => b.checkedInAt).length + ' เช็คอินแล้ว')}${kpi('เช็คเอาต์' + W + '', dep.length, dep.filter(b => b.checkedOutAt).length + ' เช็คเอาต์แล้ว')}
+      ${kpi('จองใหม่' + W + '', created.length, money(created.reduce((s, b) => s + (b.price?.total || 0), 0)))}${kpi('ยกเลิก' + W + '', canc.length)}${kpi('รับชำระ' + W + '', money(revenue), paidToday.length + ' รายการ')}${kpi('ยอดค้างชำระ', money(dueSum), due.length + ' การจอง')}</div>
+    ${tbl('เช็คอิน' + W + '', arr, ['การจอง', 'ผู้เข้าพัก', 'ห้อง', 'คืน', 'สถานะ', 'ชำระ'], b => `<tr><td>${E(b.id)}</td><td>${E(gName(b))}</td><td>${stay(b)}</td><td>${E(b.nights || '')}</td><td>${b.checkedInAt ? 'เช็คอินแล้ว' : 'รอเช็คอิน'}</td><td>${paidTag(b)}</td></tr>`)}
+    ${tbl('เช็คเอาต์' + W + '', dep, ['การจอง', 'ผู้เข้าพัก', 'ห้อง', 'สถานะ', 'ชำระ'], b => `<tr><td>${E(b.id)}</td><td>${E(gName(b))}</td><td>${stay(b)}</td><td>${b.checkedOutAt ? 'เช็คเอาต์แล้ว' : 'ยังไม่เช็คเอาต์'}</td><td>${paidTag(b)}</td></tr>`)}
+    ${tbl('ผู้เข้าพัก' + V + '', inh, ['การจอง', 'ผู้เข้าพัก', 'ห้อง', 'เข้าพัก', 'เช็คเอาต์', 'โทร'], b => `<tr><td>${E(b.id)}</td><td>${E(gName(b))}</td><td>${stay(b)}</td><td>${E(fmtDate(b.checkIn, false))}</td><td>${E(fmtDate(b.checkOut, false))}</td><td>${E(b.guest?.phone || '')}</td></tr>`)}
+    ${tbl('การจองใหม่ที่เข้ามา' + W + '', created, ['การจอง', 'ผู้จอง', 'เข้าพัก', 'ห้อง', 'ยอดรวม', 'สถานะ'], b => `<tr><td>${E(b.id)}</td><td>${E(gName(b))}</td><td>${E(fmtDate(b.checkIn, false))} – ${E(fmtDate(b.checkOut, false))}</td><td>${stay(b)}</td><td class="r">${fmt2(b.price?.total || 0)}</td><td>${b.status === 'cancelled' ? 'ยกเลิก' : b.status === 'confirmed' ? 'ยืนยันแล้ว' : 'รอยืนยัน'}</td></tr>`)}
+    ${canc.length ? tbl('ยกเลิก' + W + '', canc, ['การจอง', 'ผู้จอง', 'เข้าพัก', 'เหตุผล'], b => `<tr><td>${E(b.id)}</td><td>${E(gName(b))}</td><td>${E(fmtDate(b.checkIn, false))}</td><td>${E(b.cancelReason || '')}</td></tr>`) : ''}
+    <h3>รายรับที่รับชำระ${W} <span class="m">(${paidToday.length} รายการ)</span></h3>${paidToday.length ? `<table><thead><tr><th>วิธีชำระ</th><th class="r">จำนวนเงิน (บาท)</th></tr></thead><tbody>${Object.entries(byPay).map(([k, v]) => `<tr><td>${E(k)}</td><td class="r">${fmt2(v)}</td></tr>`).join('')}<tr><td><b>รวม</b></td><td class="r"><b>${fmt2(revenue)}</b></td></tr></tbody></table>` : '<div class="m" style="padding:6px 0">— ไม่มี —</div>'}
+    ${due.length ? tbl('ยอดค้างชำระ (ผู้พักปัจจุบัน / เช็คเอาต์' + W + ')', due, ['การจอง', 'ผู้เข้าพัก', 'วิธีชำระ', 'ยอด (บาท)'], b => `<tr><td>${E(b.id)}</td><td>${E(gName(b))}</td><td>${E(PAY[b.payment?.method] || '')}</td><td class="r">${fmt2(b.price?.total || 0)}</td></tr>`) : ''}
     <div class="sig"><div>${cfg.sigUrl ? `<img src="${E(cfg.sigUrl)}" alt="" style="max-height:50px;max-width:170px;object-fit:contain;display:block;margin:-56px auto 6px">` : ''}ผู้จัดทำรายงาน<br><span class="m">${E(o.by || '')}</span></div><div>ผู้ตรวจสอบ / ผู้มีอำนาจลงนาม<br><span class="m">${E(cfg.signer || t.legalName)}</span></div></div>
     <div class="m" style="margin-top:16px">พิมพ์เมื่อ ${E(fmtDateTime(new Date().toISOString()))} · ข้อมูลตามการจองในระบบ ณ เวลาที่พิมพ์ กรุณาตรวจสอบกับนักบัญชีของคุณ</div>
     ${o.preview ? '' : '<script>addEventListener("load", function () { setTimeout(function () { window.print(); }, 400); });<\/script>'}
   </body></html>`;
 }
-function dailyReportXlsx(h, day) {
-  const D = dailyData(h, day), nm = b => D.gName(b), pay = b => b.source === 'external' ? 'ช่องทางภายนอก' : b.payment?.paid ? 'ชำระแล้ว' : 'ค้างชำระ', room = b => `${b.qty || 1} × ${b.roomName || ''}`, money0 = b => b.price?.total || 0;
-  const rows = [[`รายงานรายวัน ${h.name}`, day, '', '', '', ''],
-    ['ห้องทั้งหมด', D.roomsTotal, 'ผู้พักคืนนี้ (ห้อง)', D.occ, 'อัตราเข้าพัก %', D.occPct],
-    ['เช็คอินวันนี้', D.arr.length, 'เช็คเอาต์วันนี้', D.dep.length, 'ยกเลิกวันนี้', D.canc.length],
-    ['จองใหม่วันนี้', D.created.length, 'รับชำระวันนี้ (บาท)', D.revenue, 'ยอดค้างชำระ (บาท)', D.dueSum], [],
-    ['■ เช็คอินวันนี้', 'การจอง', 'ผู้เข้าพัก', 'ห้อง', 'สถานะ', 'ชำระ'], ...D.arr.map(b => ['', b.id, nm(b), room(b), b.checkedInAt ? 'เช็คอินแล้ว' : 'รอเช็คอิน', pay(b)]), [],
-    ['■ เช็คเอาต์วันนี้', 'การจอง', 'ผู้เข้าพัก', 'ห้อง', 'สถานะ', 'ชำระ'], ...D.dep.map(b => ['', b.id, nm(b), room(b), b.checkedOutAt ? 'เช็คเอาต์แล้ว' : 'ยังไม่เช็คเอาต์', pay(b)]), [],
-    ['■ ผู้เข้าพักคืนนี้', 'การจอง', 'ผู้เข้าพัก', 'ห้อง', 'เช็คอิน', 'เช็คเอาต์', 'โทร'], ...D.inh.map(b => ['', b.id, nm(b), room(b), b.checkIn, b.checkOut, b.guest?.phone || '']), [],
-    ['■ จองใหม่วันนี้', 'การจอง', 'ผู้จอง', 'เข้าพัก', 'ห้อง', 'ยอดรวม (บาท)', 'สถานะ'], ...D.created.map(b => ['', b.id, nm(b), `${b.checkIn} – ${b.checkOut}`, room(b), money0(b), b.status === 'cancelled' ? 'ยกเลิก' : b.status === 'confirmed' ? 'ยืนยันแล้ว' : 'รอยืนยัน']), [],
-    ['■ ยกเลิกวันนี้', 'การจอง', 'ผู้จอง', 'เข้าพัก', 'เหตุผล'], ...D.canc.map(b => ['', b.id, nm(b), b.checkIn, b.cancelReason || '']), [],
-    ['■ รายรับที่รับชำระวันนี้', 'วิธีชำระ', 'จำนวนเงิน (บาท)'], ...Object.entries(D.byPay).map(([k, v]) => ['', k, v]), ['', 'รวม', D.revenue], [],
+function dailyReportXlsx(h, from, to = from) {
+  const one = from === to, W = one ? 'วันนี้' : 'ในช่วงนี้', V = one ? 'คืนนี้' : 'ในช่วงนี้', D = dailyData(h, from, to), nm = b => D.gName(b), pay = b => b.source === 'external' ? 'ช่องทางภายนอก' : b.payment?.paid ? 'ชำระแล้ว' : 'ค้างชำระ', room = b => `${b.qty || 1} × ${b.roomName || ''}`, money0 = b => b.price?.total || 0;
+  const rows = [[`รายงานรายวัน ${h.name}`, one ? from : `${from} ถึง ${to}`, '', '', '', ''],
+    ['ห้องทั้งหมด', D.roomsTotal, 'ผู้พัก' + V + ' (ห้อง)', D.occ, 'อัตราเข้าพัก %', D.occPct],
+    ['เช็คอิน' + W + '', D.arr.length, 'เช็คเอาต์' + W + '', D.dep.length, 'ยกเลิก' + W + '', D.canc.length],
+    ['จองใหม่' + W + '', D.created.length, 'รับชำระ' + W + ' (บาท)', D.revenue, 'ยอดค้างชำระ (บาท)', D.dueSum], [],
+    ['■ เช็คอิน' + W + '', 'การจอง', 'ผู้เข้าพัก', 'ห้อง', 'สถานะ', 'ชำระ'], ...D.arr.map(b => ['', b.id, nm(b), room(b), b.checkedInAt ? 'เช็คอินแล้ว' : 'รอเช็คอิน', pay(b)]), [],
+    ['■ เช็คเอาต์' + W + '', 'การจอง', 'ผู้เข้าพัก', 'ห้อง', 'สถานะ', 'ชำระ'], ...D.dep.map(b => ['', b.id, nm(b), room(b), b.checkedOutAt ? 'เช็คเอาต์แล้ว' : 'ยังไม่เช็คเอาต์', pay(b)]), [],
+    ['■ ผู้เข้าพัก' + V + '', 'การจอง', 'ผู้เข้าพัก', 'ห้อง', 'เช็คอิน', 'เช็คเอาต์', 'โทร'], ...D.inh.map(b => ['', b.id, nm(b), room(b), b.checkIn, b.checkOut, b.guest?.phone || '']), [],
+    ['■ จองใหม่' + W + '', 'การจอง', 'ผู้จอง', 'เข้าพัก', 'ห้อง', 'ยอดรวม (บาท)', 'สถานะ'], ...D.created.map(b => ['', b.id, nm(b), `${b.checkIn} – ${b.checkOut}`, room(b), money0(b), b.status === 'cancelled' ? 'ยกเลิก' : b.status === 'confirmed' ? 'ยืนยันแล้ว' : 'รอยืนยัน']), [],
+    ['■ ยกเลิก' + W + '', 'การจอง', 'ผู้จอง', 'เข้าพัก', 'เหตุผล'], ...D.canc.map(b => ['', b.id, nm(b), b.checkIn, b.cancelReason || '']), [],
+    ['■ รายรับที่รับชำระ' + W + '', 'วิธีชำระ', 'จำนวนเงิน (บาท)'], ...Object.entries(D.byPay).map(([k, v]) => ['', k, v]), ['', 'รวม', D.revenue], [],
     ['■ ยอดค้างชำระ', 'การจอง', 'ผู้เข้าพัก', 'วิธีชำระ', 'ยอด (บาท)'], ...D.due.map(b => ['', b.id, nm(b), D.PAY[b.payment?.method] || '', money0(b)])];
-  downloadXlsx(`daily-report-${h.slug || h.id}-${day}.xlsx`, rows); DB.log('report.daily', `${h.name} ${day}`);
+  downloadXlsx(`daily-report-${h.slug || h.id}-${from}${one ? '' : '_' + to}.xlsx`, rows); DB.log('report.daily', `${h.name} ${from}${one ? '' : ' ถึง ' + to}`);
 }
-function printDailyReport(h, day) {
+function printDailyReport(h, from, to = from) {
   const w = window.open('', '_blank');
   if (!w) return toast('เบราว์เซอร์บล็อกหน้าต่างพิมพ์ — กรุณาอนุญาตป๊อปอัปของเว็บนี้', 'err');
-  w.document.open(); w.document.write(dailyReportHtml(h, day, { by: DB.currentUser()?.name || '' })); w.document.close();
+  w.document.open(); w.document.write(dailyReportHtml(h, from, to, { by: DB.currentUser()?.name || '' })); w.document.close();
 }
 function quoteForm(done, ex) { // ex = { h, q } เมื่อแก้ใบเดิม (เลขที่/วันที่ออกคงเดิม)
   const hotels = ex ? [ex.h] : DB.hotels(true), eq = ex?.q, rows = eq?.items?.length ? eq.items.map(x => ({ ...x })) : [{ name: '', qty: 1, price: 0 }];
