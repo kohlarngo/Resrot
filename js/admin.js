@@ -30,6 +30,7 @@ const BO_NAV_BY_ROLE = {
       ['payout', 'fa-building-columns', 'บัญชีรับเงิน', 'payout.edit', () => boPayout],
       ['notify', 'fa-bell', 'การแจ้งเตือน', 'team.manage', () => boNotify],
       ['team', 'fa-user-group', 'พนักงานของฉัน', 'team.manage', () => boMyTeam],
+      ['audit', 'fa-clock-rotate-left', 'บันทึกการใช้งานของทีม', 'team.manage', () => boAudit],
     ] },
     { g: 'ยอดขาย & รายงาน', items: [
       ['overview', 'fa-chart-line', 'ยอดขายภาพรวม', 'exec.view', () => boOverview],
@@ -2238,14 +2239,19 @@ const AUDIT_TH = {
   'booking.approve': 'อนุมัติการจอง', 'booking.reject': 'ปฏิเสธการจอง', 'payout.save': 'ตั้งค่าบัญชีรับเงิน',
   'partner.approve': 'อนุมัติเจ้าของรีสอร์ท', 'partner.reject': 'ไม่อนุมัติเจ้าของรีสอร์ท', 'partner.suspend': 'ระงับเจ้าของรีสอร์ท', 'partner.activate': 'เปิดใช้เจ้าของรีสอร์ท',
   'settings.save': 'บันทึกตั้งค่า', 'report.export': 'ส่งออกรายงาน', 'flags.save': 'เปลี่ยนฟีเจอร์', 'profile.save': 'แก้ไขโปรไฟล์', 'profile.password': 'เปลี่ยนรหัสผ่าน',
+  'team.add': 'เพิ่มพนักงาน', 'team.edit': 'แก้ไขพนักงาน', 'team.resetpw': 'รีเซ็ตรหัสผ่านพนักงาน', 'team.suspend': 'ระงับพนักงาน', 'team.activate': 'เปิดใช้พนักงาน', 'team.delete': 'ลบพนักงาน',
+  'room.image': 'แก้รูปห้อง', 'room.delete': 'ลบห้อง', 'room.price': 'แก้ราคาห้อง', 'booking.release': 'ปล่อยห้องที่ปิดไว้', 'booking.block': 'ปิดห้อง', 'ical.add': 'เพิ่มลิงก์ iCal',
+  'hotel.decorate': 'แต่งหน้ารีสอร์ท', 'hotel.vip': 'ตั้งค่า VIP', 'hotel.vipsite': 'แก้เว็บจองส่วนตัว (VIP)', 'hotel.slideshow': 'แก้สไลด์รีสอร์ท',
+  'docs.quote': 'ออกใบเสนอราคา', 'docs.quote.edit': 'แก้ใบเสนอราคา', 'docs.quote.delete': 'ลบใบเสนอราคา', 'docs.issue': 'ออกใบเสร็จ/ใบกำกับภาษี', 'docs.taxinfo': 'แก้ข้อมูลภาษีรีสอร์ท', 'docs.config': 'แก้รูปแบบเอกสาร', 'report.daily': 'พิมพ์รายงานรายวัน',
   'data.edit': 'แก้ข้อมูลดิบ', 'data.delete': 'ลบคีย์ข้อมูล', 'data.export': 'สำรองข้อมูล', 'data.import': 'กู้คืนข้อมูล', 'data.demo': 'สร้างข้อมูลตัวอย่าง', 'data.reset': 'รีเซ็ตระบบ', 'logs.clear': 'ล้าง error logs',
 };
 const AUDIT_TONE = a => a === 'auth.fail' || /delete|reset|suspend|cancel/.test(a) ? 'bad' : a.startsWith('auth') ? 'muted' : /data|flags|staff|settings/.test(a) ? 'warn' : 'ok';
 function boAudit(main) {
   const all = DB.audit();
   let q = '', who = '', type = '';
-  const groups = { auth: 'การเข้าสู่ระบบ', booking: 'การจอง', staff: 'ทีมงาน', hotel: 'ที่พัก', coupon: 'โค้ดส่วนลด', settings: 'ตั้งค่า', data: 'ข้อมูล', flags: 'ฟีเจอร์' };
-  main.innerHTML = pageHead('บันทึกการใช้งาน (Audit log)', `ทุกการกระทำในหลังบ้านถูกบันทึกพร้อมผู้ทำและเวลา · เก็บล่าสุด 1,000 รายการ`, '<button class="btn btn-outline btn-sm" id="au-csv"><i class="fa-solid fa-file-excel"></i> ส่งออก Excel</button>') + `
+  const groups = { auth: 'การเข้าสู่ระบบ', booking: 'การจอง', staff: 'ทีมงาน', team: 'พนักงานของฉัน', hotel: 'ที่พัก', room: 'ห้อง/ราคา', docs: 'เอกสาร', coupon: 'โค้ดส่วนลด', settings: 'ตั้งค่า', data: 'ข้อมูล', flags: 'ฟีเจอร์' };
+  const isOwner = portalRole(DB.currentUser()) === 'owner';
+  main.innerHTML = pageHead(isOwner ? 'บันทึกการใช้งานของทีม' : 'บันทึกการใช้งาน (Audit log)', isOwner ? 'ดูว่าใคร (คุณหรือพนักงาน) ทำอะไร เมื่อไหร่ · เก็บล่าสุด 1,000 รายการ' : `ทุกการกระทำในหลังบ้านถูกบันทึกพร้อมผู้ทำและเวลา · เก็บล่าสุด 1,000 รายการ`,'<button class="btn btn-outline btn-sm" id="au-csv"><i class="fa-solid fa-file-excel"></i> ส่งออก Excel</button>') + `
     <div class="filters"><div class="f-search"><i class="fa-solid fa-magnifying-glass"></i><input id="au-q" placeholder="ค้นหารายละเอียด"></div>
       <select id="au-w" class="sel"><option value="">ทุกคน</option>${[...new Set(all.map(a => a.name))].map(n => `<option>${esc(n)}</option>`).join('')}</select>
       <select id="au-t" class="sel"><option value="">ทุกประเภท</option>${Object.entries(groups).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></div>
