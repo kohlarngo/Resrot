@@ -108,13 +108,39 @@ function boOwnerBookings(main, params) {
 
 // ================= ตัวจัดการรูป (อัปโหลด / เลือกปก / ลบ) =================
 // imgs = อาร์เรย์ของ URL หรือ id รูป (แก้ในอาร์เรย์เดิม) — รูปแรกคือภาพปก
-function imgManager(box, imgs, { min = 1 } = {}) {
+// ปรับรูป: เลื่อนซ้าย/ขวา/บน/ล่าง + ซูม (ลากบนรูปได้) · เก็บ { x, y, z } ใน pos[url] · ใช้กับรูปเว็บ VIP
+function imgAdjust(url, pos, done) {
+  const cur = { x: 50, y: 50, z: 1, ...pos[url] };
+  const m = openModal(`<h2><i class="fa-solid fa-up-down-left-right"></i> ปรับรูป</h2>
+    <p class="small muted" style="margin:0 0 10px">ลากบนรูป หรือกดลูกศรเพื่อเลื่อนส่วนที่ต้องการให้อยู่ในกรอบ · เลื่อนแถบเพื่อซูมเข้า</p>
+    <div id="ia-box" style="position:relative;aspect-ratio:3/4;max-height:52vh;margin:0 auto 12px;border-radius:12px;overflow:hidden;background:#ddd;touch-action:none;cursor:grab">${imgTag(url, 900)}</div>
+    <div class="row wrap" style="gap:6px;justify-content:center;margin-bottom:10px">
+      <button class="btn btn-outline btn-sm" data-ia="-10|0"><i class="fa-solid fa-arrow-left"></i> ซ้าย</button><button class="btn btn-outline btn-sm" data-ia="10|0">ขวา <i class="fa-solid fa-arrow-right"></i></button>
+      <button class="btn btn-outline btn-sm" data-ia="0|-10"><i class="fa-solid fa-arrow-up"></i> บน</button><button class="btn btn-outline btn-sm" data-ia="0|10">ล่าง <i class="fa-solid fa-arrow-down"></i></button></div>
+    <label class="row" style="gap:10px"><i class="fa-solid fa-magnifying-glass-minus"></i><input type="range" id="ia-z" min="1" max="3" step="0.05" style="flex:1"><i class="fa-solid fa-magnifying-glass-plus"></i></label>
+    <div class="row" style="justify-content:flex-end;gap:10px;margin-top:14px"><button class="btn btn-ghost" id="ia-reset">คืนค่าเดิม</button><button class="btn btn-primary" id="ia-ok">ตกลง</button></div>`);
+  const box = $('#ia-box', m), im = $('img', box), z = $('#ia-z', m);
+  const show = () => { im.style.cssText = `width:100%;height:100%;object-fit:cover;display:block;${imgFx(cur)}`; z.value = cur.z; };
+  const clamp = v => Math.max(0, Math.min(100, v));
+  $$('[data-ia]', m).forEach(b => b.onclick = () => { const [dx, dy] = b.dataset.ia.split('|').map(Number); cur.x = clamp(cur.x + dx); cur.y = clamp(cur.y + dy); show(); });
+  z.oninput = () => { cur.z = +z.value; show(); };
+  let drag = null;
+  box.onpointerdown = e => { drag = { sx: e.clientX, sy: e.clientY, x: cur.x, y: cur.y }; box.setPointerCapture(e.pointerId); box.style.cursor = 'grabbing'; };
+  box.onpointermove = e => { if (!drag) return; const r = box.getBoundingClientRect(); cur.x = clamp(drag.x - (e.clientX - drag.sx) / r.width * 100); cur.y = clamp(drag.y - (e.clientY - drag.sy) / r.height * 100); show(); };
+  box.onpointerup = box.onpointercancel = () => { drag = null; box.style.cursor = 'grab'; };
+  $('#ia-reset', m).onclick = () => { Object.assign(cur, { x: 50, y: 50, z: 1 }); show(); };
+  $('#ia-ok', m).onclick = () => { if (cur.x === 50 && cur.y === 50 && cur.z === 1) delete pos[url]; else pos[url] = { x: Math.round(cur.x), y: Math.round(cur.y), z: +(+cur.z).toFixed(2) }; closeModal(); done?.(); };
+  show();
+}
+function imgManager(box, imgs, { min = 1, pos } = {}) {
   const draw = () => {
-    box.innerHTML = `<div class="im-grid">${imgs.map((u, i) => `<div class="im-item ${i === 0 ? 'cover' : ''}"><img src="${esc(imgUrl(u, 300))}" alt="" onerror="this.onerror=null;this.src='https://picsum.photos/seed/im${i}/300/200'">
+    box.innerHTML = `<div class="im-grid">${imgs.map((u, i) => `<div class="im-item ${i === 0 ? 'cover' : ''}"><img src="${esc(imgUrl(u, 300))}" alt="" style="${pos ? imgFx(pos[u]) : ''}" onerror="this.onerror=null;this.src='https://picsum.photos/seed/im${i}/300/200'">
+        ${pos ? `<button type="button" class="im-star" style="top:auto;bottom:6px" data-adj="${i}" title="ปรับรูป"><i class="fa-solid fa-up-down-left-right"></i></button>` : ''}
         ${i === 0 ? '<span class="im-badge">ภาพปก</span>' : `<button type="button" class="im-star" data-cover="${i}" title="ตั้งเป็นภาพปก"><i class="fa-solid fa-star"></i></button>`}
         <button type="button" class="im-x" data-del="${i}" title="ลบรูป"><i class="fa-solid fa-xmark"></i></button></div>`).join('')}
       <label class="im-add"><i class="fa-solid fa-camera"></i><span>เพิ่มรูป</span><input type="file" accept="image/*" multiple hidden></label></div>
       <input class="im-url" placeholder="หรือวางลิงก์รูป (URL) แล้วกด Enter">`;
+    $$('[data-adj]', box).forEach(b => b.onclick = () => imgAdjust(imgs[+b.dataset.adj], pos, draw));
     $$('[data-cover]', box).forEach(b => b.onclick = () => { const [x] = imgs.splice(+b.dataset.cover, 1); imgs.unshift(x); draw(); });
     $$('[data-del]', box).forEach(b => b.onclick = () => { if (imgs.length <= min) return toast(`ต้องมีรูปอย่างน้อย ${min} รูป`, 'err'); imgs.splice(+b.dataset.del, 1); draw(); });
     $('.im-url', box).onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); const v = e.target.value.trim(); if (v) { imgs.push(v); draw(); } } };
@@ -372,7 +398,7 @@ function boDevIcal(main) {
 // เปิด VIP รายรีสอร์ท (h.vip = {on, tag}) → ป้ายสีทองบนการ์ดและหน้ารีสอร์ท + ขึ้นอันดับบนสุดในผลค้นหา + แสดงในหน้าแรก
 const vipRunning = h => { const v = h.vip || {}, t = todayISO(); return !(v.from && t < v.from) && !(v.to && t > v.to); };
 function boDevVip(main) {
-  const hotels = DB.hotels(true), TAGS = ['VIP', 'แนะนำ', 'ยอดนิยม'];
+  const hotels = DB.hotels(true), TAGS = ['แนะนำ', 'ยอดนิยม'];
   const ownerName = h => { const o = h.ownerId ? DB.owner(h.ownerId) : null; return o ? (o.biz?.resortName || o.name) : 'แพลตฟอร์ม'; };
   const n = hotels.filter(h => h.vip?.on === true).length;
   main.innerHTML = pageHead('รีสอร์ท VIP / แนะนำ', `เปิด ${n} จาก ${hotels.length} รีสอร์ท · รีสอร์ท VIP มีป้ายสีทอง ขึ้นอันดับบนสุดของผลค้นหา และแสดงในหน้าแรก`) + `
@@ -382,7 +408,7 @@ function boDevVip(main) {
       <div class="sh-main"><b class="sh-name">${esc(h.name)}</b><div class="small muted">เจ้าของ: ${esc(ownerName(h))}${h.active === false ? ' · <span class="red">ปิดการขาย</span>' : ''}</div></div>
       <div class="sh-ctl"><button class="btn btn-outline btn-sm" data-vp-img="${h.id}" ${h.vip?.on === true ? '' : 'disabled'}><i class="fa-solid fa-sliders"></i> ตั้งค่าเว็บ VIP</button>${h.vip?.on === true ? ` <a class="btn btn-outline btn-sm" href="${esc(vipLink(h))}" target="_blank" rel="noopener" title="เปิดเว็บจองส่วนตัว"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>` : ''} <span class="small muted">ช่วงวันที่</span> <input type="date" data-vp-from="${h.id}" value="${esc(h.vip?.from || '')}" ${h.vip?.on === true ? '' : 'disabled'} title="เริ่ม (ว่าง = ทันที)"> – <input type="date" data-vp-to="${h.id}" value="${esc(h.vip?.to || '')}" ${h.vip?.on === true ? '' : 'disabled'} title="สิ้นสุด (ว่าง = ไม่จำกัด)"> <select data-vp-tag="${h.id}" ${h.vip?.on === true ? '' : 'disabled'}>${TAGS.map(t => `<option ${(h.vip?.tag || 'VIP') === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
         <label class="switch"><input type="checkbox" data-vp-on="${h.id}" ${h.vip?.on === true ? 'checked' : ''}><span></span>${h.vip?.on === true ? (vipRunning(h) ? 'เปิด' : 'เปิด (นอกช่วงวันที่)') : 'ปิด'}</label></div></section>`).join('') || '<section class="card"><div class="bo-empty"><i class="fa-solid fa-hotel"></i><p class="muted">ยังไม่มีรีสอร์ทในระบบ</p></div></section>'}</div>`;
-  const save = (id, patch) => { const h = JSON.parse(JSON.stringify(DB.hotel(id))); h.vip = { ...h.vip, on: h.vip?.on === true, tag: h.vip?.tag || 'VIP', ...patch }; DB.saveHotel(h); DB.log('hotel.vip', `${h.name} → ${h.vip.on ? 'VIP (' + h.vip.tag + ')' : 'ปิด VIP'}`); };
+  const save = (id, patch) => { const h = JSON.parse(JSON.stringify(DB.hotel(id))); h.vip = { ...h.vip, on: h.vip?.on === true, tag: h.vip?.tag || 'แนะนำ', ...patch }; DB.saveHotel(h); DB.log('hotel.vip', `${h.name} → ${h.vip.on ? 'VIP (' + h.vip.tag + ')' : 'ปิด VIP'}`); };
   $$('[data-vp-on]', main).forEach(c => c.onchange = () => { save(c.dataset.vpOn, { on: c.checked }); toast(c.checked ? 'เปิด VIP ให้รีสอร์ทนี้แล้ว' : 'ปิด VIP ของรีสอร์ทนี้แล้ว'); boDevVip(main); });
   const dateSave = (el, key) => el.onchange = () => {
     const id = el.dataset[key === 'from' ? 'vpFrom' : 'vpTo'], o = DB.hotel(id).vip || {}, a = key === 'from' ? el.value : o.from || '', b = key === 'to' ? el.value : o.to || '';
@@ -419,7 +445,7 @@ const VB_FIELDS = {
 function vipBuilder(main, hotelId, back) {
   const h = DB.hotel(hotelId); if (!h) return back?.();
   const { on, tag, from, to, ...rest } = JSON.parse(JSON.stringify(h.vip || {}));
-  const d = { text: {}, hide: {}, images: [], tcolor: {}, tpos: {}, ...rest }; // ค่าที่กำลังแก้ (ยังไม่บันทึก) · tcolor = สีตัวอักษร · tpos = ตำแหน่ง/ขนาด/จัดแนว รายช่อง
+  const d = { text: {}, hide: {}, images: [], imgPos: {}, tcolor: {}, tpos: {}, ...rest }; // ค่าที่กำลังแก้ (ยังไม่บันทึก) · tcolor = สีตัวอักษร · tpos = ตำแหน่ง/ขนาด/จัดแนว รายช่อง
   let scr = '', dirty = false;
   const src = s => `${PORTAL ? SITE_URL + '?t=' + Date.now() : ''}#/vip/${h.slug || h.id}?preview=1${s ? '&s=' + s : ''}`;
   main.innerHTML = `<div class="vb">
@@ -462,7 +488,7 @@ function vipBuilder(main, hotelId, back) {
   const drawPanel = (focus) => {
     const p = $('#vb-panel', main), [, , title, keys] = VB_SCREENS.find(x => x[0] === scr);
     p.innerHTML = `<h3 style="margin:0 0 4px">${title}</h3><p class="small muted" style="margin:0 0 12px"><i class="fa-solid fa-hand-pointer"></i> กดที่ข้อความหรือรูปบนจอมือถือ ช่องที่ตรงกันจะเด่นขึ้นมา</p>${keys.map(fieldHtml).join('')}`;
-    if (keys.includes('images')) imgManager($('#vb-imgs', p), d.images, { min: 0 });
+    if (keys.includes('images')) imgManager($('#vb-imgs', p), d.images, { min: 0, pos: d.imgPos });
     $$('[data-txt]', p).forEach(i => i.oninput = () => { const k = i.dataset.txt; if (VB_FIELDS[k][1] === 'x') d.text[k] = i.value.trim(); else d[k] = i.value.trim(); changed(); });
     $$('[data-cta-st]', p).forEach(b => b.onclick = () => { d.ctaStyle = b.dataset.ctaSt; d.ctaBg = ''; changed(); drawPanel('cta'); }); // เลือกรูปแบบใหม่ = ล้างสีที่ตั้งเอง ให้เห็นแบบนั้นชัดๆ (เลือกสีใหม่ทีหลังได้)
     $$('[data-cta-bg]', p).forEach(b => b.onclick = () => { d.ctaBg = b.dataset.ctaBg; changed(); drawPanel('cta'); });
@@ -527,12 +553,12 @@ function vipBuilder(main, hotelId, back) {
   $('#vb-back', main).onclick = async () => { if (dirty && !(await confirmBox('ยังไม่ได้บันทึก — ออกโดยไม่บันทึก?', 'ออก'))) return; back?.(); };
   $('#vb-save', main).onclick = () => {
     const cur = JSON.parse(JSON.stringify(DB.hotel(h.id)));
-    cur.vip = { ...cur.vip, ...JSON.parse(JSON.stringify(d)), images: d.images.slice(0, 8), on: cur.vip?.on === true, tag: cur.vip?.tag || 'VIP', from: cur.vip?.from || '', to: cur.vip?.to || '' };
+    cur.vip = { ...cur.vip, ...JSON.parse(JSON.stringify(d)), images: d.images.slice(0, 8), on: cur.vip?.on === true, tag: cur.vip?.tag || 'แนะนำ', from: cur.vip?.from || '', to: cur.vip?.to || '' };
     DB.saveHotel(cur); DB.log('hotel.vipsite', cur.name); dirty = false; toast('บันทึกเว็บจองแล้ว — ลูกค้าเห็นทันที');
   };
   // imgManager แก้อาร์เรย์ d.images โดยตรง (อัปโหลด/ลบ/ตั้งปก) → คอยดูการเปลี่ยนแปลงแล้วอัปเดตจอตัวอย่าง
-  let sig = JSON.stringify(d.images);
-  const poll = setInterval(() => { if (!document.body.contains(fr)) return clearInterval(poll); const s2 = JSON.stringify(d.images); if (s2 !== sig) { sig = s2; changed(); } }, 700);
+  let sig = JSON.stringify([d.images, d.imgPos]);
+  const poll = setInterval(() => { if (!document.body.contains(fr)) return clearInterval(poll); const s2 = JSON.stringify([d.images, d.imgPos]); if (s2 !== sig) { sig = s2; changed(); } }, 700);
   drawPanel();
 }
 
@@ -887,7 +913,7 @@ function boMyTeam(main) {
   let list = [];
   const draw = () => {
     $('#tm-list').innerHTML = list.length ? `<div class="table-scroll"><table class="tbl"><thead><tr><th>พนักงาน</th><th>ทำอะไรได้</th><th>สถานะ</th><th></th></tr></thead><tbody>
-      ${list.map(u => `<tr><td><b>${esc(u.name)}</b><div class="small muted">${esc(u.email)}${u.phone ? ' · ' + esc(u.phone) : ''}</div></td>
+      ${list.map(u => `<tr><td><b>${esc(u.name)}</b>${demoPill(u)}<div class="small muted">${esc(u.email)}${u.phone ? ' · ' + esc(u.phone) : ''}</div></td>
         <td class="small">${(u.perms || []).filter(p => STAFF_PERM_LABELS[p]).map(p => `<span class="pill">${esc(STAFF_PERM_LABELS[p])}</span>`).join(' ') || '<span class="muted">ยังไม่ได้ให้สิทธิ์</span>'}</td>
         <td>${u.active === false ? '<span class="pill bad">ระงับ</span>' : '<span class="pill ok">ใช้งานอยู่</span>'}</td>
         <td style="text-align:right;white-space:nowrap"><button class="btn btn-sm btn-outline" data-te="${u.id}">แก้ไข</button> <button class="btn btn-sm btn-ghost" data-tpw="${u.id}" title="ตั้งรหัสผ่านใหม่"><i class="fa-solid fa-key"></i></button> <button class="btn btn-sm btn-ghost" data-tsus="${u.id}">${u.active === false ? 'เปิดใช้' : 'ระงับ'}</button> <button class="btn btn-sm btn-ghost red" data-tdel="${u.id}" title="ลบ"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('')}
@@ -1188,14 +1214,22 @@ function quoteForm(done, ex) { // ex = { h, q } เมื่อแก้ใบ�
     $$('[data-rd]', m).forEach(x => x.onclick = () => { readRows(); rows.splice(+x.dataset.rd, 1); if (!rows.length) rows.push({ name: '', qty: 1, price: 0 }); drawRows(); }); };
   f.hid.onchange = fillRooms; fillRooms(); drawRows(); if (eq) f.hid.value = ex.h.id;
   $('#qt-add', m).onclick = () => { readRows(); rows.push({ name: '', qty: 1, price: 0 }); drawRows(); };
-  $('#qt-room', m).onclick = () => {
+  let roomSig = ''; // ห้อง/วันที่ที่เพิ่มลงรายการแล้ว — กันเพิ่มซ้ำตอนกดออกใบ
+  const stayOf = () => f.ci.value && f.co.value ? { room: f.room.value, ci: f.ci.value, co: f.co.value, rq: Math.max(1, Math.round(+f.rq.value) || 1) } : null;
+  if (eq?.stay) { const s = eq.stay; f.room.value = s.room; f.ci.value = s.ci; f.co.value = s.co; f.co.min = s.ci; f.rq.value = s.rq; roomSig = [f.room.value, s.ci, s.co, s.rq].join('|'); } // คืนค่าที่เลือกไว้ตอนแก้ไขใบเดิม
+  const addRoom = (silent) => {
     const r = hotel()?.rooms.find(x => x.id === f.room.value), n = Math.round((new Date(f.co.value) - new Date(f.ci.value)) / 864e5), q = Math.max(1, Math.round(+f.rq.value) || 1);
-    if (!r || !f.ci.value || !f.co.value || !(n > 0)) return toast('เลือกห้อง และวันเช็คอิน/เช็คเอาต์ให้ถูกต้อง', 'err');
+    if (!r || !f.ci.value || !f.co.value || !(n > 0)) { if (!silent) toast('เลือกห้อง และวันเช็คอิน/เช็คเอาต์ให้ถูกต้อง', 'err'); return false; }
     readRows(); const row = { name: `ห้องพัก ${r.name} (${fmtDate(f.ci.value, false)} – ${fmtDate(f.co.value, false)} · ${q} ห้อง × ${n} คืน)`, qty: q * n, price: r.price };
-    if (rows.length === 1 && !rows[0].name.trim() && !rows[0].price) rows[0] = row; else rows.push(row); drawRows();
+    if (rows.length === 1 && !rows[0].name.trim() && !rows[0].price) rows[0] = row; else rows.push(row);
+    roomSig = [r.id, f.ci.value, f.co.value, q].join('|'); drawRows(); return true;
   };
+  $('#qt-room', m).onclick = () => addRoom(false);
+  f.ci.onchange = () => { if (!f.co.value || f.co.value <= f.ci.value) { const d = new Date(f.ci.value); d.setDate(d.getDate() + 1); f.co.value = isoOf(d); } f.co.min = f.ci.value; };
   $('#qt-go', m).onclick = () => {
     readRows(); const v = k => f[k].value.trim(), h = hotel(), t = taxInfoOf(h);
+    // เลือกห้อง+วันที่ไว้แต่ยังไม่ได้กด "เพิ่ม" → เพิ่มให้อัตโนมัติ
+    if (f.ci.value && f.co.value && [f.room.value, f.ci.value, f.co.value, Math.max(1, Math.round(+f.rq.value) || 1)].join('|') !== roomSig && addRoom(true)) toast('เพิ่มห้องพักที่เลือกลงในใบเสนอราคาให้อัตโนมัติ');
     if (!v('cname')) return toast('กรุณากรอกชื่อลูกค้า', 'err');
     if (v('ctax') && !/^\d{13}$/.test(v('ctax'))) return toast('เลขผู้เสียภาษีต้องเป็นตัวเลข 13 หลัก', 'err');
     if (!t.address.trim()) return toast('กรุณากรอกที่อยู่ใน “ข้อมูลผู้ออก” ของรีสอร์ทนี้ก่อน', 'err');
@@ -1204,14 +1238,14 @@ function quoteForm(done, ex) { // ex = { h, q } เมื่อแก้ใบ�
     const cust = { name: v('cname'), phone: v('cphone'), taxId: v('ctax'), address: v('caddr') };
     if (eq) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(v('until'))) return toast('กรุณาเลือกวันที่ยืนราคา', 'err');
-      const q = { ...eq, items, note: v('note'), cust, validUntil: v('until'), editedAt: new Date().toISOString(), editedBy: DB.currentUser()?.name || '' };
+      const q = { ...eq, items, stay: stayOf(), note: v('note'), cust, validUntil: v('until'), editedAt: new Date().toISOString(), editedBy: DB.currentUser()?.name || '' };
       hc.quotes = (hc.quotes || []).map(x => x.no === eq.no ? q : x);
       DB.saveHotel(hc); DB.log('docs.quote.edit', `${q.no} · ${q.cust.name}`);
       closeModal(); toast('บันทึกการแก้ไขแล้ว'); done?.(); return;
     }
     hc.docSeq = { ...(hc.docSeq || {}) }; hc.docSeq[key] = (hc.docSeq[key] || 0) + 1;
     const until = new Date(); until.setDate(until.getDate() + days);
-    const q = { no: `QT-${yr}-${String(hc.docSeq[key]).padStart(4, '0')}`, at: new Date().toISOString(), by: DB.currentUser()?.name || '', validUntil: isoOf(until), items, note: v('note'), cust };
+    const q = { no: `QT-${yr}-${String(hc.docSeq[key]).padStart(4, '0')}`, at: new Date().toISOString(), by: DB.currentUser()?.name || '', validUntil: isoOf(until), items, stay: stayOf(), note: v('note'), cust };
     hc.quotes = [q, ...(hc.quotes || [])].slice(0, 50);
     DB.saveHotel(hc); DB.log('docs.quote', `${q.no} · ${q.cust.name}`);
     closeModal(); printQuote(q, DB.hotel(h.id)); done?.();

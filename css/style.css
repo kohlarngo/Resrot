@@ -825,7 +825,7 @@ body.vip-app .vip-head, body.vip-app .vip-foot { display: none; }
 .va-gal { position: relative; margin: 0 -16px; height: 300px; background: #ddd; }
 .va-gal-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; height: 100%; scrollbar-width: none; }
 .va-gal-track::-webkit-scrollbar { display: none; }
-.va-gal-track > div { flex: 0 0 100%; scroll-snap-align: start; cursor: zoom-in; }
+.va-gal-track > div { flex: 0 0 100%; scroll-snap-align: start; cursor: zoom-in; overflow: hidden; }
 .va-gal-track img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .va-gal-back { position: absolute; left: 14px; top: 14px; }
 .va-gal-act { position: absolute; right: 14px; top: 14px; display: flex; gap: 8px; }

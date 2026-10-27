@@ -104,13 +104,13 @@ const isFeatured = id => DB.featuredIds().includes(id);
 const featuredBadge = id => isFeatured(id) ? '<span class="ad-badge">แนะนำ · โฆษณา</span>' : '';
 // รีสอร์ท VIP — นักพัฒนาเปิดรายแห่ง (h.vip = {on, tag}) · ป้ายสีทองบนการ์ด/หน้ารีสอร์ท และขึ้นอันดับบนในผลค้นหา
 const isVip = h => { const v = h?.vip; if (v?.on !== true) return false; const t = todayISO(); return !(v.from && t < v.from) && !(v.to && t > v.to); }; // เปิด + อยู่ในช่วงวันที่ที่นักพัฒนากำหนด (ว่าง = ไม่จำกัด)
-const vipTag = h => ['VIP', 'แนะนำ', 'ยอดนิยม'].includes(h?.vip?.tag) ? h.vip.tag : 'VIP';
+const vipTag = h => ['แนะนำ', 'ยอดนิยม'].includes(h?.vip?.tag) ? h.vip.tag : 'แนะนำ';
 // รูป VIP (h.vip.images — รูปแรกเป็นปก) ขึ้นก่อนรูปปกติของรีสอร์ท · คืนสำเนา ไม่แก้ข้อมูลเดิม
 const withVip = h => { const v = isVip(h) && (h.vip.images || []).filter(Boolean); return v?.length ? { ...h, images: [...v, ...(h.images || []).filter(x => !v.includes(x))] } : h; };
 const vipBadge = h => isVip(h) ? `<span class="vip-badge"><i class="fa-solid fa-crown"></i> ${vipTag(h)}</span>` : '';
 function adHomeVip() {
   const hs = DB.hotels().filter(h => isVip(h) && h.active !== false);
-  return hs.length ? `<section class="block"><h2 class="sec-title"><i class="fa-solid fa-crown" style="color:#d4a017"></i> รีสอร์ท VIP</h2><div class="card-grid">${hs.slice(0, 4).map(h => hotelCard(h)).join('')}</div></section>` : '';
+  return hs.length ? `<section class="block"><h2 class="sec-title"><i class="fa-solid fa-crown" style="color:#d4a017"></i> รีสอร์ทแนะนำ</h2><div class="card-grid">${hs.slice(0, 4).map(h => hotelCard(h)).join('')}</div></section>` : '';
 }
 function adHomeFeatured() {
   const hs = DB.featuredIds().map(id => DB.hotel(id)).filter((h, i, a) => h && h.active !== false && a.indexOf(h) === i);
@@ -1191,7 +1191,7 @@ function pageVip(app, params, id) {
   let html = '';
 
   if (!s) { // 1) หน้าแรก
-    html = `<div class="va va-home${hide.tabs ? ' no-tabs' : ''}"><div${E('images')}>${imgTag(imgs[0], 1200, 'va-home-bg', h.id)}<div class="va-home-shade"></div></div>
+    html = `<div class="va va-home${hide.tabs ? ' no-tabs' : ''}"><div${E('images')}>${imgTagP(imgs[0], 1200, 'va-home-bg', h.id, v.imgPos?.[imgs[0]])}<div class="va-home-shade"></div></div>
       <div class="va-brand"><span${E('logo')}>${v.logo ? `<img class="va-logo" src="${esc(imgUrl(v.logo, 300))}" alt="">` : '<i class="fa-solid fa-hotel"></i>'}</span><b${E('brand')}>${esc(v.brand || h.name)}</b><small${E('brandSub')}>${esc(v.brandSub || [h.type, h.area].filter(Boolean).join(' · ') || 'HOTELS & RESORTS')}</small></div>
       <div class="va-home-txt"><h1${E('tagline')}>${esc(v.tagline || 'พักผ่อน… ให้ทุกการเดินทางพิเศษกว่าเดิม')}</h1><p${E('sub')}>${esc(v.sub || 'ที่พักคุณภาพ ในทุกช่วงเวลาของคุณ')}</p>
         <a class="va-pill va-pill--${ctaSt}" href="${vipHref(h, 'search')}"${E('cta', ctaBg ? [ctaSt === 'outline' ? 'border-color:' + ctaBg : 'background:' + ctaBg] : [])}><i class="fa-regular fa-calendar-check"></i> ${esc(v.cta || 'จองห้องพัก')}</a></div>
@@ -1204,7 +1204,7 @@ function pageVip(app, params, id) {
         <a href="${vipHref(h, 'rooms')}"><i class="fa-solid fa-bed"></i>ห้องพักทั้งหมด</a>
         ${h.lat && h.lng ? `<a href="https://www.google.com/maps/search/?api=1&query=${h.lat},${h.lng}" target="_blank" rel="noopener"><i class="fa-solid fa-location-dot"></i>แผนที่</a>` : ''}
         ${svc.length ? `<a href="${vipHref(h, 'services')}"><i class="fa-solid fa-bell-concierge"></i>${T('svcPage')}</a>` : `<a href="${vipHref(h, 'rooms')}"><i class="fa-solid fa-tags"></i>ราคาดีที่สุด</a>`}</div>
-      ${imgs.length > 1 && !hide.gallery ? `<div${E('gallery')}><h3 class="va-h"${E('galleryTitle')}>${T('galleryTitle')}</h3><div class="va-dest">${imgs.slice(0, 6).map((u, i) => `<button data-vimg="${i}">${imgTag(u, 400, '', h.id + i)}</button>`).join('')}</div></div>` : ''}</div>`;
+      ${imgs.length > 1 && !hide.gallery ? `<div${E('gallery')}><h3 class="va-h"${E('galleryTitle')}>${T('galleryTitle')}</h3><div class="va-dest">${imgs.slice(0, 6).map((u, i) => `<button data-vimg="${i}">${imgTagP(u, 400, '', h.id + i, v.imgPos?.[u])}</button>`).join('')}</div></div>` : ''}</div>`;
   } else if (s === 'room') { // 5) เลือกห้อง
     const r = h.rooms.find(x => x.id === params.get('room')) || h.rooms[0];
     const ri = h.rooms.indexOf(r), avail = vipRoomAvail(h, r), offers = offersFor(r);
@@ -1235,7 +1235,7 @@ function pageVip(app, params, id) {
     const amen = h.amenities.map(amenInfo).filter(Boolean).slice(0, 5);
     const stars = Math.round(h.rating / 2) || h.stars || 0;
     html = `<div class="va va-page has-bar">
-      <div class="va-gal"${E('images')}>${imgs.length > 1 ? vipGalNav(imgs.length) : ''}<div class="va-gal-track" id="va-gal">${imgs.map((u, i) => `<div data-vimg="${i}">${imgTag(u, 1000, '', h.id + i)}</div>`).join('')}</div>
+      <div class="va-gal"${E('images')}>${imgs.length > 1 ? vipGalNav(imgs.length) : ''}<div class="va-gal-track" id="va-gal">${imgs.map((u, i) => `<div data-vimg="${i}">${imgTagP(u, 1000, '', h.id + i, v.imgPos?.[u])}</div>`).join('')}</div>
         <a class="va-ib va-gal-back" href="${vipHref(h, 'search')}" aria-label="ย้อนกลับ"><i class="fa-solid fa-chevron-left"></i></a>
         <div class="va-gal-act"><button class="va-ib" id="va-share" aria-label="แชร์"><i class="fa-solid fa-arrow-up-from-bracket"></i></button><span class="fav-inline">${favBtn(h.id)}</span></div>
         </div>
@@ -1247,7 +1247,7 @@ function pageVip(app, params, id) {
         <div class="va-date"><i class="fa-regular fa-calendar"></i> ${dateLine} <a href="${vipHref(h, 'search')}">เปลี่ยน</a></div>
         <h3 class="va-h" id="va-rooms"${E('roomsTitle')}>${T('roomsTitle')}</h3>
         ${h.rooms.map(r => { const a = vipRoomAvail(h, r), q = DB.quote(r, S.checkIn, S.checkOut); return `<a class="va-rm${a > 0 ? '' : ' sold'}" href="${vipHref(h, 'room', { room: r.id })}">${imgTag(r.img, 300, '', r.id)}
-          <div><b>${esc(r.name)}</b><small>${r.size} ตร.ม. | ${esc(r.bed)}</small>${a > 0 ? `<span class="va-price">${money(q.perNight)} <small>/ คืน</small></span>${a <= 3 ? `<small class="red">เหลือ ${a} ห้อง</small>` : ''}` : '<small class="red bold">เต็มในวันที่เลือก</small>'}</div><i class="fa-solid fa-chevron-right"></i></a>`; }).join('')}
+          <div><b>${esc(r.name)}</b><small>${r.size} ตร.ม. | ${esc(r.bed)}</small>${a > 0 ? `<span class="va-price">${money(q.perNight)} <small>/ คืน</small></span><small class="bold" style="color:${a <= 3 ? '#dc2626' : '#15803d'}">${a <= 3 ? `เหลือ ${a} ห้อง` : `ว่าง ${a} ห้อง`}</small>` : '<small class="red bold">เต็มในวันที่เลือก</small>'}</div><i class="fa-solid fa-chevron-right"></i></a>`; }).join('')}
         ${h.description && !hide.about ? `<div${E('about')}><h3 class="va-h"${E('aboutTitle')}>${T('aboutTitle')}</h3><p class="small">${esc(h.description)}</p></div>` : ''}
         <h3 class="va-h">นโยบายที่พัก</h3><p class="small">เช็คอิน ${esc(h.checkIn)} น. · เช็คเอาท์ ${esc(h.checkOut)} น.</p>
         ${svc.length ? `<a class="va-link" href="${vipHref(h, 'services')}"><i class="fa-solid fa-bell-concierge"></i> ${T('svcPage')} (${svc.length})<i class="fa-solid fa-chevron-right"></i></a>` : ''}

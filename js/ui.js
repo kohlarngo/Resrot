@@ -29,6 +29,16 @@ const starsHtml = n => `<span class="stars">${'<i class="fa-solid fa-star"></i>'
 const scoreHtml = (s, c) => !+s && !c ? '' : `<span class="score"><b>${(+s).toFixed(1)}</b><span><span class="w">${scoreWord(s)}</span>${c != null ? `<br><span class="c">${c.toLocaleString()} รีวิว</span>` : ''}</span></span>`;
 const fallback = seed => `this.onerror=null;this.src='https://picsum.photos/seed/${seed}/800/600'`;
 const imgTag = (id, w = 800, cls = '', seed = id) => `<img src="${imgUrl(id, w)}" class="${cls}" loading="lazy" alt="" onerror="${fallback(String(seed).replace(/[^a-z0-9]/gi, '').slice(-12))}">`;
+// บัญชีตัวอย่าง (อีเมล @example.com หรือบัญชีทดลอง biz.demo): ป้าย DEMO ต่อท้ายชื่อ กันสับสนกับบัญชีจริง
+const isDemoUser = u => !!(u && (u.biz?.demo || /@example\.com$/i.test(u.email || '')));
+const demoPill = u => isDemoUser(u) ? ' <span class="pill bad" style="font-size:10px;padding:1px 7px">DEMO</span>' : '';
+// ปรับรูป (เว็บ VIP): pos = { x, y (0–100 จุดโฟกัส %), z (1–3 ซูม) } · จุดโฟกัสคือจุดของรูปที่ยังอยู่ในกรอบเมื่อซูม/ตัดขอบ
+const imgFx = pos => {
+  const n = (v, d) => v == null || isNaN(+v) ? d : +v;
+  const x = Math.max(0, Math.min(100, n(pos?.x, 50))), y = Math.max(0, Math.min(100, n(pos?.y, 50))), z = Math.max(1, Math.min(3, +pos?.z || 1));
+  return (x === 50 && y === 50 && z === 1) ? '' : `object-position:${x}% ${y}%;transform-origin:${x}% ${y}%;${z > 1 ? `transform:scale(${z})` : ''}`;
+};
+const imgTagP = (id, w, cls, seed, pos) => { const t = imgTag(id, w, cls, seed), fx = imgFx(pos); return fx ? t.replace('<img ', `<img style="${fx}" `) : t; };
 // รีสอร์ทตัวอย่าง (DEMO / ฝึกใช้งาน): ใส่ลายน้ำ DEMO ทับรูปทุกที่ที่แสดงให้ลูกค้าเห็น กันเข้าใจผิดว่าเป็นที่พักจริง
 // วางไว้ในกล่องรูปที่ position:relative (ตัวลายน้ำเต็มกล่อง ไม่รับคลิก)
 const isDemoHotel = h => !!(h && (h.demo || h.practice));
