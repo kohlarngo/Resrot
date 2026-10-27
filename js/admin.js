@@ -1161,6 +1161,8 @@ function boAddons(main) {
         <div class="fg"><label>ชื่อบริการ</label><input data-k="name" data-i="${i}" value="${esc(x.name)}" maxlength="60" placeholder="เช่น เช่าเรือเที่ยวรอบเกาะ"></div>
         <div class="fg"><label>รายละเอียด</label><input data-k="desc" data-i="${i}" value="${esc(x.desc || '')}" maxlength="120"></div>
         <div class="fg"><label>ราคาที่ลูกค้าเห็น (฿)</label><input type="number" min="0" step="1" data-k="price" data-i="${i}" value="${+x.price || 0}"></div>
+        <div class="fg"><label>หน่วยราคา</label><input data-k="unit" data-i="${i}" value="${esc(x.unit || '')}" maxlength="20" placeholder="เช่น ต่อท่าน / ต่อแพ็กเกจ"></div>
+        <div class="fg" style="grid-column:1/-1"><label>สิ่งที่รวมในแพ็กเกจ <span class="small muted">— 1 บรรทัด = 1 อย่าง ลูกค้าเห็นเป็นรายการติ๊กถูก (ถ้าเป็นบริการเดี่ยวเว้นว่างได้)</span></label><textarea rows="3" data-k="items" data-i="${i}" maxlength="500" placeholder="เจ็ทสกี 15 นาที&#10;ดำน้ำตื้น 1 ชั่วโมง&#10;เรือกล้วย 1 รอบ">${esc(x.items || '')}</textarea></div>
         <div class="fg"><label>ผู้ให้บริการ (เห็นเฉพาะ dev)</label><input data-k="provider" data-i="${i}" value="${esc(x.provider || '')}" maxlength="80"></div>
         <div class="fg"><label>เบอร์ผู้ให้บริการ</label><input data-k="providerPhone" data-i="${i}" value="${esc(x.providerPhone || '')}" maxlength="30"></div>
         <button class="btn btn-sm btn-ghost red" data-del="${i}" title="ลบ"><i class="fa-solid fa-trash"></i></button></div>`).join('') : '<div class="bo-empty sm"><i class="fa-solid fa-bell-concierge"></i><p class="muted">ยังไม่มีบริการเสริม — ลูกค้าจะไม่เห็นส่วนนี้</p></div>'}
@@ -1170,7 +1172,7 @@ function boAddons(main) {
     $('#ad-add').onclick = () => { list.push({ id: 'x' + Date.now().toString(36), name: '', desc: '', price: 0, provider: '', providerPhone: '' }); drawCat(); };
     $('#ad-save').onclick = () => {
       if (list.some(x => !x.name.trim())) return toast('กรุณากรอกชื่อบริการให้ครบ', 'err');
-      DB.saveSettings({ extraServices: list.map(x => ({ id: x.id, name: x.name.trim(), desc: (x.desc || '').trim(), price: Math.max(0, +x.price || 0), provider: (x.provider || '').trim(), providerPhone: (x.providerPhone || '').trim() })) });
+      DB.saveSettings({ extraServices: list.map(x => ({ id: x.id, name: x.name.trim(), desc: (x.desc || '').trim(), price: Math.max(0, +x.price || 0), unit: (x.unit || '').trim().slice(0, 20), items: String(x.items || '').split('\n').map(t => t.trim().slice(0, 60)).filter(Boolean).slice(0, 8).join('\n'), provider: (x.provider || '').trim(), providerPhone: (x.providerPhone || '').trim() })) });
       DB.log('settings.addons', `${list.length} รายการ`); toast('บันทึกบริการเสริมแล้ว');
     };
   };

@@ -954,3 +954,6 @@ body.vip-edit [data-vedit] { user-select: none; -webkit-user-select: none; }
 .ad-row > div { flex: 1; min-width: 0; } .ad-row b, .ad-row small { display: block; } .ad-row small { color: var(--muted); font-size: 12px; }
 .ad-pr { font-weight: 700; white-space: nowrap; }
 .ad-row input { accent-color: var(--ad); width: 20px; height: 20px; flex: none; }
+.ad-pr { text-align: right; } .ad-pr small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+.ad-chips { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px; }
+.ad-chips i { font-style: normal; font-size: 12px; background: #eef7f0; color: #1f6b3a; border-radius: 999px; padding: 2px 9px; } .ad-chips em { font-size: 10px; }
