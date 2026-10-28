@@ -116,6 +116,7 @@ function navArrange(items, cur, keepHidden = false) {
 const navMore = (all, shown, cur) => portalRole(DB.currentUser()) !== 'owner' ? [] : navArrange(all, cur, true).filter(i => !shown.includes(i));
 const navOpenGet = g => { try { return sessionStorage.getItem('bo_navopen_' + g) === '1'; } catch { return false; } };
 const navOpenSet = (g, v) => { try { v ? sessionStorage.setItem('bo_navopen_' + g, '1') : sessionStorage.removeItem('bo_navopen_' + g); } catch { /* ไม่เก็บ */ } };
+const BO_STACK = []; // หน้าที่เปิดมาแล้วในแอปนี้ (เก็บ hash) — ให้ปุ่มกลับย้อนไปหน้าก่อนหน้าได้แน่นอน
 const BO_PROFILE = ['profile', 'fa-user-gear', 'บัญชีของฉัน', null, () => boProfile];
 
 // ---------- helpers ----------
@@ -210,6 +211,7 @@ function pageAdmin(app, params, section) {
   // เจ้าของเปิดจากมือถือ (เข้า /admin เฉยๆ) → เริ่มที่ “หน้ารวมไอคอน” · คอมยังเริ่มที่หน้าเดิม
   const mobileHome = !section && portalRole(u) === 'owner' && window.matchMedia?.('(max-width: 820px)').matches && allowed.some(i => i[0] === 'apps');
   if (!item) return go('/admin/' + (mobileHome ? 'apps' : allowed.some(i => i[0] === home) ? home : allowed[0]?.[0] || 'profile'), true);
+  { const h = location.hash; if (BO_STACK[BO_STACK.length - 1] !== h) { if (BO_STACK[BO_STACK.length - 2] === h) BO_STACK.pop(); else BO_STACK.push(h); if (BO_STACK.length > 30) BO_STACK.shift(); } }
   const group = nav.find(g => g.items.includes(item))?.g || 'บัญชี';
   const r = ROLES[u.role];
   const alerts = boAlerts();
@@ -224,6 +226,7 @@ function pageAdmin(app, params, section) {
     <div class="bo-scrim" id="bo-scrim"></div>
     <div class="bo-body">
       <header class="bo-top">
+        ${item[0] === 'apps' || (item[0] === home && portalRole(u) !== 'owner') ? '' : '<button class="bo-back" id="bo-back" aria-label="กลับ"><i class="fa-solid fa-chevron-left"></i> กลับ</button>'}
         <button class="bo-ib bo-menu" id="bo-menu" aria-label="เมนู"><i class="fa-solid fa-bars"></i>${menuBadge ? `<span class="dot">${menuBadge > 99 ? '99+' : menuBadge}</span>` : ''}</button>
         <div class="bo-crumb"><span>${group}</span><i class="fa-solid fa-chevron-right"></i><b>${item[2]}</b></div>
         ${can('bookings.view') ? `<div class="bo-search"><i class="fa-solid fa-magnifying-glass"></i><input id="bo-q" placeholder="ค้นหารหัสจอง / ชื่อแขก / เบอร์โทร" autocomplete="off"><div class="bo-sres" id="bo-sres"></div></div>` : '<div style="flex:1"></div>'}
@@ -291,6 +294,8 @@ function boAlerts() {
 
 function bindShell(alerts) {
   const side = $('#bo-side'), scrim = $('#bo-scrim');
+  // ปุ่มกลับ (มือถือ): ย้อนหน้าก่อนหน้าในแอป · ถ้าเปิดหน้านี้ตรงๆ ไม่มีหน้าก่อนหน้า ไปหน้ารวมไอคอน (เจ้าของ) หรือหน้าแรกของบทบาท
+  $('#bo-back')?.addEventListener('click', () => { if (BO_STACK.length > 1) { BO_STACK.pop(); location.hash = BO_STACK[BO_STACK.length - 1]; } else go('/admin/' + (portalRole(DB.currentUser()) === 'owner' ? 'apps' : PORTAL_INFO[portalRole(DB.currentUser())].home)); });
   $('#bo-menu').onclick = () => { side.classList.add('open'); scrim.classList.add('open'); };
   scrim.onclick = () => { side.classList.remove('open'); scrim.classList.remove('open'); };
   const popup = (btn, html) => {

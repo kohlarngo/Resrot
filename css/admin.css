@@ -543,3 +543,8 @@ body[data-portal] .bo-side { border-top: 4px solid var(--pc); }
 /* ตัวเลือกสิทธิ์ (ช่องติ๊ก + ข้อความชิดซ้าย) — กันโดน .fg label / .fg input ทำให้ช่องติ๊กกว้างเต็มแถว */
 .fg label.perm-opt { display: flex; gap: 8px; align-items: flex-start; justify-content: flex-start; text-align: left; font-weight: 400; margin: 0; cursor: pointer; }
 .fg label.perm-opt input { width: auto; flex: none; margin: 3px 0 0; padding: 0; }
+
+/* ปุ่มกลับ (มือถือ) — แถบด้านบนทุกหน้า ยกเว้นหน้ารวมไอคอน */
+.bo-back { display: none; align-items: center; gap: 6px; height: 38px; padding: 0 14px 0 10px; border-radius: 19px; border: 1px solid var(--bo-line); background: #fff; color: var(--text); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; flex: none; -webkit-tap-highlight-color: transparent; }
+.bo-back:active { background: var(--bo-bg); }
+@media (max-width: 820px) { .bo-back { display: inline-flex; } }
