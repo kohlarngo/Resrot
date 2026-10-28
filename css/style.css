@@ -968,6 +968,10 @@ a.ap-t:active { background: var(--primary-light); }
 .ap-n { position: absolute; top: 2px; right: calc(50% - 38px); background: #e11d48; color: #fff; font-style: normal; font-size: 11px; font-weight: 700; min-width: 20px; height: 20px; border-radius: 10px; display: grid; place-items: center; padding: 0 5px; }
 .ap-grid.editing .ap-t { border: 1px dashed var(--border, #d1d5db); background: #fff; }
 .ap-t.off { opacity: .45; }
+.ap-grid.editing .ap-ic { cursor: grab; touch-action: none; }
+.ap-t.dragging { opacity: .3; }
+.ap-t.drop { outline: 2px solid var(--primary, #2067da); background: var(--primary-light); }
+.ap-ghost { position: fixed; z-index: 9999; pointer-events: none; opacity: .92; transform: scale(1.08); box-shadow: 0 8px 22px rgba(0,0,0,.25); }
 .ap-ctl { display: flex; gap: 4px; }
 .ap-ctl button { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border, #d1d5db); background: #fff; color: inherit; font-size: 12px; }
 .ap-ctl button:disabled { opacity: .3; }

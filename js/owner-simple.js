@@ -1623,15 +1623,34 @@ function boApps(main) {
   const ordered = () => { const r = k => { const i = pref.order.indexOf(k); return i < 0 ? 1e6 : i; }; return tiles.map((t, i) => [t, i]).sort((a, b) => r(a[0].k) - r(b[0].k) || a[1] - b[1]).map(x => x[0]); };
   const draw = () => {
     const list = ordered(), vis = edit ? list : list.filter(t => !pref.hidden.includes(t.k));
-    main.innerHTML = pageHead('หน้ารวมไอคอน', edit ? 'กดรูปตา = ซ่อน/แสดง · กดลูกศร = เลื่อนตำแหน่ง · เสร็จแล้วกด “เสร็จสิ้น”' : 'กดไอคอนเพื่อเข้าเมนูได้เลย — เหมาะกับใช้บนมือถือ', `<button class="btn ${edit ? 'btn-primary' : 'btn-outline'} btn-sm" id="ap-edit"><i class="fa-solid ${edit ? 'fa-check' : 'fa-sliders'}"></i> ${edit ? 'เสร็จสิ้น' : 'ปรับแต่ง'}</button>`)
+    main.innerHTML = pageHead('หน้ารวมไอคอน', edit ? 'ลากไอคอนเพื่อย้ายตำแหน่ง · กดรูปตา = ซ่อน/แสดง · หรือกดลูกศร · เสร็จแล้วกด “เสร็จสิ้น”' : 'กดไอคอนเพื่อเข้าเมนูได้เลย — เหมาะกับใช้บนมือถือ', `<button class="btn ${edit ? 'btn-primary' : 'btn-outline'} btn-sm" id="ap-edit"><i class="fa-solid ${edit ? 'fa-check' : 'fa-sliders'}"></i> ${edit ? 'เสร็จสิ้น' : 'ปรับแต่ง'}</button>`)
       + `<div class="ap-grid${edit ? ' editing' : ''}">${vis.map((t, i) => {
         const off = pref.hidden.includes(t.k), n = badge[t.k], inner = `<span class="ap-ic" style="background:${t.c}"><i class="fa-solid ${t.ic}"></i></span><span class="ap-l">${esc(t.l)}</span>${n && !edit ? `<em class="ap-n">${n}</em>` : ''}`;
-        return edit ? `<div class="ap-t${off ? ' off' : ''}">${inner}<div class="ap-ctl"><button type="button" data-mv="${t.k}|-1" ${i === 0 ? 'disabled' : ''} aria-label="เลื่อนไปก่อนหน้า"><i class="fa-solid fa-chevron-left"></i></button><button type="button" data-tg="${t.k}" aria-label="${off ? 'แสดง' : 'ซ่อน'}"><i class="fa-solid ${off ? 'fa-eye-slash' : 'fa-eye'}"></i></button><button type="button" data-mv="${t.k}|1" ${i === vis.length - 1 ? 'disabled' : ''} aria-label="เลื่อนไปถัดไป"><i class="fa-solid fa-chevron-right"></i></button></div></div>`
+        return edit ? `<div class="ap-t${off ? ' off' : ''}" data-k="${esc(t.k)}">${inner}<div class="ap-ctl"><button type="button" data-mv="${t.k}|-1" ${i === 0 ? 'disabled' : ''} aria-label="เลื่อนไปก่อนหน้า"><i class="fa-solid fa-chevron-left"></i></button><button type="button" data-tg="${t.k}" aria-label="${off ? 'แสดง' : 'ซ่อน'}"><i class="fa-solid ${off ? 'fa-eye-slash' : 'fa-eye'}"></i></button><button type="button" data-mv="${t.k}|1" ${i === vis.length - 1 ? 'disabled' : ''} aria-label="เลื่อนไปถัดไป"><i class="fa-solid fa-chevron-right"></i></button></div></div>`
           : `<a class="ap-t" href="#/admin/${esc(t.k)}">${inner}</a>`;
       }).join('')}</div>` + (edit && (pref.hidden.length || pref.order.length) ? '<p style="text-align:center"><button class="btn btn-ghost btn-sm" id="ap-reset"><i class="fa-solid fa-rotate-left"></i> คืนค่าเดิม</button></p>' : '') + '<p class="small muted" style="text-align:center;margin-top:10px">การปรับแต่งนี้จำเฉพาะในเครื่อง/เบราว์เซอร์นี้</p>';
     $('#ap-edit', main).onclick = () => { edit = !edit; draw(); };
     $('#ap-reset', main)?.addEventListener('click', () => { pref = { hidden: [], order: [] }; appsSave(pref); draw(); });
     $$('[data-tg]', main).forEach(b => b.onclick = () => { const k = b.dataset.tg; pref.hidden = pref.hidden.includes(k) ? pref.hidden.filter(x => x !== k) : [...pref.hidden, k]; appsSave(pref); draw(); });
+    // ลากไอคอนเพื่อย้ายตำแหน่ง (ใช้ได้ทั้งนิ้วและเมาส์) — ปล่อยบนไอคอนไหน ไอคอนที่ลากจะไปอยู่ตำแหน่งนั้น
+    $$('.ap-t[data-k] .ap-ic', main).forEach(h => h.onpointerdown = e => {
+      if (e.button) return;
+      e.preventDefault();
+      const src = h.closest('.ap-t'), k = src.dataset.k, r = src.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
+      const ghost = src.cloneNode(true); ghost.className += ' ap-ghost'; ghost.style.cssText = `width:${r.width}px;left:${r.left}px;top:${r.top}px`; document.body.appendChild(ghost);
+      src.classList.add('dragging'); let over = null;
+      const mv = ev => {
+        ghost.style.left = ev.clientX - dx + 'px'; ghost.style.top = ev.clientY - dy + 'px';
+        const t = document.elementsFromPoint(ev.clientX, ev.clientY).find(x => x.classList?.contains('ap-t') && x.dataset.k && x !== src && !x.classList.contains('ap-ghost'));
+        if (over !== t) { over?.classList.remove('drop'); over = t || null; over?.classList.add('drop'); }
+      };
+      const end = ev => {
+        window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', end); window.removeEventListener('pointercancel', end);
+        ghost.remove(); src.classList.remove('dragging'); over?.classList.remove('drop');
+        if (ev.type === 'pointerup' && over) { const keys = ordered().map(t => t.k), to = keys.indexOf(over.dataset.k); keys.splice(keys.indexOf(k), 1); keys.splice(to, 0, k); pref.order = keys; appsSave(pref); draw(); }
+      };
+      window.addEventListener('pointermove', mv); window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
+    });
     $$('[data-mv]', main).forEach(b => b.onclick = () => {
       const [k, d] = b.dataset.mv.split('|'), keys = ordered().map(t => t.k), i = keys.indexOf(k), j = i + +d;
       if (j < 0 || j >= keys.length) return;

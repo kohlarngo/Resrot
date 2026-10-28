@@ -364,7 +364,7 @@ body.bo #header:empty { display: none; }
 }
 @media (max-width: 960px) {
   .bo { grid-template-columns: 1fr; }
-  .bo-side { position: fixed; left: 0; top: 0; bottom: 0; width: 272px; height: 100vh; height: 100dvh; max-height: -webkit-fill-available; padding-bottom: calc(24px + env(safe-area-inset-bottom)); overscroll-behavior: contain; -webkit-overflow-scrolling: touch; transform: translateX(-100%); transition: transform .22s; }
+  .bo-side { position: fixed; left: 0; top: 0; bottom: 0; width: 272px; height: auto; max-height: none; padding-bottom: calc(96px + env(safe-area-inset-bottom)); overscroll-behavior: contain; -webkit-overflow-scrolling: touch; transform: translateX(-100%); transition: transform .22s; }
   .bo-side.open { transform: none; box-shadow: 0 0 40px rgba(0,0,0,.4); }
   .bo-scrim.open { display: block; position: fixed; inset: 0; background: rgba(10,15,30,.5); z-index: 35; }
   .bo-menu { display: grid; }
