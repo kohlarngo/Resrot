@@ -1613,7 +1613,10 @@ const appsPref = () => { try { const p = JSON.parse(localStorage.getItem(APPS_KE
 const appsSave = p => { try { p.hidden.length || p.order.length ? localStorage.setItem(APPS_KEY(), JSON.stringify(p)) : localStorage.removeItem(APPS_KEY()); } catch { /* เบราว์เซอร์ไม่ให้เก็บ */ } };
 function boApps(main) {
   const TONES = ['#2067da', '#0e9f6e', '#d97706', '#7c3aed', '#db2777', '#0891b2'], alerts = boAlerts();
-  const badge = { frontdesk: alerts.arrivals, approvals: alerts.approvals, sos: alerts.sos };
+  // ป้ายแจ้งเตือนบนไอคอน: ตัวเลขถ้านับได้ (แขกรอเช็คอิน / รอตรวจสลิป / SOS) · เครื่องหมาย ! ถ้าเป็นเรื่องที่ต้องทำ (เช่น ยังไม่ตั้งบัญชีรับเงิน แขกครบกำหนดเช็คเอาท์ ขั้นตอนเริ่มต้นใช้งาน) โดยดูจากลิงก์ของการแจ้งเตือนนั้น
+  const badge = {};
+  alerts.list.forEach(a => { const k = (String(a[3]).match(/#\/admin\/(\w+)/) || [])[1]; if (k) badge[k] = '!'; });
+  [['frontdesk', alerts.arrivals], ['approvals', alerts.approvals], ['sos', alerts.sos]].forEach(([k, n]) => { if (n > 0) badge[k] = n; });
   const tiles = navFor('owner').flatMap((g, gi) => g.items.filter(i => i[0] !== 'apps' && (!i[3] || can(i[3])) && (!i[5] || i[5]())).map(i => ({ k: i[0], ic: i[1], l: i[2], c: TONES[gi % TONES.length] })));
   tiles.push({ k: 'profile', ic: 'fa-user-gear', l: 'บัญชีของฉัน', c: TONES[5] });
   let edit = false, pref = appsPref();

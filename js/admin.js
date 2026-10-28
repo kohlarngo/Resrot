@@ -207,7 +207,9 @@ function pageAdmin(app, params, section) {
   const allowed = items.filter(i => !i[3] || can(i[3]));
   const item = section === 'profile' ? BO_PROFILE : items.find(i => i[0] === section);
   const home = PORTAL_INFO[portalRole(u)].home;
-  if (!item) return go('/admin/' + (allowed.some(i => i[0] === home) ? home : allowed[0]?.[0] || 'profile'), true);
+  // เจ้าของเปิดจากมือถือ (เข้า /admin เฉยๆ) → เริ่มที่ “หน้ารวมไอคอน” · คอมยังเริ่มที่หน้าเดิม
+  const mobileHome = !section && portalRole(u) === 'owner' && window.matchMedia?.('(max-width: 820px)').matches && allowed.some(i => i[0] === 'apps');
+  if (!item) return go('/admin/' + (mobileHome ? 'apps' : allowed.some(i => i[0] === home) ? home : allowed[0]?.[0] || 'profile'), true);
   const group = nav.find(g => g.items.includes(item))?.g || 'บัญชี';
   const r = ROLES[u.role];
   const alerts = boAlerts();
