@@ -379,7 +379,7 @@ body.bo #header:empty { display: none; }
 }
 @media (max-width: 640px) {
   .bo-top { padding: 0 12px; gap: 8px; height: 56px; }
-  .bo-search { order: 3; position: static; flex: 1; }
+  .bo-search { order: 3; flex: 1; }
   .bo-search input { padding-left: 32px; }
   .bo-sres { left: 8px; right: 8px; top: 58px; position: fixed; }
   /* ป๊อปอัพแจ้งเตือน / บัญชี: กางเต็มความกว้างจอใต้แถบด้านบน (อ้างอิงแถบ .bo-top ที่เป็น sticky) เลื่อนดูได้ ปุ่มกดใหญ่พอสำหรับนิ้ว */
