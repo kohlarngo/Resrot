@@ -11,6 +11,8 @@ const CORS = {
 const TEAM_ROLES = ['admin', 'dev'];
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 const fail = (error: string, status = 400) => json({ error }, status);
+// บัญชีทดลอง (@example.com) ไม่ใช้กับระบบอื่นและรหัสผ่านอยู่ในคู่มือ — ลบบัญชี Auth ด้วย ไม่งั้นล็อกอินแล้วโปรไฟล์จะถูกสร้างกลับมา
+const isDemoEmail = (email: unknown) => /@example\.com$/i.test(String(email ?? ''));
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -82,7 +84,8 @@ Deno.serve(async (req) => {
       if (body.id === user.id) return fail('ไม่สามารถลบบัญชีของตัวเองได้');
       const t = await staffTarget(body.id);
       if (!t) return fail('ไม่พบบัญชีทีมงาน', 404);
-      // ลบเฉพาะโปรไฟล์ทีมงาน (สิทธิ์ทั้งหมดหายทันที) — ไม่ลบบัญชี Auth เพราะอาจใช้กับระบบอื่นในโปรเจกต์เดียวกัน
+      // ลบเฉพาะโปรไฟล์ทีมงาน (สิทธิ์ทั้งหมดหายทันที) — ไม่ลบบัญชี Auth เพราะอาจใช้กับระบบอื่นในโปรเจกต์เดียวกัน (ยกเว้นบัญชีทดลอง)
+      if (isDemoEmail(t.email)) { const { error } = await admin.auth.admin.deleteUser(t.id); return error ? fail(error.message) : json({ ok: true }); }
       const { error } = await admin.from('sd_profiles').delete().eq('id', t.id);
       return error ? fail(error.message) : json({ ok: true });
     }
@@ -108,7 +111,8 @@ Deno.serve(async (req) => {
     case 'member_delete': {
       const t = await memberTarget(body.id);
       if (!t) return fail('ไม่พบสมาชิก', 404);
-      // ลบโปรไฟล์ StayDee (การจองเดิมยังอยู่) — ไม่ลบบัญชี Auth เพราะใช้ร่วมกับระบบอื่นในโปรเจกต์เดียวกัน
+      // ลบโปรไฟล์ StayDee (การจองเดิมยังอยู่) — ไม่ลบบัญชี Auth เพราะใช้ร่วมกับระบบอื่นในโปรเจกต์เดียวกัน (ยกเว้นบัญชีทดลอง)
+      if (isDemoEmail(t.email)) { const { error } = await admin.auth.admin.deleteUser(t.id); return error ? fail(error.message) : json({ ok: true }); }
       const { error } = await admin.from('sd_profiles').delete().eq('id', t.id);
       return error ? fail(error.message) : json({ ok: true });
     }
