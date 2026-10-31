@@ -17,7 +17,7 @@ const tg = (token: string, method: string, body: unknown = {}) =>
     .then(async r => ({ ok: r.ok, status: r.status, d: await r.json().catch(() => ({})) }));
 
 const TITLES: Record<string, string> = {
-  new: '🛎 มีการจองใหม่', slip: '💸 ลูกค้าส่งสลิปโอนเงิน', cancel: '⚠️ ลูกค้าขอยกเลิกการจอง', checkin: '📝 ลูกค้ากรอกทะเบียนเช็คอินแล้ว',
+  new: '🛎 มีการจองใหม่', slip: '💸 ลูกค้าส่งสลิปโอนเงิน', cancel: '⚠️ ลูกค้าขอยกเลิกการจอง', cancelled: '❌ ลูกค้ายกเลิกการจอง', reschedule: '📅 ลูกค้าขอเปลี่ยนวันเข้าพัก', checkin: '📝 ลูกค้ากรอกทะเบียนเช็คอินแล้ว',
   waitlist: '🕓 มีลูกค้าเข้าคิวรอห้อง', wl_free: '✅ ห้องว่างแล้ว — มีลูกค้ารอคิวอยู่',
 };
 
@@ -115,15 +115,16 @@ Deno.serve(async (req: Request) => {
   }
 
   // ----- เหตุการณ์การจอง -----
-  if (!['new', 'slip', 'cancel', 'checkin'].includes(event) || !booking_id) return json({ error: 'bad request' }, 400);
+  if (!['new', 'slip', 'cancel', 'cancelled', 'reschedule', 'checkin'].includes(event) || !booking_id) return json({ error: 'bad request' }, 400);
   const { data: b } = await sb.from('sd_bookings').select('id, check_in, check_out, qty, data').eq('id', booking_id).maybeSingle();
   const ownerId = b?.data?.ownerId;
   if (!b || !ownerId) return json({ ok: true, skipped: 'no owner' });
 
   const g = b.data.guest ?? {};
   const who = `${g.firstName ?? ''} ${g.lastName ?? ''}`.trim() || 'ลูกค้า';
+  const rq = event === 'reschedule' ? b.data.rescheduleReq : null;
   return json(await notifyOwner(sb, ownerId, event, TITLES[event], `#${b.id}`,
-    [`${b.data.hotelName ?? ''} · ${b.qty} × ${b.data.roomName ?? ''}`, `เข้าพัก ${b.check_in} → ${b.check_out}`, `${who}${g.phone ? ' · ' + g.phone : ''} · ${baht(b.data.price?.total)}`], 'bookings', `${event}-${b.id}`));
+    [`${b.data.hotelName ?? ''} · ${b.qty} × ${b.data.roomName ?? ''}`, rq ? `เดิม ${b.check_in} → ${b.check_out} · ขอเปลี่ยนเป็น ${rq.in} → ${rq.out}` : `เข้าพัก ${b.check_in} → ${b.check_out}`, `${who}${g.phone ? ' · ' + g.phone : ''} · ${baht(b.data.price?.total)}`], 'bookings', `${event}-${b.id}`));
 });
 
 // ส่งแจ้งเตือนหาเจ้าของ: Telegram (บอทของเจ้าของ) + Web Push · เคารพการตั้งค่าเปิด/ปิดรายเรื่อง (sd_notify_prefs)

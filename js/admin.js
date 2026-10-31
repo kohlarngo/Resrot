@@ -127,7 +127,7 @@ function boStatus(b) {
   if (b.checkedInAt) return 'inhouse';
   return bookingStatus(b);
 }
-const stChip = b => { const s = boStatus(b); return `<span class="status ${s}">${BO_ST[s]}</span>` + (b.cancelReq?.status === 'pending' && s !== 'cancelled' ? ' <span class="pill vip">ขอยกเลิก</span>' : ''); };
+const stChip = b => { const s = boStatus(b); return `<span class="status ${s}">${BO_ST[s]}</span>` + (b.cancelReq?.status === 'pending' && s !== 'cancelled' ? ' <span class="pill vip">ขอยกเลิก</span>' : '') + (b.rescheduleReq?.status === 'pending' && s !== 'cancelled' ? ' <span class="pill vip">ขอเปลี่ยนวัน</span>' : ''); };
 const payChip = b => b.payment.paid ? '<span class="pill ok"><i class="fa-solid fa-circle-check"></i> ชำระแล้ว</span>' : b.status === 'cancelled' ? '<span class="pill">—</span>' : b.payment.claimedAt ? '<span class="pill vip"><i class="fa-solid fa-hourglass-half"></i> ลูกค้าแจ้งโอนแล้ว</span>' : '<span class="pill bad"><i class="fa-solid fa-clock"></i> ค้างชำระ</span>';
 const netRev = b => b.price.total - (b.price.tax || 0);
 const guestName = b => `${b.guest.firstName} ${b.guest.lastName}`.trim();
@@ -541,11 +541,41 @@ function cancelReqSecHtml(b) {
     ${row('ธนาคาร', esc(c.bank))}${row('เลขบัญชี', esc(c.account))}${row('ชื่อบัญชี', esc(c.name))}
     ${c.reason ? row('เหตุผลที่ปฏิเสธ', esc(c.reason)) : ''}${b.refundedAt ? row('โอนคืนเมื่อ', fmtDateTime(b.refundedAt)) : ''}</div>`;
 }
+// ส่วน "คำขอเปลี่ยนวัน" ในลิ้นชักการจอง: วันใหม่ที่ลูกค้าขอ + ยอดเดิม/ยอดใหม่ (ยังไม่เปลี่ยนจนกว่าจะอนุมัติ)
+function rescheduleReqSecHtml(b) {
+  const c = b.rescheduleReq; if (!c) return '';
+  const chip = { pending: '<span class="pill vip">รอคุณยืนยัน</span>', approved: '<span class="pill ok">อนุมัติแล้ว</span>', rejected: '<span class="pill">ปฏิเสธแล้ว</span>' }[c.status] || '';
+  const row = (l, v) => `<div class="dl"><span>${l}</span><b>${v}</b></div>`;
+  const diff = c.paid ? (+c.oldTotal || 0) - (+c.newTotal || 0) : 0;
+  return `<div class="dr-sec"><h4><i class="fa-solid fa-calendar-days"></i> คำขอเปลี่ยนวัน ${chip}</h4>
+    <div class="small muted" style="margin-bottom:6px">ลูกค้าขอเมื่อ ${fmtDateTime(c.at)}${c.status === 'pending' ? ' · วันเข้าพักของการจองยังเป็นวันเดิมจนกว่าจะอนุมัติ' : ''}</div>
+    ${row('วันเดิม', `${fmtDate(c.status === 'approved' && b.reschedule ? b.reschedule.from[0] : b.checkIn, false)} – ${fmtDate(c.status === 'approved' && b.reschedule ? b.reschedule.from[1] : b.checkOut, false)}`)}
+    ${row('ขอเปลี่ยนเป็น', `${fmtDate(c.in, false)} – ${fmtDate(c.out, false)} (${c.nights} คืน)`)}
+    ${row('ยอดเดิม → ยอดใหม่', `${money(c.oldTotal)} → ${money(c.newTotal)}`)}
+    ${diff > 0 ? row('ส่วนต่างที่ต้องโอนคืนลูกค้า', money(diff)) : ''}
+    ${c.reason ? row('เหตุผลที่ปฏิเสธ', esc(c.reason)) : ''}</div>`;
+}
 async function bkAction(id, act, refresh = () => render()) {
   const b = DB.booking(id);
   if (!b) return false;
   const u = DB.currentUser(), now = new Date().toISOString();
   let patch = null, log = '', msg = '';
+  if (act === 'reschedok' || act === 'reschedno') {
+    if (!can('bookings.edit')) return deny();
+    const c = b.rescheduleReq; if (!c || c.status !== 'pending') return false;
+    let reason = null;
+    if (act === 'reschedok') {
+      const diff = c.paid ? (+c.oldTotal || 0) - (+c.newTotal || 0) : 0;
+      if (!(await confirmBox(`อนุมัติเปลี่ยนวัน <b>${b.id}</b><br>${fmtDate(b.checkIn, false)} – ${fmtDate(b.checkOut, false)} → <b>${fmtDate(c.in, false)} – ${fmtDate(c.out, false)}</b> (${c.nights} คืน)<br>ยอด ${money(c.oldTotal)} → ${money(c.newTotal)}${diff > 0 ? `<br><span class="small muted">ลูกค้าชำระแล้ว — ต้องโอนส่วนต่าง ${money(diff)} คืนเอง</span>` : ''}<br><span class="small muted">เลขห้องที่จัดไว้จะถูกล้าง ต้องจัดห้องใหม่</span>`, 'อนุมัติเปลี่ยนวัน'))) return false;
+    } else {
+      reason = await promptBox(`ปฏิเสธคำขอเปลี่ยนวัน ${b.id}`, 'เหตุผล (ลูกค้าจะเห็นข้อความนี้) เช่น ห้องไม่ว่างในวันนั้น', 'ปฏิเสธคำขอ');
+      if (reason == null) return false;
+    }
+    try { await DB.decideReschedule(id, act === 'reschedok', reason); } catch (e) { toast(e.message, 'err'); return false; }
+    DB.log(act === 'reschedok' ? 'booking.reschedule.approve' : 'booking.reschedule.reject', `${b.id} · ${guestName(b)} · ${c.in} → ${c.out}`);
+    toast(act === 'reschedok' ? 'อนุมัติเปลี่ยนวันแล้ว' : 'ปฏิเสธคำขอเปลี่ยนวันแล้ว'); refresh();
+    return true;
+  }
   if (act === 'pay' || act === 'confirm') {
     if (!can('bookings.edit')) return deny();
     patch = act === 'pay' ? { payment: { ...b.payment, paid: true, paidAt: now, paidBy: u.name }, status: b.status === 'pending' ? 'confirmed' : b.status } : { status: 'confirmed', confirmedAt: now };
@@ -629,10 +659,11 @@ function bookingDrawer(id, refresh = () => render()) {
   if (can('bookings.edit') && b.status === 'pending') { acts.push(['approve', 'fa-check', 'อนุมัติการจอง', 'btn-primary']); acts.push(['reject', 'fa-xmark', 'ปฏิเสธ', 'btn-danger']); }
   if (can('bookings.edit') && b.status === 'confirmed' && !b.payment.paid && !b.checkedOutAt) acts.push(['pay', 'fa-money-bill-wave', 'รับชำระเงิน', acts.length ? 'btn-outline' : 'btn-primary']);
   if (can('bookings.edit') && b.cancelReq?.status === 'pending' && b.status !== 'cancelled') { acts.unshift(['cancelok', 'fa-check', 'ยืนยันยกเลิก & คืนเงิน', 'btn-primary']); acts.push(['cancelno', 'fa-xmark', 'ปฏิเสธคำขอยกเลิก', 'btn-danger']); }
+  if (can('bookings.edit') && b.rescheduleReq?.status === 'pending' && b.status !== 'cancelled') { acts.unshift(['reschedok', 'fa-check', 'อนุมัติเปลี่ยนวัน', 'btn-primary']); acts.push(['reschedno', 'fa-xmark', 'ปฏิเสธคำขอเปลี่ยนวัน', 'btn-danger']); }
   if (can('bookings.edit') && b.status === 'cancelled' && b.cancelReq?.status === 'approved' && !b.refundedAt) acts.unshift(['refunded', 'fa-money-bill-wave', 'บันทึกว่าโอนคืนแล้ว', 'btn-primary']);
   if (can('bookings.edit') && s === 'confirmed') acts.push(['cancel', 'fa-ban', 'ยกเลิก', 'btn-danger']);
   if (can('bookings.delete')) acts.push(['delete', 'fa-trash', 'ลบ', 'btn-ghost red']);
-  const tl = [[b.createdAt, 'fa-plus', 'สร้างการจอง', PAY_TH[b.payment.method]], [b.payment.claimedAt, 'fa-receipt', b.payment.slip ? 'ลูกค้าส่งสลิป' : 'ลูกค้าแจ้งชำระเงิน', PAY_TH[b.payment.method]], [b.payment.paidAt, 'fa-money-bill', 'รับชำระเงิน', b.payment.paidBy], [b.confirmedAt, 'fa-check', 'อนุมัติการจอง', b.approvedBy || ''], [b.checkedInAt, 'fa-right-to-bracket', 'เช็คอิน', b.checkedInBy], [b.checkedOutAt, 'fa-right-from-bracket', 'เช็คเอาท์', b.checkedOutBy], [b.cancelReq?.at, 'fa-rotate-left', 'ลูกค้าขอยกเลิก', ''], [b.refundedAt, 'fa-money-bill-wave', 'โอนเงินคืนแล้ว', b.refundedBy], [b.cancelledAt, 'fa-ban', 'ยกเลิก', [b.cancelledBy, b.cancelReason].filter(Boolean).join(' — ')]]
+  const tl = [[b.createdAt, 'fa-plus', 'สร้างการจอง', PAY_TH[b.payment.method]], [b.payment.claimedAt, 'fa-receipt', b.payment.slip ? 'ลูกค้าส่งสลิป' : 'ลูกค้าแจ้งชำระเงิน', PAY_TH[b.payment.method]], [b.payment.paidAt, 'fa-money-bill', 'รับชำระเงิน', b.payment.paidBy], [b.confirmedAt, 'fa-check', 'อนุมัติการจอง', b.approvedBy || ''], [b.checkedInAt, 'fa-right-to-bracket', 'เช็คอิน', b.checkedInBy], [b.checkedOutAt, 'fa-right-from-bracket', 'เช็คเอาท์', b.checkedOutBy], [b.cancelReq?.at, 'fa-rotate-left', 'ลูกค้าขอยกเลิก', ''], [b.rescheduleReq?.at, 'fa-calendar-days', 'ลูกค้าขอเปลี่ยนวัน', ''], [b.reschedule?.at, 'fa-calendar-check', 'อนุมัติเปลี่ยนวัน', b.reschedule?.decidedBy || ''], [b.refundedAt, 'fa-money-bill-wave', 'โอนเงินคืนแล้ว', b.refundedBy], [b.cancelledAt, 'fa-ban', 'ยกเลิก', [b.cancelledBy, b.cancelReason].filter(Boolean).join(' — ')]]
     .filter(x => x[0]).sort((a, c) => a[0] < c[0] ? -1 : 1);
   const notes = b.notes || [];
   const req = [...(b.guest.requests || []), b.guest.note].filter(Boolean);
@@ -643,6 +674,7 @@ function bookingDrawer(id, refresh = () => render()) {
     ${b.payment.slip ? `<div class="dr-sec"><h4><i class="fa-solid fa-receipt"></i> สลิปโอนเงิน <span class="muted small">ส่งเมื่อ ${fmtDateTime(b.payment.claimedAt)}</span></h4><div class="slip-full" data-slip="${esc(b.payment.slip)}"><i class="fa-solid fa-spinner fa-spin"></i></div>
       <div class="small muted" style="margin-top:6px">ยอดที่ต้องได้รับ <b>${money(b.price.total)}</b>${b.payment.payTo ? ` → พร้อมเพย์ ${esc(fmtPromptpay(b.payment.payTo))}` : ''} · อ้างอิง ${b.id}</div></div>` : ''}
     ${cancelReqSecHtml(b)}
+    ${rescheduleReqSecHtml(b)}
     <div class="dr-sec"><h4><i class="fa-regular fa-user"></i> ผู้เข้าพัก</h4>
       ${row('ชื่อ', esc(guestName(b)))}${row('อีเมล', `<a href="mailto:${esc(b.guest.email)}">${esc(b.guest.email)}</a>`)}${row('โทร', `<a href="tel:${esc(b.guest.phone)}">${esc(b.guest.phone)}</a>`)}
       ${row('จำนวน', `ผู้ใหญ่ ${b.adults}${b.children ? ` · เด็ก ${b.children}` : ''}`)}${req.length ? row('คำขอพิเศษ', esc(req.join(', '))) : ''}</div>

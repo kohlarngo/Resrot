@@ -910,6 +910,8 @@ function voucherHtml(b, st) {
         ${b.addons?.length ? `<tr><td>บริการเสริมที่ขอ</td><td>${b.addons.map(a => `${esc(a.name)}${a.qty > 1 ? ' x' + a.qty : ''} (${+a.price ? money(a.price * a.qty) : 'ฟรี'})`).join('<br>')}<br><span class="small muted">${b.price?.addons > 0 ? 'รวมในยอดชำระแล้ว' : 'ยังไม่รวมในยอดค่าห้อง — ทีมงาน kohlarngo จะติดต่อกลับ'}</span></td></tr>` : ''}
         ${b.guest.requests?.length || b.guest.note ? `<tr><td>คำขอพิเศษ</td><td>${esc([...(b.guest.requests || []), b.guest.note].filter(Boolean).join(', '))}</td></tr>` : ''}
         <tr><td>การชำระเงิน</td><td>${PAY_TH[b.payment.method]}${b.payment.last4 ? ` (${b.payment.brand} •••• ${b.payment.last4})` : ''} — ${b.payment.paid ? '<span class="green bold">ชำระแล้ว</span>' : b.payment.slip ? '<span class="bold">ส่งสลิปแล้ว รอตรวจสอบ</span>' : '<span class="red bold">ยังไม่ได้ชำระ</span>'}</td></tr>
+        ${b.rescheduleReq && b.rescheduleReq.status !== 'approved' ? `<tr><td>ขอเปลี่ยนวัน</td><td>${{ pending: '<span class="bold">ส่งคำขอแล้ว — รอเจ้าของที่พักยืนยัน</span>', rejected: `<span class="red bold">เจ้าของที่พักปฏิเสธ</span>${b.rescheduleReq.reason ? ' — ' + esc(b.rescheduleReq.reason) : ''}` }[b.rescheduleReq.status] || ''}<br><span class="small muted">ขอเป็น ${fmtDate(b.rescheduleReq.in, false)} – ${fmtDate(b.rescheduleReq.out, false)} (${b.rescheduleReq.nights} คืน) · ยอดใหม่ ${money(b.rescheduleReq.newTotal)}</span></td></tr>` : ''}
+        ${b.reschedule ? `<tr><td>เปลี่ยนวันเข้าพัก</td><td><span class="green bold">เจ้าของที่พักอนุมัติแล้ว</span> — เดิม ${fmtDate(b.reschedule.from[0], false)} – ${fmtDate(b.reschedule.from[1], false)}<br><span class="small muted">เมื่อ ${fmtDateTime(b.reschedule.at)}${b.reschedule.diff > 0 ? ` · ราคาลดลง ${money(b.reschedule.diff)} — เจ้าของที่พักจะโอนส่วนต่างคืน` : ''}</span></td></tr>` : ''}
         ${b.refund != null ? `<tr><td>การคืนเงิน</td><td>${b.refund > 0 ? money(b.refund) + ' (เจ้าของรีสอร์ทเป็นผู้คืนเงิน)' : 'ไม่มีการคืนเงิน'}</td></tr>` : ''}
         ${b.cancelReq ? `<tr><td>คำขอยกเลิก</td><td>${{ pending: '<span class="bold">ส่งคำขอแล้ว — รอเจ้าของที่พักยืนยัน</span>', approved: '<span class="green bold">เจ้าของที่พักยืนยันแล้ว</span>', rejected: `<span class="red bold">เจ้าของที่พักปฏิเสธ</span>${b.cancelReq.reason ? ' — ' + esc(b.cancelReq.reason) : ''}` }[b.cancelReq.status] || ''}<br><span class="small muted">โอนคืนเข้า ${esc(b.cancelReq.bank)} ${esc(b.cancelReq.account)} (${esc(b.cancelReq.name)})${b.refundedAt ? ' · <span class="green">โอนเงินคืนแล้ว</span>' : ''}</span></td></tr>` : ''}
       </table>
@@ -950,11 +952,13 @@ function pageBookingView(app, params, id) {
     ${voucherHtml(b, st)}
     <div class="row wrap" style="justify-content:center">
       <button class="btn btn-outline" onclick="window.print()"><i class="fa-solid fa-print"></i> พิมพ์ / บันทึก PDF</button>
+      ${rescheduleBtnHtml(b, st)}
       ${cancelBtnHtml(b, st)}
       <a class="btn btn-primary" href="#/my-bookings">การจองทั้งหมดของฉัน</a>
     </div>
   </div>`;
   $('#cancel-bk')?.addEventListener('click', () => cancelBooking(b, () => pageBookingView(app, new URLSearchParams(), id)));
+  $('#resched-bk')?.addEventListener('click', () => rescheduleModal(b, () => pageBookingView(app, new URLSearchParams(), id)));
   $('#ad-send')?.addEventListener('click', async e => {
     const items = $$('[data-ad]:checked', app).map(c => ({ id: c.dataset.ad, qty: 1 })); e.target.disabled = true;
     try { await DB.requestAddons(b, items); toast(items.length ? 'ส่งคำขอบริการเสริมแล้ว' : 'ยกเลิกบริการเสริมแล้ว'); pageBookingView(app, new URLSearchParams(), id); }
@@ -1012,6 +1016,35 @@ async function cancelBooking(b, done) {
     closeModal(); send(acct);
   };
 }
+// เปลี่ยนวันเข้าพัก: เงื่อนไขเดียวกับการยกเลิก (ล่วงหน้า ≥ CANCEL_MIN_DAYS วัน) · ราคาใหม่คิดที่เซิร์ฟเวอร์
+function rescheduleModal(b, done) {
+  const h = DB.hotel(b.hotelId), paid = b.payment.paid || b.payment.slip;
+  const m = openModal(`<h2><i class="fa-solid fa-calendar-days"></i> ขอเปลี่ยนวันเข้าพัก <span class="small muted">· ${b.id}</span></h2>
+    <p class="small muted" style="margin:8px 0 14px">ปัจจุบัน ${fmtDate(b.checkIn, false)} – ${fmtDate(b.checkOut, false)} (${b.nights} คืน) · คำขอจะส่งให้เจ้าของที่พักยืนยัน วันเข้าพักจะเปลี่ยนเมื่อเจ้าของอนุมัติเท่านั้น · ราคาคิดใหม่ตามวันที่เลือก${paid ? ' — เพราะชำระเงินแล้ว ราคาใหม่ต้องไม่สูงกว่าเดิม ถ้าต่ำกว่า เจ้าของที่พักจะโอนส่วนต่างคืน' : ''}</p>
+    <div class="form-grid"><div class="fg"><label>เช็คอินใหม่</label><input type="date" id="rs-ci" value="${b.checkIn}" min="${todayISO()}"></div>
+      <div class="fg"><label>เช็คเอาท์ใหม่</label><input type="date" id="rs-co" value="${b.checkOut}" min="${addDays(todayISO(), 1)}"></div></div>
+    <div class="small muted" id="rs-hint" style="margin-top:8px"></div>
+    <div class="row" style="justify-content:flex-end;gap:8px;margin-top:16px"><button class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary" id="rs-ok"><i class="fa-solid fa-paper-plane"></i> ส่งคำขอเปลี่ยนวัน</button></div>`);
+  const ci = $('#rs-ci', m), co = $('#rs-co', m);
+  const hint = () => { $('#rs-hint', m).textContent = ci.value && co.value && co.value > ci.value ? `${diffDays(ci.value, co.value)} คืน · ${fmtDate(ci.value, false)} – ${fmtDate(co.value, false)}` : 'เช็คเอาท์ต้องหลังวันเช็คอิน'; };
+  ci.onchange = () => { if (co.value <= ci.value) co.value = addDays(ci.value, Math.max(1, b.nights)); hint(); };
+  co.onchange = hint; hint();
+  $('#rs-ok', m).onclick = async e => {
+    if (!ci.value || !co.value || co.value <= ci.value) return toast('เช็คเอาท์ต้องหลังวันเช็คอิน', 'err');
+    if (ci.value === b.checkIn && co.value === b.checkOut) return toast('ยังไม่ได้เลือกวันใหม่', 'info');
+    const rm = h && restrictMsg(h, b.roomId, ci.value, co.value); if (rm) return toast(rm, 'err');
+    e.target.disabled = true;
+    try { await DB.requestReschedule(b, ci.value, co.value); closeModal(); toast('ส่งคำขอเปลี่ยนวันแล้ว — รอเจ้าของที่พักยืนยัน'); done(); }
+    catch (err) { toast(err.message, 'err'); e.target.disabled = false; }
+  };
+}
+function rescheduleBtnHtml(b, st) {
+  if ((st !== 'confirmed' && st !== 'pending') || b.cancelReq?.status === 'pending' || b.checkedInAt) return '';
+  const rq = b.rescheduleReq;
+  if (rq?.status === 'pending') return `<span class="small muted">ขอเปลี่ยนเป็น ${fmtDate(rq.in, false)} – ${fmtDate(rq.out, false)} แล้ว — รอเจ้าของที่พักยืนยัน</span>`;
+  if (cancelDaysLeft(b) < CANCEL_MIN_DAYS) return `<span class="small muted">ขอเปลี่ยนวันได้ถึง ${fmtDate(addDays(b.checkIn, -CANCEL_MIN_DAYS), false)} (ล่วงหน้า ${CANCEL_MIN_DAYS} วัน) — กรุณาติดต่อเจ้าของที่พัก</span>`;
+  return `<button class="btn btn-outline" id="resched-bk"><i class="fa-solid fa-calendar-days"></i> ขอเปลี่ยนวันเข้าพัก</button>`;
+}
 function cancelBtnHtml(b, st) {
   if (st !== 'confirmed' && st !== 'pending') return '';
   if (b.cancelReq?.status === 'pending') return '<span class="small muted">ส่งคำขอยกเลิกแล้ว — รอเจ้าของที่พักยืนยัน</span>';
@@ -1041,6 +1074,8 @@ function pageMyBookings(app, params) {
           <div class="small" style="margin-top:6px"><i class="fa-regular fa-calendar"></i> ${fmtDate(b.checkIn)} – ${fmtDate(b.checkOut)} · ${b.nights} คืน<br><i class="fa-solid fa-bed"></i> ${b.qty} x ${esc(b.roomName)}</div></div>
         <div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end"><div class="bold" style="font-size:18px">${money(b.price.total)}</div>
           <a class="btn btn-outline btn-sm" href="#/booking/${b.id}">ดูรายละเอียด</a>
+          <a class="btn btn-ghost btn-sm" href="#/booking/${b.id}" data-voucher="${b.id}"><i class="fa-solid fa-ticket"></i> ใบยืนยันการจอง</a>
+          ${rescheduleBtnHtml(b, st).replace('btn btn-outline"', 'btn btn-outline btn-sm" data-resched="' + b.id + '"').replace(' id="resched-bk"', '')}
           ${st === 'completed' && !reviewed ? `<button class="btn btn-primary btn-sm" data-review="${b.id}"><i class="fa-solid fa-star"></i> เขียนรีวิว</button>` : ''}
           ${st === 'completed' || st === 'cancelled' ? `<a class="btn btn-ghost btn-sm" href="#/hotel/${b.hotelId}">จองอีกครั้ง</a>` : ''}
         </div></div>`;
@@ -1055,6 +1090,8 @@ function pageMyBookings(app, params) {
     if (list.length === 1) return go(`/booking/${list[0].id}`);
     $('#f-res').innerHTML = list.map(b => `<a class="bk-card" href="#/booking/${b.id}" style="text-decoration:none;color:inherit"><div><div class="row" style="gap:8px"><span class="status ${bookingStatus(b)}">${STATUS_TH[bookingStatus(b)]}</span><span class="small muted">#${b.id}</span></div><h3 style="margin:6px 0 2px">${esc(b.hotelName)}</h3><div class="small"><i class="fa-regular fa-calendar"></i> ${fmtDate(b.checkIn)} – ${fmtDate(b.checkOut)} · ${b.nights} คืน</div></div></a>`).join('');
   });
+  $$('[data-voucher]', app).forEach(a => a.addEventListener('click', () => setTimeout(() => $('#voucher')?.scrollIntoView({ behavior: 'smooth' }), 300)));
+  $$('[data-resched]', app).forEach(btn => btn.onclick = () => rescheduleModal(DB.booking(btn.dataset.resched), () => pageMyBookings(app, params)));
   $$('[data-review]', app).forEach(btn => btn.onclick = () => reviewModal(DB.booking(btn.dataset.review), () => pageMyBookings(app, params)));
 }
 function reviewModal(b, done) {

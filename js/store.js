@@ -273,6 +273,14 @@ const DB = {
     if (i >= 0 && nb.status === 'cancelled') CACHE.occ.splice(i, 1); // ยื่นคำขอยกเลิก = ยังจองห้องไว้จนกว่าเจ้าของจะยืนยัน
     return nb;
   },
+  // ขอเปลี่ยนวันเข้าพัก (ต้องตรงกับ sd_request_reschedule) — ยังไม่เปลี่ยนวันจนกว่าเจ้าของจะอนุมัติ · ห้องว่าง/ราคาตรวจที่เซิร์ฟเวอร์
+  async requestReschedule(b, checkIn, checkOut) { return this._replaceBooking(await rpc('sd_request_reschedule', { p_id: b.id, p_pin: b.pin, p_in: checkIn, p_out: checkOut })); },
+  // เจ้าของ/ทีมงานอนุมัติหรือปฏิเสธคำขอเปลี่ยนวัน (sd_decide_reschedule) — อนุมัติแล้ววัน/ราคาของการจองเปลี่ยนทันที
+  async decideReschedule(id, approve, reason) {
+    const nb = this._replaceBooking(await rpc('sd_decide_reschedule', { p_id: id, p_approve: approve, p_reason: reason || null }));
+    if (approve) await this.load?.();
+    return nb;
+  },
   // ลูกค้าแนบสลิป → เก็บใน bucket ส่วนตัว sd-slips/<รหัสจอง>/ แล้วผูกกับการจอง (เจ้าของรีสอร์ทจะเห็นและกดอนุมัติ)
   async uploadSlip(b, file) {
     const blob = await resizeImage(file, 1600);
