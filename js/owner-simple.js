@@ -1659,3 +1659,28 @@ function boApps(main) {
   };
   draw();
 }
+
+// ---------- แอป Android (Capacitor): ลงทะเบียนรับแจ้งเตือนผ่าน Firebase (FCM) ----------
+// ทำงานเฉพาะในแอป kohlarngo Owner · ส่ง token ไปเก็บใน sd_notify_subs (kind = 'fcm') · เซิร์ฟเวอร์ (sd-notify) ส่งผ่าน FCM
+(function nativePush() {
+  const cap = window.Capacitor, PN = cap?.Plugins?.PushNotifications;
+  if (!cap?.isNativePlatform?.() || !PN) return;
+  let done = false;
+  const reg = async () => {
+    if (done) return; done = true;
+    try {
+      const { data } = await supa.auth.getUser(); const id = data?.user?.id; if (!id) { done = false; return; }
+      let p = await PN.checkPermissions(); if (p.receive === 'prompt' || p.receive === 'prompt-with-rationale') p = await PN.requestPermissions();
+      if (p.receive !== 'granted') return;
+      await PN.createChannel?.({ id: 'bookings', name: 'การจองและคำขอ', importance: 4, vibration: true });
+      await PN.addListener('registration', async t => {
+        const r = await supa.from('sd_notify_subs').upsert({ owner_id: id, kind: 'fcm', endpoint: t.value, keys: {}, label: 'แอป Android' }, { onConflict: 'kind,endpoint', ignoreDuplicates: true });
+        if (r.error) console.warn('fcm register', r.error.message);
+      });
+      await PN.addListener('registrationError', e => console.warn('fcm', e));
+      await PN.addListener('pushNotificationActionPerformed', a => { const u = a.notification?.data?.url; if (u) location.href = u.startsWith('http') ? u : 'https://www.kohlarngo.com/hotel/' + u; });
+      await PN.register();
+    } catch (e) { console.warn('nativePush', e); done = false; }
+  };
+  supa.auth.onAuthStateChange((ev, s) => { if (s?.user && (ev === 'SIGNED_IN' || ev === 'INITIAL_SESSION')) setTimeout(reg, 1500); });
+})();

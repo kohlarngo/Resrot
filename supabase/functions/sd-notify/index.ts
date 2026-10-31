@@ -1,7 +1,7 @@
 // แจ้งเตือนเจ้าของรีสอร์ท (Telegram บอทของเจ้าของเอง + Web Push) · 2 ทางเข้า (เหตุการณ์: new/slip/cancel/checkin + waitlist/wl_check สำหรับคิวรอห้อง):
 //  1) ทริกเกอร์ sd_bookings_notify (pg_net) — หัว x-cron-secret ตรวจกับ Vault ผ่าน sd_cron_ok · body {event, booking_id}
 //  2) หน้าเว็บเจ้าของ (JWT ผู้ใช้ใน Authorization) — body {action:'tg-connect', token} ตรวจ token บอท · {action:'tg-detect'} หาแชตที่ทักบอทไว้
-// Secrets: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (mailto:…) — token Telegram เก็บในตาราง sd_notify_tg ต่อเจ้าของ
+// Secrets: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (mailto:…), FCM_SERVICE_ACCOUNT (JSON ของ Firebase service account — แอป Android) — token Telegram เก็บในตาราง sd_notify_tg ต่อเจ้าของ
 // Deploy ด้วย --no-verify-jwt (ทริกเกอร์ไม่มี JWT · ทางที่ 2 ตรวจ JWT เองในโค้ด)
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
@@ -144,10 +144,31 @@ async function notifyOwner(sb: ReturnType<typeof createClient>, ownerId: string,
       .then(async r => { if (r.ok) sent++; else if (r.status === 401 || r.status === 403) { dead++; await sb.from('sd_notify_tg').update({ chat_id: null }).eq('owner_id', ownerId); } }));
   }
 
+  // แอป Android (Firebase Cloud Messaging)
+  const fcmRows = (subs ?? []).filter((s: any) => s.kind === 'fcm');
+  if (fcmRows.length && Deno.env.get('FCM_SERVICE_ACCOUNT')) {
+    jobs.push((async () => {
+      try {
+        const sa = JSON.parse(Deno.env.get('FCM_SERVICE_ACCOUNT')!);
+        const access = await fcmToken(sa);
+        for (const s of fcmRows) {
+          const r = await fetch(`https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`, {
+            method: 'POST', headers: { Authorization: `Bearer ${access}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: { token: s.endpoint, notification: { title, body: lines.join('
+') },
+              data: { url: `owner.html#/admin/${page}` }, android: { priority: 'HIGH', collapse_key: tag, notification: { channel_id: 'bookings', tag } } } }) });
+          if (r.ok) sent++;
+          else if (r.status === 404 || r.status === 400 && (await r.text()).includes('UNREGISTERED')) { dead++; await sb.from('sd_notify_subs').delete().eq('id', s.id); }
+        }
+      } catch (e) { console.error('fcm', e); }
+    })());
+  }
+
   const vapidPub = Deno.env.get('VAPID_PUBLIC_KEY'), vapidPriv = Deno.env.get('VAPID_PRIVATE_KEY');
-  if (subs?.length && vapidPub && vapidPriv) {
+  const webRows = (subs ?? []).filter((s: any) => s.kind !== 'fcm');
+  if (webRows.length && vapidPub && vapidPriv) {
     webpush.setVapidDetails(Deno.env.get('VAPID_SUBJECT') ?? 'mailto:admin@kohlarngo.com', vapidPub, vapidPriv);
-    for (const s of subs) jobs.push((async () => {
+    for (const s of webRows) jobs.push((async () => {
       try {
         await webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys },
           JSON.stringify({ title, body: lines.join('\n'), tag, url: `owner.html#/admin/${page}` }), { TTL: 86400 });
@@ -160,4 +181,22 @@ async function notifyOwner(sb: ReturnType<typeof createClient>, ownerId: string,
   }
   await Promise.all(jobs);
   return { ok: true, sent, dead };
+}
+
+// access token ของ Google จาก service account (JWT RS256 → oauth2 token) · แคชไว้ใช้ซ้ำจนใกล้หมดอายุ
+let fcmCache: { t: string; exp: number } | null = null;
+async function fcmToken(sa: { client_email: string; private_key: string }) {
+  if (fcmCache && fcmCache.exp > Date.now() + 60000) return fcmCache.t;
+  const b64 = (x: ArrayBuffer | string) => btoa(typeof x === 'string' ? x : String.fromCharCode(...new Uint8Array(x))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const now = Math.floor(Date.now() / 1000);
+  const unsigned = `${b64(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))}.${b64(JSON.stringify({ iss: sa.client_email, scope: 'https://www.googleapis.com/auth/firebase.messaging', aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600 }))}`;
+  const der = Uint8Array.from(atob(sa.private_key.replace(/-----[A-Z ]+-----|\s/g, '')), c => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey('pkcs8', der, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(unsigned));
+  const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: `${unsigned}.${b64(sig)}` }) });
+  const d = await r.json();
+  if (!d.access_token) throw new Error('fcm oauth: ' + JSON.stringify(d));
+  fcmCache = { t: d.access_token, exp: Date.now() + (d.expires_in ?? 3600) * 1000 };
+  return fcmCache.t;
 }
