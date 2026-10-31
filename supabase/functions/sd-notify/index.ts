@@ -154,8 +154,7 @@ async function notifyOwner(sb: ReturnType<typeof createClient>, ownerId: string,
         for (const s of fcmRows) {
           const r = await fetch(`https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`, {
             method: 'POST', headers: { Authorization: `Bearer ${access}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: { token: s.endpoint, notification: { title, body: lines.join('
-') },
+            body: JSON.stringify({ message: { token: s.endpoint, notification: { title, body: lines.join('\n') },
               data: { url: `owner.html#/admin/${page}` }, android: { priority: 'HIGH', collapse_key: tag, notification: { channel_id: 'bookings', tag } } } }) });
           if (r.ok) sent++;
           else if (r.status === 404 || r.status === 400 && (await r.text()).includes('UNREGISTERED')) { dead++; await sb.from('sd_notify_subs').delete().eq('id', s.id); }
