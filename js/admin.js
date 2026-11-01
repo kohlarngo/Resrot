@@ -2559,11 +2559,14 @@ function boProfile(main) {
   App.addListener('backButton', () => {
     const ov = $('#slip-ov'); if (ov) { ov.click(); return; }
     const mc = $('#modal [data-close]'); if (mc) { mc.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); return; } // หน้าต่างป๊อปอัป/ลิ้นชักรายละเอียด/ยืนยัน
+    const ck = $('.ck-screen [data-ck="close"]'); if (ck) { ck.click(); return; }
+    const lb = $('.lightbox .lb-close'); if (lb) { lb.click(); return; }
     const adp = $('#adp-close'); if (adp) { adp.click(); return; }
     const sd = $('#bo-side.open'); if (sd) { $('#bo-scrim')?.click(); return; }
     const pop = $('.bo-pop'); if (pop) { pop.remove(); return; }
     const back = $('#bo-back'); if (back) { back.click(); return; }
     if (location.hash && !/^#\/?(admin\/apps)?$/.test(location.hash) && history.length > 1) { history.back(); return; }
-    App.exitApp?.();
+    if (Date.now() - (window._boExitAt || 0) < 2000) { App.exitApp?.(); return; } // หน้าหลักแล้ว: กดกลับซ้ำอีกครั้งใน 2 วินาทีจึงออกจากแอป
+    window._boExitAt = Date.now(); toast('กดกลับอีกครั้งเพื่อออกจากแอป', 'ok');
   });
 })();
