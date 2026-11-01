@@ -1228,7 +1228,7 @@ function quoteHtml(q, h, o = {}) {
   </body></html>`;
 }
 function printQuote(q, h) {
-  const w = window.open('', '_blank');
+  const w = openPrintWindow();
   if (!w) return toast('เบราว์เซอร์บล็อกหน้าต่างพิมพ์ — กรุณาอนุญาตป๊อปอัปของเว็บนี้', 'err');
   w.document.open(); w.document.write(quoteHtml(q, h)); w.document.close();
 }
@@ -1300,7 +1300,7 @@ function dailyReportXlsx(h, from, to = from) {
   downloadXlsx(`daily-report-${h.slug || h.id}-${from}${one ? '' : '_' + to}.xlsx`, rows); DB.log('report.daily', `${h.name} ${from}${one ? '' : ' ถึง ' + to}`);
 }
 function printDailyReport(h, from, to = from) {
-  const w = window.open('', '_blank');
+  const w = openPrintWindow();
   if (!w) return toast('เบราว์เซอร์บล็อกหน้าต่างพิมพ์ — กรุณาอนุญาตป๊อปอัปของเว็บนี้', 'err');
   w.document.open(); w.document.write(dailyReportHtml(h, from, to, { by: DB.currentUser()?.name || '' })); w.document.close();
 }
@@ -1550,7 +1550,7 @@ function docHtml(b, typeId, h, o = {}) {
   return html;
 }
 function printDoc(b, typeId, h) {
-  const w = window.open('', '_blank');
+  const w = openPrintWindow();
   if (!w) return toast('เบราว์เซอร์บล็อกหน้าต่างพิมพ์ — กรุณาอนุญาตป๊อปอัปของเว็บนี้', 'err');
   w.document.open(); w.document.write(docHtml(b, typeId, h)); w.document.close();
 }

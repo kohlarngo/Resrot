@@ -2558,6 +2558,7 @@ function boProfile(main) {
   if (!App?.addListener) return;
   App.addListener('backButton', () => {
     const ov = $('#slip-ov'); if (ov) { ov.click(); return; }
+    const dov = $('#doc-ov #doc-x'); if (dov) { dov.click(); return; }
     const mc = $('#modal [data-close]'); if (mc) { mc.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); return; } // หน้าต่างป๊อปอัป/ลิ้นชักรายละเอียด/ยืนยัน
     const ck = $('.ck-screen [data-ck="close"]'); if (ck) { ck.click(); return; }
     const lb = $('.lightbox .lb-close'); if (lb) { lb.click(); return; }

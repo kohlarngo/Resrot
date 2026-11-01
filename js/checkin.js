@@ -125,7 +125,7 @@ function ckForm(b, { allowSkip = false, self = null } = {}) { // self = { pin } 
       if (!$('#ck-consent', ov).checked) return err('ผู้เข้าพักต้องติ๊กยินยอมให้เก็บข้อมูลก่อน');
       if (!dirty) return err('กรุณาให้ผู้เข้าพักเซ็นชื่อ');
       const wantPrint = !self && $('#ck-print', ov).checked; if (!self) try { localStorage.setItem('sd_ck_print', wantPrint ? '1' : '0'); } catch {}
-      const pw = wantPrint ? window.open('', '_blank') : null;
+      const pw = wantPrint ? openPrintWindow() : null;
       const btn = $('#ck-save', ov); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
       const uploaded = [];
       try {
@@ -287,7 +287,7 @@ function ckView(r, hname) {
 // เปิดหน้าต่างใหม่ที่มีเอกสารพร้อมรูปบัตร+ลายเซ็น แล้วเรียกหน้าต่างพิมพ์ของเครื่อง (เลือก "บันทึกเป็น PDF" ได้) — ใช้ได้กับคอม มือถือ แท็บเล็ต
 // เฉพาะเจ้าของรีสอร์ท · เอกสารที่พิมพ์/เซฟไว้แล้ว อยู่นอกระบบ ไม่ถูกลบอัตโนมัติ
 async function ckPrint(b, reg, w) {
-  w ||= window.open('', '_blank');
+  w ||= openPrintWindow();
   if (!w) return toast('เบราว์เซอร์บล็อกหน้าต่างพิมพ์ — กรุณาอนุญาตป๊อปอัปของเว็บนี้แล้วลองใหม่', 'err');
   w.document.write('<!doctype html><meta charset="utf-8"><title>กำลังเตรียมเอกสาร</title><p style="font:18px sans-serif;padding:32px">กำลังเตรียมเอกสาร...</p>');
   try {

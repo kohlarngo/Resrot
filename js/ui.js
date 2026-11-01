@@ -82,6 +82,18 @@ function closeModal() { $('#modal')?.remove(); document.body.style.overflow = ''
   const start = () => new MutationObserver(sync).observe(document.body, { childList: true, subtree: true });
   document.body ? start() : document.addEventListener('DOMContentLoaded', start);
 })();
+// หน้าต่างเอกสารสำหรับพิมพ์ (ใบเสร็จ/ใบเสนอราคา/รายงาน): เว็บปกติเปิดแท็บใหม่ · ในแอปมือถือ (Capacitor) window.open เปิดแล้วกลับไม่ได้ จึงแสดงเต็มจอในหน้าเดิมพร้อมปุ่มปิด
+function openPrintWindow() {
+  if (!window.Capacitor?.isNativePlatform?.()) return window.open('', '_blank');
+  document.getElementById('doc-ov')?.remove();
+  const ov = document.createElement('div'); ov.id = 'doc-ov';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9998;background:#fff;display:flex;flex-direction:column';
+  ov.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:max(8px,env(safe-area-inset-top)) 12px 8px;background:#0f172a;color:#fff"><button type="button" id="doc-x" style="border:0;border-radius:8px;background:#fff;color:#111;font-size:16px;padding:8px 14px">✕ ปิด</button><b style="font-size:15px">เอกสาร</b></div><iframe style="flex:1;border:0;width:100%;background:#fff" title="เอกสาร"></iframe>';
+  const ifr = ov.querySelector('iframe'); let buf = '';
+  ov.querySelector('#doc-x').onclick = () => ov.remove();
+  document.body.appendChild(ov);
+  return { document: { open() { buf = ''; }, write(h) { buf += h; ifr.srcdoc = buf; }, close() { ifr.srcdoc = buf; } }, close() { ov.remove(); } };
+}
 function confirmBox(msg, okText = 'ยืนยัน') {
   return new Promise(res => {
     const m = openModal(`<h2>ยืนยันการทำรายการ</h2><p>${msg}</p><div class="row" style="justify-content:flex-end;margin-top:20px"><button class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary" id="cf-ok">${okText}</button></div>`);
