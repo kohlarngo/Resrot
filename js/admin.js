@@ -720,12 +720,22 @@ const PAY_ONLINE = ['promptpay', 'bank'];
 const awaitingPayment = () => DB.bookings().filter(b => b.status === 'pending' && !b.payment.paid && PAY_ONLINE.includes(b.payment.method));
 const readyToApprove = b => b.status === 'pending' && (b.payment.slip || b.payment.method === 'hotel' || b.payment.paid);
 // โหลดรูปสลิปจาก bucket ส่วนตัวด้วยลิงก์ชั่วคราว
+// ดูสลิปเต็มจอในหน้าเดิม (มีปุ่มปิด) — window.open ในแอปมือถือเปิดแล้วกลับไม่ได้
+function showSlip(url) {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;overflow:auto;padding:56px 12px 12px';
+  ov.innerHTML = `<button type="button" aria-label="ปิด" style="position:fixed;top:max(12px,env(safe-area-inset-top));right:12px;width:44px;height:44px;border:0;border-radius:50%;background:#fff;color:#111;font-size:22px;line-height:1;cursor:pointer">✕</button><img src="${url}" alt="สลิปโอนเงิน" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px">`;
+  const close = () => { ov.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = e => { if (e.key === 'Escape') close(); };
+  ov.onclick = close; document.addEventListener('keydown', onKey);
+  document.body.appendChild(ov);
+}
 function loadSlips(root) {
   $$('[data-slip]', root).forEach(async el => {
     const url = await DB.slipUrl(el.dataset.slip);
     if (!url) { el.innerHTML = '<span class="small muted">โหลดสลิปไม่ได้</span>'; return; }
     el.innerHTML = `<img src="${url}" alt="สลิปโอนเงิน">`;
-    el.onclick = e => { e.stopPropagation(); window.open(url, '_blank', 'noopener'); };
+    el.onclick = e => { e.stopPropagation(); showSlip(url); };
   });
 }
 function boApprovals(main) {
