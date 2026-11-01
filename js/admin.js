@@ -723,6 +723,7 @@ const readyToApprove = b => b.status === 'pending' && (b.payment.slip || b.payme
 // ดูสลิปเต็มจอในหน้าเดิม (มีปุ่มปิด) — window.open ในแอปมือถือเปิดแล้วกลับไม่ได้
 function showSlip(url) {
   const ov = document.createElement('div');
+  ov.id = 'slip-ov';
   ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;overflow:auto;padding:56px 12px 12px';
   ov.innerHTML = `<button type="button" aria-label="ปิด" style="position:fixed;top:max(12px,env(safe-area-inset-top));right:12px;width:44px;height:44px;border:0;border-radius:50%;background:#fff;color:#111;font-size:22px;line-height:1;cursor:pointer">✕</button><img src="${url}" alt="สลิปโอนเงิน" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px">`;
   const close = () => { ov.remove(); document.removeEventListener('keydown', onKey); };
@@ -2550,3 +2551,15 @@ function boProfile(main) {
     DB.log('profile.password', u.email); toast('เปลี่ยนรหัสผ่านแล้ว'); e.target.reset();
   };
 }
+
+// แอป Android (Capacitor): ปุ่มกลับของเครื่อง → ปิดสลิปที่เปิดอยู่ → ย้อนหน้าก่อนหน้า → (อยู่หน้าหลักแล้วค่อยออกจากแอป)
+(() => {
+  const App = window.Capacitor?.isNativePlatform?.() && window.Capacitor?.Plugins?.App;
+  if (!App?.addListener) return;
+  App.addListener('backButton', () => {
+    const ov = $('#slip-ov'); if (ov) { ov.click(); return; }
+    const back = $('#bo-back'); if (back) { back.click(); return; }
+    if (location.hash && !/^#\/?(admin\/apps)?$/.test(location.hash) && history.length > 1) { history.back(); return; }
+    App.exitApp?.();
+  });
+})();
