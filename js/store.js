@@ -635,6 +635,7 @@ const PERMS = {
   'bookings.delete': 'ลบการจองถาวร',
   'inventory': 'ดูตารางห้องว่าง',
   'hotels.media': 'แก้รูป / สไลด์ / ข้อมูลที่พักของทุกรีสอร์ท (นักพัฒนา)',
+  'hotels.delete': 'ลบที่พักของทุกรีสอร์ท (นักพัฒนา)',
   'hotels.edit':'จัดการที่พัก ห้อง รูป และราคา',
   'coupons.edit': 'จัดการโค้ดส่วนลด',
   'checkin.view': 'เปิดดูทะเบียนผู้เข้าพัก + รูปบัตร/พาสปอร์ต (อ่านอย่างเดียว) (นักพัฒนา)',
@@ -659,7 +660,7 @@ const ROLE_PERMS = {
   owner: ['exec.view', 'reports.view', 'ops.view', 'frontdesk', 'bookings.view', 'bookings.edit', 'inventory', 'hotels.edit', 'coupons.edit', 'reviews.view', 'customers.view', 'payout.edit', 'team.manage', 'housekeeping'],
   staff: ['ops.view', 'frontdesk', 'bookings.view', 'bookings.edit', 'inventory', 'hotels.edit', 'coupons.edit', 'reviews.view', 'customers.view', 'housekeeping'], // เพดานสิทธิ์ · ของจริงตาม perms ที่เจ้าของติ๊กให้รายคน
   admin: ['exec.view', 'reports.view', 'partners.manage', 'bookings.view', 'bookings.edit', 'inventory', 'hotels.edit', 'coupons.edit', 'reviews.view', 'reviews.manage', 'customers.view', 'sos.manage', 'data.backup', 'data.reset'],
-  dev: ['staff.manage', 'audit.view', 'settings.business', 'dev.console', 'flags.edit', 'hotels.media', 'ads.manage', 'checkin.view'],
+  dev: ['hotels.delete', 'staff.manage', 'audit.view', 'settings.business', 'dev.console', 'flags.edit', 'hotels.media', 'ads.manage', 'checkin.view'],
   user: [],
 };
 const STAFF_ROLES = ['owner', 'admin', 'dev', 'staff'];

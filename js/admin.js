@@ -75,6 +75,7 @@ const BO_NAV_BY_ROLE = {
   // นักพัฒนา: ตั้งค่าเว็บไซต์ + เครื่องมือเทคนิค
   dev: [
     { g: 'รีสอร์ททุกแห่ง', items: [
+      ['hotels', 'fa-hotel', 'ที่พักทั้งหมด (ลบได้)', 'hotels.media', () => admHotels],
       ['media', 'fa-images', 'สไลด์ & รูปรีสอร์ท', 'hotels.media', () => boDevMedia],
       ['ical', 'fa-arrows-rotate', 'ซิงก์ปฏิทิน iCal (Plus)', 'hotels.media', () => boDevIcal],
       ['vip', 'fa-crown', 'รีสอร์ท VIP / แนะนำ', 'hotels.media', () => boDevVip],
@@ -1703,15 +1704,16 @@ function ownerResorts(main) {
   $$('[data-act]', main).forEach(c => c.onchange = () => { const h = DB.hotel(c.dataset.act); h.active = c.checked; DB.saveHotel(h); DB.log('hotel.toggle', `${h.name} → ${c.checked ? 'เปิดขาย' : 'ปิด'}`); toast(c.checked ? 'เปิดขายแล้ว' : 'ปิดการขายแล้ว'); ownerResorts(main); });
 }
 function admHotels(main) {
-  if (!isAdmin(DB.currentUser())) return ownerResorts(main);
+  const dev = DB.currentUser()?.role === 'dev'; // นักพัฒนา: ดูที่พักทั้งหมด + ลบได้ (ไม่แก้/แบน)
+  if (!isAdmin(DB.currentUser()) && !dev) return ownerResorts(main);
   const list = DB.hotels(true);
-  const admin = isAdmin(DB.currentUser()), ownerName = id => { const o = DB.users().find(u => u.id === id); return o ? (o.biz?.resortName || o.name) : 'แพลตฟอร์ม'; };
+  const admin = isAdmin(DB.currentUser()) || dev, ownerName = id => { const o = DB.users().find(u => u.id === id); return o ? (o.biz?.resortName || o.name) : 'แพลตฟอร์ม'; };
   main.innerHTML = pageHead(admin ? 'ที่พักทั้งหมด' : 'ที่พัก ห้อง รูป & ราคา', `${list.length} แห่ง · ${list.reduce((s, h) => s + h.rooms.reduce((a, r) => a + +r.total, 0), 0)} ห้อง${admin ? ' · ทุกเจ้าของรีสอร์ท' : ''}`) + `
     <section class="card flush"><div class="table-scroll"><table class="tbl"><thead><tr><th></th><th>ชื่อที่พัก</th>${admin ? '<th>เจ้าของ</th>' : ''}<th>หาด/ย่าน</th><th>ดาว</th><th>คะแนน</th><th>ห้อง</th><th>ราคาเริ่มต้น</th><th>สถานะ</th><th></th></tr></thead><tbody>
     ${list.map(h => `<tr><td>${imgTag(h.images[0], 120, '', h.id)}</td><td><b>${esc(h.name)}</b><div class="small muted">${esc(h.type)} · ${esc(h.area)}</div></td>${admin ? `<td class="small">${esc(ownerName(h.ownerId))}</td>` : ''}<td>${esc(h.city)}</td><td>${h.stars}★</td><td>${h.rating}</td>
       <td>${h.rooms.length} ประเภท / ${h.rooms.reduce((s, r) => s + +r.total, 0)} ห้อง</td><td>${money(Math.min(...h.rooms.map(r => r.price)))}</td>
       <td>${h.banned ? `<span class="pill bad"><i class="fa-solid fa-ban"></i> ถูกแบน</span><div class="small muted" style="margin-top:4px">โดย ${esc(h.banned.byName || '-')}<br>${h.banned.at ? fmtDateTime(h.banned.at) : ''}<br><b>ระยะเวลา: ${banUntilText(h.banned)}</b>${h.banned.reason ? `<br>เหตุผล: ${esc(h.banned.reason)}` : ''}</div>` : `<label class="switch" title="เจ้าของรีสอร์ทเป็นผู้เปิด-ปิดเอง" style="opacity:.85"><input type="checkbox" ${h.active !== false ? 'checked' : ''} disabled><span></span>${h.active !== false ? 'เปิดขาย' : 'ปิด'}</label><div class="small muted" style="margin-top:2px">เจ้าของเป็นผู้ตั้ง</div>`}</td>
-      <td style="white-space:nowrap;text-align:right"><button class="btn btn-sm btn-primary" data-detail="${h.id}"><i class="fa-solid fa-circle-info"></i> รายละเอียด</button> ${h.banned ? `<button class="btn btn-sm btn-outline" data-unban="${h.id}"><i class="fa-solid fa-unlock"></i> ปลดแบน</button>` : `<button class="btn btn-sm btn-ghost red" data-ban="${h.id}"><i class="fa-solid fa-ban"></i> แบน</button>`} <button class="btn btn-sm btn-outline" data-edit="${h.id}"><i class="fa-solid fa-pen"></i> แก้ไข</button> <button class="btn btn-sm btn-ghost" data-share="${h.id}" title="แชร์โปรโมต"><i class="fa-solid fa-share-nodes"></i></button> <a class="btn btn-sm btn-ghost" href="${siteUrl('#/hotel/' + (h.slug || h.id))}" target="_blank" rel="noopener" title="ดูหน้าเว็บ"><i class="fa-solid fa-eye"></i></a> <button class="btn btn-sm btn-ghost red" data-hdel="${h.id}" title="ลบ"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('')}
+      <td style="white-space:nowrap;text-align:right"><button class="btn btn-sm btn-primary" data-detail="${h.id}"><i class="fa-solid fa-circle-info"></i> รายละเอียด</button> ${dev ? '' : `${h.banned ? `<button class="btn btn-sm btn-outline" data-unban="${h.id}"><i class="fa-solid fa-unlock"></i> ปลดแบน</button>` : `<button class="btn btn-sm btn-ghost red" data-ban="${h.id}"><i class="fa-solid fa-ban"></i> แบน</button>`} <button class="btn btn-sm btn-outline" data-edit="${h.id}"><i class="fa-solid fa-pen"></i> แก้ไข</button> <button class="btn btn-sm btn-ghost" data-share="${h.id}" title="แชร์โปรโมต"><i class="fa-solid fa-share-nodes"></i></button> `} <a class="btn btn-sm btn-ghost" href="${siteUrl('#/hotel/' + (h.slug || h.id))}" target="_blank" rel="noopener" title="ดูหน้าเว็บ"><i class="fa-solid fa-eye"></i></a> ${dev && !can('hotels.delete') ? '' : `<button class="btn btn-sm btn-ghost red" data-hdel="${h.id}" title="ลบ"><i class="fa-solid fa-trash"></i></button>`}</td></tr>`).join('')}
     </tbody></table></div></section>`;
   $$('[data-edit]', main).forEach(b => b.onclick = () => hotelForm(DB.hotel(b.dataset.edit), () => admHotels(main)));
   $$('[data-share]', main).forEach(b => b.onclick = () => sharePromo(DB.hotel(b.dataset.share)));
