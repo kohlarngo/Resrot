@@ -84,13 +84,15 @@ function closeModal() { $('#modal')?.remove(); document.body.style.overflow = ''
 })();
 // หน้าต่างเอกสารสำหรับพิมพ์ (ใบเสร็จ/ใบเสนอราคา/รายงาน): เว็บปกติเปิดแท็บใหม่ · ในแอปมือถือ (Capacitor) window.open เปิดแล้วกลับไม่ได้ จึงแสดงเต็มจอในหน้าเดิมพร้อมปุ่มปิด
 function openPrintWindow() {
-  if (!window.Capacitor?.isNativePlatform?.()) return window.open('', '_blank');
+  const inApp = window.Capacitor?.isNativePlatform?.() || navigator.standalone || matchMedia('(display-mode: standalone)').matches; // แอปมือถือ / ไอคอนบนหน้าจอโฮม (iPhone) ไม่มีปุ่มย้อนกลับของเบราว์เซอร์
+  if (!inApp) return window.open('', '_blank');
   document.getElementById('doc-ov')?.remove();
   const ov = document.createElement('div'); ov.id = 'doc-ov';
   ov.style.cssText = 'position:fixed;inset:0;z-index:9998;background:#fff;display:flex;flex-direction:column';
-  ov.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:max(8px,env(safe-area-inset-top)) 12px 8px;background:#0f172a;color:#fff"><button type="button" id="doc-x" style="border:0;border-radius:8px;background:#fff;color:#111;font-size:16px;padding:8px 14px">✕ ปิด</button><b style="font-size:15px">เอกสาร</b></div><div style="flex:1;overflow:hidden;position:relative"><iframe style="border:0;background:#fff;position:absolute;left:0;top:0;transform-origin:0 0" title="เอกสาร"></iframe></div>';
+  ov.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:max(8px,env(safe-area-inset-top)) 12px 8px;background:#0f172a;color:#fff"><button type="button" id="doc-x" style="border:0;border-radius:8px;background:#fff;color:#111;font-size:16px;padding:8px 14px">✕ ปิด</button><b style="font-size:15px;flex:1">เอกสาร</b><button type="button" id="doc-p" style="border:0;border-radius:8px;background:#2563eb;color:#fff;font-size:15px;padding:8px 14px">🖨 พิมพ์</button></div><div style="flex:1;overflow:hidden;position:relative"><iframe style="border:0;background:#fff;position:absolute;left:0;top:0;transform-origin:0 0" title="เอกสาร"></iframe></div>';
   const ifr = ov.querySelector('iframe'); let buf = '';
   ov.querySelector('#doc-x').onclick = () => ov.remove();
+  ov.querySelector('#doc-p').onclick = () => { try { ifr.contentWindow.focus(); ifr.contentWindow.print(); } catch { toast('พิมพ์จากหน้านี้ไม่ได้ — เปิดเว็บในเบราว์เซอร์แล้วพิมพ์', 'err'); } };
   document.body.appendChild(ov);
   // เอกสารออกแบบเป็นขนาด A4 (กว้าง ~794px) — ย่อให้พอดีความกว้างหน้าจอมือถือ แทนที่จะบีบตัวอักษรจนตกบรรทัด
   const fit = () => { const box = ifr.parentElement, k = Math.min(1, box.clientWidth / 794); ifr.style.width = '794px'; ifr.style.height = box.clientHeight / k + 'px'; ifr.style.transform = `scale(${k})`; };
