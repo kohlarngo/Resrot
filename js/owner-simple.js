@@ -547,7 +547,7 @@ function vipBuilder(main, hotelId, back) {
       const b = drag.base; drag.x = Math.round((b.x || 0) + dx); drag.y = Math.round((b.y || 0) + dy);
       drag.el.style.transform = `translate(${drag.x}px,${drag.y}px) scale(${b.s || 1})`; drag.el.style.outline = '2px solid #f59e0b';
     };
-    const endDrag = () => { if (!drag) return; if (drag.moved) { d.tpos[drag.k] = { ...drag.base, x: drag.x, y: drag.y }; dragged = true; setTimeout(() => dragged = false, 50); changed(); const sy = window.scrollY; drawPanel(); window.scrollTo(0, sy); } drag = null; }; // ลากเสร็จ: อัปเดตปุ่มทางขวาเงียบๆ — ไม่โฟกัสช่องกรอก/ไม่เลื่อนหน้า (บนมือถือคีย์บอร์ดเด้งและหน้าจอกระโดด)
+    const endDrag = () => { if (!drag) return; drag.el.style.outline = ''; if (drag.moved) { d.tpos[drag.k] = { ...drag.base, x: drag.x, y: drag.y }; dragged = true; setTimeout(() => dragged = false, 50); changed(); const sy = window.scrollY; drawPanel(); window.scrollTo(0, sy); } drag = null; }; // ลากเสร็จ: อัปเดตปุ่มทางขวาเงียบๆ — ไม่โฟกัสช่องกรอก/ไม่เลื่อนหน้า (บนมือถือคีย์บอร์ดเด้งและหน้าจอกระโดด)
     const st = doc.createElement('style'); st.textContent = Object.keys(VB_FIELDS).filter(isTxt).map(k => `[data-vedit="${k}"]`).join(',') + '{touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}'; doc.head.appendChild(st); // ลากข้อความ = ขยับข้อความ ไม่ใช่เลื่อนหน้า/เลือกข้อความ
     doc.addEventListener('mousemove', moveDrag, { capture: true, passive: false }); doc.addEventListener('touchmove', moveDrag, { capture: true, passive: false });
     doc.addEventListener('mouseup', endDrag, true); doc.addEventListener('touchend', endDrag, true);
