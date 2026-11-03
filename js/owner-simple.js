@@ -523,7 +523,7 @@ function vipBuilder(main, hotelId, back) {
     $$('#vb-ad input', p).forEach(i => i.oninput = adSave);
     $$('[data-ax]', p).forEach(b => b.onclick = () => { b.parentElement.remove(); adSave(); drawPanel('addons'); });
     $('#vb-ad-add', p)?.addEventListener('click', () => { adSave(); d.addons = [...(d.addons || []), { id: 'a' + Date.now().toString(36), name: 'บริการใหม่', desc: '', price: 0 }]; changed(); drawPanel('addons'); setTimeout(() => $$('#vb-ad [data-aa]', p).pop()?.select(), 0); });
-    if (focus) { const f = $(`[data-f="${focus}"]`, p); if (f) { f.classList.add('hl'); f.scrollIntoView({ block: 'center', behavior: 'smooth' }); $('input:not([type=checkbox]):not([type=color])', f)?.focus(); setTimeout(() => f.classList.remove('hl'), 1600); } }
+    if (focus) { const f = $(`[data-f="${focus}"]`, p); if (f) { f.classList.add('hl'); if (!matchMedia('(max-width:900px)').matches) { f.scrollIntoView({ block: 'center', behavior: 'smooth' }); $('input:not([type=checkbox]):not([type=color])', f)?.focus(); } setTimeout(() => f.classList.remove('hl'), 1600); } }
   };
   const setScreen = (k, focus) => {
     scr = k; $$('[data-vb-s]', main).forEach(b => b.classList.toggle('on', b.dataset.vbS === k));
@@ -547,11 +547,13 @@ function vipBuilder(main, hotelId, back) {
       const b = drag.base; drag.x = Math.round((b.x || 0) + dx); drag.y = Math.round((b.y || 0) + dy);
       drag.el.style.transform = `translate(${drag.x}px,${drag.y}px) scale(${b.s || 1})`; drag.el.style.outline = '2px solid #f59e0b';
     };
-    const endDrag = () => { if (!drag) return; if (drag.moved) { d.tpos[drag.k] = { ...drag.base, x: drag.x, y: drag.y }; dragged = true; setTimeout(() => dragged = false, 50); changed(); const k = drag.k; if (VB_SCREENS.find(x => x[0] === scr)[3].includes(k)) drawPanel(k); } drag = null; };
+    const endDrag = () => { if (!drag) return; if (drag.moved) { d.tpos[drag.k] = { ...drag.base, x: drag.x, y: drag.y }; dragged = true; setTimeout(() => dragged = false, 50); changed(); const sy = window.scrollY; drawPanel(); window.scrollTo(0, sy); } drag = null; }; // ลากเสร็จ: อัปเดตปุ่มทางขวาเงียบๆ — ไม่โฟกัสช่องกรอก/ไม่เลื่อนหน้า (บนมือถือคีย์บอร์ดเด้งและหน้าจอกระโดด)
+    const st = doc.createElement('style'); st.textContent = Object.keys(VB_FIELDS).filter(isTxt).map(k => `[data-vedit="${k}"]`).join(',') + '{touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}'; doc.head.appendChild(st); // ลากข้อความ = ขยับข้อความ ไม่ใช่เลื่อนหน้า/เลือกข้อความ
     doc.addEventListener('mousemove', moveDrag, { capture: true, passive: false }); doc.addEventListener('touchmove', moveDrag, { capture: true, passive: false });
     doc.addEventListener('mouseup', endDrag, true); doc.addEventListener('touchend', endDrag, true);
     const trap = e => { if (e.target.closest?.('.va-nav, .va-thumbs')) return; // ปุ่มเลื่อนรูปใช้ได้ในจอตัวอย่าง
-      e.preventDefault(); e.stopPropagation(); if (e.type === 'mousedown' || e.type === 'touchstart') return startDrag(e); if (dragged) return; const el = e.target.closest('[data-vedit]'); if (!el) return toast('ส่วนนี้ดึงจากข้อมูลห้องพัก/รีสอร์ท — แก้ได้ที่เมนู “ห้องพัก” หรือ “หน้ารีสอร์ท”', 'info'); const k = el.dataset.vedit; const sc = VB_SCREENS.find(x => x[0] === scr)[3].includes(k) ? scr : VB_SCREENS.find(x => x[3].includes(k))?.[0] ?? scr; if (sc !== scr) setScreen(sc, k); else drawPanel(k); };
+      if (e.type === 'touchstart') return startDrag(e); // ไม่ preventDefault: ยังเลื่อนหน้าตัวอย่างและแตะได้ตามปกติ
+      e.preventDefault(); e.stopPropagation(); if (e.type === 'mousedown') return startDrag(e); if (dragged) return; const el = e.target.closest('[data-vedit]'); if (!el) return toast('ส่วนนี้ดึงจากข้อมูลห้องพัก/รีสอร์ท — แก้ได้ที่เมนู “ห้องพัก” หรือ “หน้ารีสอร์ท”', 'info'); const k = el.dataset.vedit; const sc = VB_SCREENS.find(x => x[0] === scr)[3].includes(k) ? scr : VB_SCREENS.find(x => x[3].includes(k))?.[0] ?? scr; if (sc !== scr) setScreen(sc, k); else drawPanel(k); };
     ['click', 'mousedown', 'touchstart'].forEach(t => doc.addEventListener(t, trap, { capture: true, passive: false }));
     const wait = setInterval(() => { if (doc.querySelector('.va-wrap')) { clearInterval(wait); push(); } }, 200); setTimeout(() => clearInterval(wait), 20000);
   };
