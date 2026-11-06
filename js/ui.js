@@ -321,7 +321,7 @@ function headerHtml() {
     <button class="menu-toggle" id="menu-t"><i class="fa-solid fa-bars"></i></button>
     ${logoLink}
     <nav class="nav" id="nav">
-      ${a('/', 'หน้าแรก')}${a('/search', 'ค้นหาที่พัก')}${a('/deals', 'ดีลสุดคุ้ม')}${a('/my-bookings', 'การจองของฉัน')}${a('/favorites', 'รายการโปรด')}
+      ${a('/', 'หน้าแรก')}${a('/search', 'ค้นหาที่พัก')}${a('/deals', 'ดีลสุดคุ้ม')}<a href="trips/">ทริป/กิจกรรม</a>${a('/my-bookings', 'การจองของฉัน')}${a('/favorites', 'รายการโปรด')}
     </nav>
     <div class="header-right">
       <button class="btn btn-ghost btn-sm hide-m" title="สกุลเงิน">THB ฿</button>

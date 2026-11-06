@@ -1,0 +1,42 @@
+/* ส่วนเสริมของ kohlarngo ทัวร์ (ต่อจาก style.css / admin.css ที่ใช้ชุดเดียวกับ hotel) */
+.pill.warn { background: var(--warn-bg, #fff4e5); color: var(--warn, #b35c00); }
+.cat-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+.cat-chip { --c: var(--primary); display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; background: #fff; border: 1px solid var(--border, #e3e6ec); color: var(--text); font-weight: 600; white-space: nowrap; box-shadow: var(--shadow); }
+.cat-chip i { color: var(--c); }
+.cat-chip:hover, .cat-chip.on { background: var(--c); color: #fff; border-color: var(--c); } .cat-chip.on { background: var(--primary); }
+.cat-chip:hover i, .cat-chip.on i { color: #fff; }
+.hero { padding-bottom: 56px; } .hero .sub { max-width: 640px; margin-left: auto; margin-right: auto; }
+.trip-gal { margin: 12px 0; } .trip-gal > img { width: 100%; max-height: 420px; object-fit: cover; border-radius: 14px; background: #dde3ee; }
+.gal-th { display: flex; gap: 8px; margin-top: 8px; overflow-x: auto; } .gal-th img { width: 92px; height: 64px; object-fit: cover; border-radius: 8px; cursor: pointer; flex-shrink: 0; }
+.trip-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; align-items: start; }
+.book-box { position: sticky; top: 84px; }
+.trip-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 12px; }
+.trip-facts div { background: var(--bg, #f4f6fa); border-radius: 10px; padding: 10px 12px; font-size: 14px; } .trip-facts i { color: var(--primary); margin-right: 6px; } .trip-facts b { display: block; font-size: 12px; color: var(--muted); }
+.trip-inc { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+ul.ck { list-style: none; padding: 0; margin: 0; } ul.ck li { padding: 4px 0; display: flex; gap: 8px; } ul.ck i { color: var(--green); margin-top: 4px; } ul.ck.x i { color: var(--accent); }
+.opt { border: 1px solid var(--border, #e3e6ec); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; } .opt.on { border-color: var(--primary); background: var(--primary-light); }
+.opt .price { font-size: 17px; }
+.qty { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; } .qty span { color: var(--muted); }
+.qty button { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border, #cfd5e0); background: #fff; font-size: 18px; line-height: 1; cursor: pointer; } .qty b { min-width: 18px; text-align: center; }
+.rv { border-top: 1px solid var(--border, #e3e6ec); padding: 10px 0; } .rv-reply { background: var(--bg, #f4f6fa); border-radius: 8px; padding: 8px 12px; font-size: 14px; }
+.rate i { font-size: 28px; color: var(--yellow); cursor: pointer; margin-right: 4px; }
+.bk-row { color: inherit; } .bk-row:hover { box-shadow: var(--shadow-lg); }
+.lang-sw { position: relative; } .lang-menu[hidden] { display: none; }
+.fav-btn i { pointer-events: none; }
+.te-form h3 { margin: 16px 0 8px; } .te-imgs { display: flex; gap: 8px; flex-wrap: wrap; }
+.te-im { position: relative; } .te-im img { width: 96px; height: 72px; object-fit: cover; border-radius: 8px; } .te-im button { position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: var(--bad, #d33); color: #fff; cursor: pointer; }
+.te-add { width: 96px; height: 72px; border: 2px dashed var(--bo-line, #cfd5e0); border-radius: 8px; background: none; display: grid; place-items: center; cursor: pointer; color: var(--muted); }
+.te-opt { display: grid; grid-template-columns: 2fr 1fr 1fr 80px auto; gap: 6px; margin-bottom: 6px; } .te-opt input, .te-opt select, .te-form input, .te-form select, .te-form textarea { padding: 9px 10px; border: 1px solid var(--bo-line, #e3e6ec); border-radius: 8px; font-family: inherit; font-size: 14px; width: 100%; }
+.te-form .fg { margin-bottom: 8px; }
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; } .cal-h { text-align: center; font-size: 12px; color: var(--muted); font-weight: 700; padding: 4px 0; }
+.cal-d { aspect-ratio: 1; min-height: 52px; border: 1px solid var(--bo-line, #e3e6ec); border-radius: 10px; background: #fff; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-weight: 600; }
+.cal-d small { font-size: 11px; color: var(--primary); } .cal-d.has { background: var(--primary-light); } .cal-d.full { background: #fde8e8; } .cal-d.full small { color: var(--bad, #d33); }
+.cal-d.closed { background: #eceef2; color: var(--muted); text-decoration: line-through; } .cal-d.past { opacity: .5; }
+.bk-detail { display: grid; gap: 12px; }
+.ad-card { position: relative; background: #fff; border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; } .ad-card img { width: 100%; display: block; }
+.ad-card .ad-t { display: block; padding: 8px 12px; font-weight: 700; }
+.ad-home-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.ad-pop { max-width: 420px; } .ad-pop img { width: 100%; border-radius: 10px; }
+.kpi-f { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.sos-preview { white-space: pre-wrap; background: var(--bg, #f4f6fa); border-radius: 8px; padding: 10px; font-size: 13px; }
+@media (max-width: 900px) { .trip-grid { grid-template-columns: 1fr; } .book-box { position: static; } .trip-inc, .ad-home-cards { grid-template-columns: 1fr; } .te-opt { grid-template-columns: 1fr 1fr; } }
