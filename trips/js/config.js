@@ -3,9 +3,7 @@
 // publishable/anon key เปิดเผยในหน้าเว็บได้ ข้อมูลถูกป้องกันด้วย RLS ใน supabase/schema.sql
 window.KOHLARDGO_CONFIG = {
   SUPABASE_URL: 'https://whtomiamqwhhdrllibix.supabase.co',
-  // รีสอร์ทจากระบบ hotel (StayDee) — แสดงเป็นหมวด "ที่พัก" ในเว็บนี้ กดแล้วไปจองที่เว็บ hotel
-  HOTEL_SUPABASE_URL: 'https://whtomiamqwhhdrllibix.supabase.co',
-  HOTEL_SUPABASE_KEY: 'sb_publishable_zNqyiYcujJvjcTKthvo_Kw_EuGWsKCL',
+  // เว็บจองที่พัก (hotel) — ปุ่มย้อนกลับบนหน้าแรกในมือถือกลับไปที่นี่
   HOTEL_SITE: 'https://www.kohlarngo.com/hotel/',
   SUPABASE_ANON_KEY: 'sb_publishable_zNqyiYcujJvjcTKthvo_Kw_EuGWsKCL'
 };

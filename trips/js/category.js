@@ -1,5 +1,5 @@
-// ================= หน้าหมวด: จองเรือ / เช่ารถ / ที่พัก (#/c/boat · #/c/car · #/c/stay) =================
-// ฟอร์มค้นหาทุกช่องทำงานจริง: วันที่/เวลา/จำนวนคนถูกส่งต่อไปเติมให้ในหน้าทริป (PREFILL) · ที่พักเปิดหน้าค้นหาของเว็บ hotel พร้อมวันที่
+// ================= หน้าหมวด: จองเรือ / เช่ารถ (#/c/boat · #/c/car) =================
+// ฟอร์มค้นหาทุกช่องทำงานจริง: วันที่/เวลา/จำนวนคนถูกส่งต่อไปเติมให้ในหน้าทริป (PREFILL)
 
 const PREFILL = {
   get: () => { try { return JSON.parse(sessionStorage.getItem('tour_prefill') || 'null'); } catch { return null; } },
@@ -18,7 +18,7 @@ function miniCard(t, extra = '') {
     ${isFinite(p) ? `<span class="pr">${T('เริ่มต้น')} <b>${money(p)}</b>${t.external ? '/' + T('คืน') : (t.options?.[0]?.unit ? '/' + esc(t.options[0].unit) : '')}</span>` : ''}${extra}</div></div>`;
 }
 
-const CAT_TABS = [['stay', 'ที่พัก', 'fa-bed', '#/c/stay'], ['car', 'รถ/มอเตอร์ไซค์', 'fa-motorcycle', '#/c/car'], ['boat', 'เรือ/ดำน้ำ', 'fa-ship', '#/c/boat'], ['act', 'ทัวร์/กิจกรรม', 'fa-person-swimming', '#/search?cat=activity'], ['food', 'ร้านอาหาร', 'fa-utensils', '#/search?cat=food']];
+const CAT_TABS = [['car', 'รถ/มอเตอร์ไซค์', 'fa-motorcycle', '#/c/car'], ['boat', 'เรือ/ดำน้ำ', 'fa-ship', '#/c/boat'], ['act', 'ทัวร์/กิจกรรม', 'fa-person-swimming', '#/search?cat=activity'], ['food', 'ร้านอาหาร', 'fa-utensils', '#/search?cat=food']];
 const CAT_PAGES = {
   boat: {
     cat: 'boat', hero: 'hero-boat', ar: '1070 / 212', title: 'จองเรือไปเกาะล้าน', listTitle: 'เรือแนะนำ', tilesTitle: 'ประเภทเรือที่ให้บริการ', icon: 'fa-ship',
@@ -31,25 +31,19 @@ const CAT_PAGES = {
     tiles: [['รถเก๋ง', 'car-sedan', 'เก๋ง', 'เหมาะกับ 2-4 คน'], ['SUV', 'car-suv', 'SUV', 'เหมาะกับ 4-7 คน'], ['กระบะ', 'car-pickup', 'กระบะ', 'เหมาะ งาน/เดินทาง'], ['มอเตอร์ไซค์', 'car-moto', 'มอเตอร์ไซค์', 'ขับสนุก คล่องตัว'], ['รถกอล์ฟ', 'car-golf', 'กอล์ฟ', 'เหมาะกับครอบครัว/กลุ่ม'], ['รถตู้', 'car-van', 'ตู้', 'เหมาะกับ 8-12 คน']],
     trust: [['fa-shield-halved', 'ประกันชั้น 1', ''], ['fa-life-ring', 'ช่วยเหลือเดินทาง', '24 ชม.'], ['fa-truck-fast', 'บริการจัดส่ง', 'ถึงที่พัก'], ['fa-star', 'รีวิวจาก', 'ลูกค้าจริง']],
   },
-  stay: {
-    cat: 'stay', hero: 'hero-stay', ar: '1066 / 205', title: 'จองที่พักเกาะล้าน', listTitle: 'ที่พักแนะนำบนเกาะล้าน', tilesTitle: '', icon: 'fa-house',
-    tiles: [],
-    trust: [['fa-house-chimney', 'ที่พักหลากหลายสไตล์', 'รีสอร์ท / โรงแรม / วิลล่า'], ['fa-umbrella-beach', 'ติดทะเล / ใกล้ชายหาด', 'เดินทางสะดวก'], ['fa-tags', 'ราคาดี มีโปรโมชั่น', 'จองตรงกับที่พัก'], ['fa-star', 'รีวิวจริงจากผู้เข้าพัก', 'มั่นใจได้ทุกการจอง'], ['fa-headset', 'บริการช่วยเหลือ 24 ชม.', 'พร้อมดูแลตลอดทริป']],
-  },
 };
 
 function pageCategory(app, params, key) {
   const c = CAT_PAGES[key];
   if (!c) return notFound(app);
   const today = todayISO(), tmr = plusDays(today, 1);
-  const own = DB.trips().filter(t => (key === 'stay' ? t.external : t.category === c.cat && !t.external)).slice(0, 8);
+  const own = DB.trips().filter(t => t.category === c.cat).slice(0, 8);
   const sel = (id, label, opts, val) => `<label class="cp-f"><span>${T(label)}</span><select id="${id}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(val) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
   const dat = (id, label, val, min) => `<label class="cp-f"><span>${T(label)}</span><input type="date" id="${id}" value="${val}" min="${min}"></label>`;
   const nums = (n, f) => Array.from({ length: n }, (_, i) => [i + 1, f(i + 1)]);
   const fields = {
     boat: dat('f-d', 'วันที่เดินทาง', today, today) + sel('f-t', 'เวลา', [['', T('ทุกรอบ')], ...['08:00', '10:00', '12:00', '14:00', '16:00'].map(x => [x, x])], '') + sel('f-g', 'จำนวนผู้โดยสาร', nums(10, n => `${n} ${T('คน')}`), 1),
     car: dat('f-d', 'วันที่รับรถ', today, today) + dat('f-r', 'วันที่คืนรถ', tmr, tmr) + sel('f-ty', 'ประเภทรถ', [['', T('ทั้งหมด')], ...c.tiles.map(x => [x[2], x[0]])], ''),
-    stay: dat('f-d', 'เช็คอิน', today, today) + dat('f-r', 'เช็คเอาท์', tmr, tmr) + sel('f-a', 'ผู้ใหญ่', nums(8, n => `${n} ${T('ท่าน')}`), 2) + sel('f-c', 'เด็ก', [0, 1, 2, 3, 4].map(n => [n, `${n} ${T('คน')}`]), 0),
   }[key];
   const tilesHtml = c.tiles.length ? `<section class="cp-sec">${c.tilesTitle ? `<h2 class="cp-h"><i class="fa-solid ${c.icon}"></i> ${T(c.tilesTitle)}</h2>` : ''}<div class="cp-tiles ${key}">${c.tiles.map(([l, im, q, sub]) => `<a class="cp-tile" href="#/search?${new URLSearchParams({ cat: c.cat, q })}"><img src="images/cat/${im}.jpg" alt="" loading="lazy"><b>${T(l)}</b><span>${T(sub)}</span></a>`).join('')}</div></section>` : '';
   document.body.classList.add('home2');
@@ -59,11 +53,11 @@ function pageCategory(app, params, key) {
         <div class="cp-fields">${fields}<button class="h2-go"><i class="fa-solid fa-magnifying-glass"></i> ${T('ค้นหา')}</button></div></form></div>
     <div class="container cp-body">
       ${tilesHtml}
-      <section class="cp-sec"><div class="h2-hd"><h3><i class="fa-solid ${c.icon}" style="color:#ff7a1a"></i> ${T(c.listTitle)}</h3>${key === 'stay' ? `<a href="${esc((window.KOHLARDGO_CONFIG || {}).HOTEL_SITE || '#')}" target="_blank" rel="noopener">${T('ดูทั้งหมด')} ›</a>` : `<a href="#/search?cat=${c.cat}">${T('ดูทั้งหมด')} ›</a>`}</div>
+      <section class="cp-sec"><div class="h2-hd"><h3><i class="fa-solid ${c.icon}" style="color:#ff7a1a"></i> ${T(c.listTitle)}</h3>${`<a href="#/search?cat=${c.cat}">${T('ดูทั้งหมด')} ›</a>`}</div>
         ${own.length ? `<div class="cp-grid">${own.map(t => miniCard(t, `<span class="h2-book">${T('จองเลย')}</span>`)).join('')}</div>` : `<div class="h2-empty">${T('เร็ว ๆ นี้')}</div>`}</section>
       <div class="cp-trust">${c.trust.map(([i, a, b]) => `<span><i class="fa-solid ${i}"></i><b>${T(a)}</b>${b ? `<small>${T(b)}</small>` : ''}</span>`).join('')}</div>
     </div>
-    <nav class="h2-bnav"><a href="#/"><i class="fa-solid fa-house"></i>${T('หน้าแรก')}</a><a href="#/c/stay" class="${key === 'stay' ? 'on' : ''}"><i class="fa-solid fa-bed"></i>${T('ที่พัก')}</a><a href="#/c/car" class="${key === 'car' ? 'on' : ''}"><i class="fa-solid fa-motorcycle"></i>${T('รถ')}</a><a href="#/c/boat" class="${key === 'boat' ? 'on' : ''}"><i class="fa-solid fa-ship"></i>${T('เรือ')}</a><a href="#/profile"><i class="fa-regular fa-user"></i>${T('โปรไฟล์')}</a></nav>
+    <nav class="h2-bnav"><a href="#/"><i class="fa-solid fa-house"></i>${T('หน้าแรก')}</a><a href="#/c/car" class="${key === 'car' ? 'on' : ''}"><i class="fa-solid fa-motorcycle"></i>${T('รถ')}</a><a href="#/c/boat" class="${key === 'boat' ? 'on' : ''}"><i class="fa-solid fa-ship"></i>${T('เรือ')}</a><a href="#/profile"><i class="fa-regular fa-user"></i>${T('โปรไฟล์')}</a></nav>
   </div>`;
   const v = id => $('#' + id, app)?.value;
   // วันคืน/เช็คเอาท์ต้องอยู่หลังวันรับ
@@ -75,8 +69,6 @@ function pageCategory(app, params, key) {
     if (key === 'boat') { PREFILL.set({ date, time: v('f-t'), qty: +v('f-g') || 1 }); return go('/search?cat=boat'); }
     const back = v('f-r') || plusDays(date, 1), days = Math.max(1, daysBetween(date, back));
     if (key === 'car') { PREFILL.set({ date, qty: days }); return go('/search?' + new URLSearchParams({ cat: 'vehicle', ...(v('f-ty') ? { q: v('f-ty') } : {}) })); }
-    if (back <= date) return toast(T('วันเช็คเอาท์ต้องหลังวันเช็คอิน'), 'err');
-    location.href = ((window.KOHLARDGO_CONFIG || {}).HOTEL_SITE || '') + '#/search?' + new URLSearchParams({ in: date, out: back, a: v('f-a') || 2, c: v('f-c') || 0, r: 1 });
   };
   bindCards(app);
 }

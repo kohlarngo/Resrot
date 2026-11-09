@@ -22,7 +22,7 @@ const isMobile = () => innerWidth <= 820;
 const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 const DEFAULT_IMG = 'images/hero.jpg';
 const imgOr = (u, cat) => u || (cat && CATEGORY_IMG[cat]) || DEFAULT_IMG;
-const CATEGORY_IMG = { boat: 'images/cat-speedboat.jpg', activity: 'images/cat-snorkel.jpg', package: 'images/pkg-2d1n.jpg', vehicle: 'images/cat-motorbike.jpg', stay: 'images/stay-de-anchor.jpg', food: 'images/hero.jpg' };
+const CATEGORY_IMG = { boat: 'images/cat-speedboat.jpg', activity: 'images/cat-snorkel.jpg', package: 'images/pkg-2d1n.jpg', vehicle: 'images/cat-motorbike.jpg', food: 'images/hero.jpg' };
 const tripImg = (t, i = 0) => (t.images || [])[i] || CATEGORY_IMG[t.category] || DEFAULT_IMG;
 const starsHtml = n => `<span class="stars">${'<i class="fa-solid fa-star"></i>'.repeat(Math.round(n))}</span>`;
 const scoreHtml = (s, c) => (+c ? `<span class="score"><b>${(+s).toFixed(1)}</b><span class="c">${T('รีวิว {0} รายการ', c)}</span></span>` : `<span class="small muted">${T('ยังไม่มีรีวิว')}</span>`);
@@ -80,7 +80,7 @@ function headerHtml() {
     <button class="back-btn" id="back-b" aria-label="${esc(T('ย้อนกลับ'))}"><i class="fa-solid fa-chevron-left"></i></button>
     <button class="menu-toggle" id="menu-t" aria-label="menu"><i class="fa-solid fa-bars"></i></button>
     <a href="#/" class="logo logo-img" aria-label="kohlarngo"><img src="assets/icon-192.png" alt="kohlarngo" width="56" height="56" style="width:56px;height:56px;object-fit:contain"><b class="brand-t">kohlarngo</b></a>
-    <nav class="nav" id="nav">${[['#/c/stay', 'ที่พัก', 'fa-bed'], ['#/c/car', 'รถ/มอเตอร์ไซค์', 'fa-motorcycle'], ['#/search?cat=activity', 'กิจกรรมทางน้ำ', 'fa-person-swimming'], ['#/c/boat', 'เรือ/จอดเรือ', 'fa-ship'], ['#/search?cat=package', 'แพ็กเกจ', 'fa-suitcase-rolling'], ['#/search?cat=food', 'ร้านอาหาร', 'fa-utensils']].map(([k, l, i]) => `<a href="${k}"><i class="fa-solid ${i}"></i> ${T(l)}</a>`).join('')}${a('/my-bookings', T('การจองของฉัน'))}</nav>
+    <nav class="nav" id="nav">${[['#/c/car', 'รถ/มอเตอร์ไซค์', 'fa-motorcycle'], ['#/search?cat=activity', 'กิจกรรมทางน้ำ', 'fa-person-swimming'], ['#/c/boat', 'เรือ/จอดเรือ', 'fa-ship'], ['#/search?cat=package', 'แพ็กเกจ', 'fa-suitcase-rolling'], ['#/search?cat=food', 'ร้านอาหาร', 'fa-utensils']].map(([k, l, i]) => `<a href="${k}"><i class="fa-solid ${i}"></i> ${T(l)}</a>`).join('')}${a('/my-bookings', T('การจองของฉัน'))}</nav>
     <div class="header-right">${langSwitcherHtml()}
       ${s.line ? `<a class="btn btn-ghost btn-sm" href="${esc(socialUrl('line', s.line))}" target="_blank" rel="noopener" aria-label="LINE"><i class="fa-brands fa-line" style="color:#06c755"></i></a>` : ''}
       ${u ? `<div class="user-chip" id="user-chip" style="cursor:pointer"><span class="avatar">${esc((u.name || '?')[0])}</span><span class="hide-m">${esc(u.name)}</span><i class="fa-solid fa-chevron-down small"></i></div>`

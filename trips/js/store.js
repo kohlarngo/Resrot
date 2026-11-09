@@ -6,16 +6,6 @@ const supa = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KE
   auth: { flowType: 'pkce', storageKey: /^(owner|admin)$/.test(PORTAL) ? 'tour_auth_' + PORTAL : 'tour_auth' },
 });
 
-// ฐานข้อมูลรีสอร์ท (hotel) — อ่านอย่างเดียว
-const hsupa = CFG.HOTEL_SUPABASE_URL ? window.supabase.createClient(CFG.HOTEL_SUPABASE_URL, CFG.HOTEL_SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }) : null;
-const hotelImg = u => (!u ? '' : u.startsWith('assets/') ? CFG.HOTEL_SITE + u : /^(https?:|data:)/.test(u) ? u : `https://images.unsplash.com/${u}?w=800&q=70&auto=format&fit=crop`);
-function hotelToTrip(h) {
-  const prices = (h.rooms || []).map(r => Math.round(+r.price * (1 - (+r.discount || 0) / 100))).filter(n => n > 0);
-  if (!prices.length || h.active === false || h.banned) return null;
-  return { id: 'hotel:' + h.id, external: true, href: CFG.HOTEL_SITE + '#/hotel/' + encodeURIComponent(h.slug || h.id), category: 'stay', name: h.name, area: h.area, summary: h.type || '',
-    images: (h.images || []).map(hotelImg), options: [{ id: 'room', name: 'ห้องพัก', price: Math.min(...prices), unit: 'คืน' }], hotelRating: +h.rating || 0, hotelReviews: +h.reviews || 0, active: true };
-}
-
 const LS = {
   get(k, d) { try { const v = localStorage.getItem('tour_' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem('tour_' + k, JSON.stringify(v)); } catch {} },
@@ -37,7 +27,6 @@ const CATEGORIES = {
   activity: { label: 'กิจกรรมทางน้ำ', icon: 'fa-person-swimming', color: '#16a34a' },
   package:  { label: 'แพ็กเกจทัวร์', icon: 'fa-suitcase-rolling', color: '#f59e0b' },
   vehicle:  { label: 'เช่ารถ / มอเตอร์ไซค์', icon: 'fa-motorcycle', color: '#ef4444' },
-  stay:     { label: 'ที่พัก', icon: 'fa-bed', color: '#8b5cf6' },
   food:     { label: 'อาหาร / ร้านอาหาร', icon: 'fa-utensils', color: '#ec4899' },
 };
 
@@ -89,13 +78,6 @@ const DB = {
       supa.auth.getSession(),
     ]);
     if (kv.error) throw kv.error;
-    CACHE.hotels = [];
-    if (hsupa && !PORTAL) {
-      try {
-        const hr = await Promise.race([hsupa.from('sd_hotels').select('data'), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 6000))]);
-        CACHE.hotels = (hr.data || []).map(r => hotelToTrip(r.data)).filter(Boolean);
-      } catch (e) { console.warn('hotel load', e); }
-    }
     CACHE.trips = trips.map(r => ({ ...r.data, id: r.id, ownerId: r.owner_id, active: r.active }));
     CACHE.kv = Object.fromEntries(kv.data.map(r => [r.key, r.value]));
     CACHE.occ = occ.map(o => ({ tripId: o.trip_id, date: o.trip_date, time: o.trip_time || '', qty: +o.qty }));
@@ -139,9 +121,9 @@ const DB = {
   // ---- ทริป ----
   trips(all = false) {
     const mine = PORTAL === 'owner' && CACHE.me ? CACHE.trips.filter(t => t.ownerId === CACHE.me.id) : CACHE.trips;
-    return all ? mine : [...mine.filter(t => t.active !== false && !t.banned), ...(PORTAL ? [] : CACHE.hotels)];
+    return all ? mine : mine.filter(t => t.active !== false && !t.banned);
   },
-  trip: id => CACHE.trips.find(t => t.id === id || (t.slug && t.slug === id)) || CACHE.hotels.find(t => t.id === id),
+  trip: id => CACHE.trips.find(t => t.id === id || (t.slug && t.slug === id)),
   async saveTrip(trip) {
     const { id, ownerId, active, ...data } = trip, i = CACHE.trips.findIndex(t => t.id === id);
     const row = { data, active: active !== false, updated_at: new Date().toISOString() };

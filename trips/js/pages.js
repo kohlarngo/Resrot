@@ -60,22 +60,22 @@ function showSideAds() {
 function pageHome(app) {
   const trips = DB.trips(), own = trips.filter(t => !t.external), feat = CACHE.pubAds.filter(a => a.kind === 'featured').map(a => DB.trip(a.trip_id)).filter(Boolean);
   const pick = (cats, n) => [...new Set([...feat, ...own])].filter(t => cats.includes(t.category)).slice(0, n);
-  const pkgs = pick(['package'], 3), acts = pick(['activity', 'boat'], 4), stays = trips.filter(t => t.external).slice(0, 2), near = pick(['activity', 'boat', 'vehicle'], 6);
+  const pkgs = pick(['package'], 3), acts = pick(['activity', 'boat'], 4), near = pick(['activity', 'boat', 'vehicle'], 6);
   const qs = k => '/search?q=' + encodeURIComponent(k);
   const tiles = [['เจ็ทสกี', 'cat-jetski', qs('เจ็ท'), 'fa-person-swimming'], ['ดำน้ำตื้น', 'cat-snorkel', qs('ดำน้ำ'), 'fa-mask-snorkel'], ['ฟรีไดฟ์', 'cat-freedive', qs('ฟรีไดฟ์'), 'fa-water'],
     ['สกูบ้า', 'cat-scuba', qs('สกูบ้า'), 'fa-person-swimming'], ['พาราเซล', 'cat-parasail', qs('พาราเซล'), 'fa-parachute-box'], ['สปีดโบ๊ท', 'cat-speedboat', '/search?cat=boat', 'fa-ship'],
     ['จอดเรือ', 'cat-mooring', qs('จอดเรือ'), 'fa-anchor'], ['มอเตอร์ไซค์', 'cat-motorbike', '/search?cat=vehicle', 'fa-motorcycle']];
-  const tabs = [['stay', 'ที่พัก', 'fa-bed'], ['vehicle', 'รถ/มอเตอร์ไซค์', 'fa-motorcycle'], ['activity', 'กิจกรรมทางน้ำ', 'fa-person-swimming'], ['boat', 'เรือ/จอดเรือ', 'fa-ship']];
+  const tabs = [['vehicle', 'รถ/มอเตอร์ไซค์', 'fa-motorcycle'], ['activity', 'กิจกรรมทางน้ำ', 'fa-person-swimming'], ['boat', 'เรือ/จอดเรือ', 'fa-ship']];
   const rowItem = t => {
     const p = lowest(t);
     return `<div class="h2-row" data-href="/trip/${esc(t.slug || t.id)}"><img src="${esc(tripImg(t))}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${DEFAULT_IMG}'"><div><b>${esc(t.name)}</b><span class="sm">${T('เริ่มต้น')} ${isFinite(p) ? money(p) : '-'}</span></div></div>`;
   };
   const none = `<div class="h2-empty">${T('เร็ว ๆ นี้')}</div>`;
-  const big = [['stay', 'ที่พัก', 'fa-bed', '#ff7a1a', '#/c/stay'], ['vehicle', 'รถ', 'fa-motorcycle', '#2f6fe4', '#/c/car'], ['activity', 'กิจกรรม', 'fa-person-swimming', '#119a9a', '#/search?cat=activity'], ['boat', 'เรือ', 'fa-ship', '#6a5be2', '#/c/boat']];
+  const big = [['vehicle', 'รถ', 'fa-motorcycle', '#ff7a1a', '#/c/car'], ['activity', 'กิจกรรม', 'fa-person-swimming', '#119a9a', '#/search?cat=activity'], ['boat', 'เรือ', 'fa-ship', '#6a5be2', '#/c/boat']];
   document.body.classList.add('home2');
   app.innerHTML = `<section class="h2-hero" style="background-image:url('images/hero.jpg')"><div class="h2-shade"></div><div class="container">
       <h1 class="h2-title">${T('เที่ยวเกาะล้าน')}<br><span>${T('ครบจบในที่เดียว')}</span></h1>
-      <p class="h2-sub">${T('จองรถ')} • ${T('ที่พัก')} • ${T('กิจกรรมทางน้ำ')} • ${T('เรือ')} • ${T('ทริป')}</p>
+      <p class="h2-sub">${T('จองรถ')} • ${T('กิจกรรมทางน้ำ')} • ${T('เรือ')} • ${T('ทริป')}</p>
       <form class="h2-search" id="hs"><div class="h2-tabs">${tabs.map(([k, l, i], n) => `<button type="button" class="${n ? '' : 'on'}" data-tab="${k}"><i class="fa-solid ${i}"></i> ${T(l)}</button>`).join('')}</div>
         <div class="h2-fields"><label><i class="fa-solid fa-magnifying-glass"></i><input id="hs-q" placeholder="${esc(T('ค้นหาทริป กิจกรรม ที่พัก...'))}"></label><button class="h2-go"><i class="fa-solid fa-magnifying-glass"></i> ${T('ค้นหา')}</button></div></form>
     </div></section>
@@ -87,8 +87,6 @@ function pageHome(app) {
       <div class="h2-cols">
         <section><div class="h2-hd"><h3><i class="fa-solid fa-fire" style="color:#ff7a1a"></i> ${T('แพ็กเกจยอดนิยม')}</h3><a href="#/search?cat=package">${T('ดูทั้งหมด')} ›</a></div>
           <div class="h2-grid3">${pkgs.length ? pkgs.map(t => miniCard(t, `<span class="h2-book">${T('จองเลย')}</span>`)).join('') : none}</div></section>
-        <section><div class="h2-hd"><h3><i class="fa-solid fa-house" style="color:#119a9a"></i> ${T('ที่พักแนะนำ')}</h3><a href="#/search?cat=stay">${T('ดูทั้งหมด')} ›</a></div>
-          <div class="h2-grid2">${stays.length ? stays.map(t => miniCard(t)).join('') : none}</div></section>
         <section><div class="h2-hd"><h3><i class="fa-solid fa-star" style="color:#ffb400"></i> ${T('กิจกรรมยอดนิยม')}</h3><a href="#/search?cat=activity">${T('ดูทั้งหมด')} ›</a></div>
           <div class="h2-list">${acts.length ? acts.map(rowItem).join('') : none}</div></section>
       </div>
@@ -97,9 +95,9 @@ function pageHome(app) {
     </div>
     <nav class="h2-bnav"><a href="#/" class="on"><i class="fa-solid fa-house"></i>${T('หน้าแรก')}</a><a href="#/search"><i class="fa-solid fa-magnifying-glass"></i>${T('ค้นหา')}</a><a href="#/my-bookings"><i class="fa-regular fa-clipboard"></i>${T('การจอง')}</a><a href="#/favorites"><i class="fa-regular fa-heart"></i>${T('รายการโปรด')}</a><a href="#/profile"><i class="fa-regular fa-user"></i>${T('โปรไฟล์')}</a></nav>
     <a class="h2-help" href="#/help"><i class="fa-solid fa-headset"></i> ${T('ช่วยเหลือ')}</a>`;
-  let tab = 'stay';
+  let tab = 'vehicle';
   $$('[data-tab]', app).forEach(b => b.onclick = () => { tab = b.dataset.tab; $$('[data-tab]', app).forEach(x => x.classList.toggle('on', x === b)); });
-  $('#hs').onsubmit = e => { e.preventDefault(); const q = $('#hs-q').value.trim(); const page = { stay: '/c/stay', vehicle: '/c/car', boat: '/c/boat' }[tab]; if (page && !q) return go(page); go('/search?' + new URLSearchParams({ cat: tab, ...(q ? { q } : {}) })); };
+  $('#hs').onsubmit = e => { e.preventDefault(); const q = $('#hs-q').value.trim(); const page = { vehicle: '/c/car', boat: '/c/boat' }[tab]; if (page && !q) return go(page); go('/search?' + new URLSearchParams({ cat: tab, ...(q ? { q } : {}) })); };
   bindCards(app);
 }
 
