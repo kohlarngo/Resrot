@@ -77,18 +77,23 @@ function headerHtml() {
   const u = DB.currentUser(), path = location.hash.slice(1).split('?')[0] || '/', s = DB.settings();
   const a = (href, label) => `<a href="#${href}" class="${path === href ? 'active' : ''}">${label}</a>`;
   return `<header class="header"><div class="container header-inner">
+    <button class="back-btn" id="back-b" aria-label="${esc(T('ย้อนกลับ'))}"><i class="fa-solid fa-chevron-left"></i></button>
     <button class="menu-toggle" id="menu-t" aria-label="menu"><i class="fa-solid fa-bars"></i></button>
     <a href="#/" class="logo logo-img" aria-label="kohlarngo"><img src="assets/icon-192.png" alt="kohlarngo" width="56" height="56" style="width:56px;height:56px;object-fit:contain"><b class="brand-t">kohlarngo</b></a>
     <nav class="nav" id="nav">${[['stay', 'ที่พัก', 'fa-bed'], ['vehicle', 'รถ/มอเตอร์ไซค์', 'fa-motorcycle'], ['activity', 'กิจกรรมทางน้ำ', 'fa-person-swimming'], ['boat', 'เรือ/จอดเรือ', 'fa-ship'], ['package', 'แพ็กเกจ', 'fa-suitcase-rolling'], ['food', 'ร้านอาหาร', 'fa-utensils']].map(([k, l, i]) => `<a href="#/search?cat=${k}"><i class="fa-solid ${i}"></i> ${T(l)}</a>`).join('')}${a('/my-bookings', T('การจองของฉัน'))}</nav>
     <div class="header-right">${langSwitcherHtml()}
       ${s.line ? `<a class="btn btn-ghost btn-sm" href="${esc(socialUrl('line', s.line))}" target="_blank" rel="noopener" aria-label="LINE"><i class="fa-brands fa-line" style="color:#06c755"></i></a>` : ''}
-      <button class="btn btn-sos btn-sm" data-sos="" aria-label="SOS"><i class="fa-solid fa-bell"></i> SOS</button>
       ${u ? `<div class="user-chip" id="user-chip" style="cursor:pointer"><span class="avatar">${esc((u.name || '?')[0])}</span><span class="hide-m">${esc(u.name)}</span><i class="fa-solid fa-chevron-down small"></i></div>`
       : `<button class="btn btn-outline btn-sm" data-auth="login">${T('เข้าสู่ระบบ')}</button><button class="btn btn-primary btn-sm hide-m" data-auth="register">${T('สร้างบัญชี')}</button>`}
     </div></div></header>`;
 }
 function bindHeader() {
   $('#menu-t').onclick = () => $('#nav').classList.toggle('open');
+  $('#back-b').onclick = () => { // หน้าย่อย: ย้อนหน้าเดิม (ไม่มีประวัติ → หน้าแรก) · หน้าแรก: กลับเว็บที่พัก
+    const path = location.hash.slice(1).split('?')[0] || '/';
+    if (path !== '/') return history.length > 1 ? history.back() : go('/');
+    location.href = (window.KOHLARDGO_CONFIG || {}).HOTEL_SITE || '../';
+  };
   bindLangSwitcher(); bindSosLinks($('#header'));
   $$('[data-auth]').forEach(b => b.onclick = () => authModal(b.dataset.auth));
   const chip = $('#user-chip');
