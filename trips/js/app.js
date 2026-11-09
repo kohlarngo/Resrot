@@ -17,6 +17,7 @@ function render() {
   closeModal();
   const isBO = !!PORTAL, app = $('#app');
   document.body.classList.toggle('bo', isBO);
+  document.body.classList.remove('home2'); // pageHome ใส่กลับเอง
   if (isBO) {
     $('#header').innerHTML = '';
     if (!path.startsWith('/admin')) return go('/admin', true);

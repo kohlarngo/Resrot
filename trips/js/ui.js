@@ -78,8 +78,8 @@ function headerHtml() {
   const a = (href, label) => `<a href="#${href}" class="${path === href ? 'active' : ''}">${label}</a>`;
   return `<header class="header"><div class="container header-inner">
     <button class="menu-toggle" id="menu-t" aria-label="menu"><i class="fa-solid fa-bars"></i></button>
-    <a href="#/" class="logo logo-img" aria-label="kohlarngo"><img src="assets/icon-192.png" alt="kohlarngo" width="56" height="56" style="width:56px;height:56px;object-fit:contain"></a>
-    <nav class="nav" id="nav">${a('/', T('หน้าแรก'))}${a('/search', T('ทริปและกิจกรรม'))}${a('/my-bookings', T('การจองของฉัน'))}${a('/favorites', T('รายการโปรด'))}${a('/help', T('ช่วยเหลือ'))}</nav>
+    <a href="#/" class="logo logo-img" aria-label="kohlarngo"><img src="assets/icon-192.png" alt="kohlarngo" width="56" height="56" style="width:56px;height:56px;object-fit:contain"><b class="brand-t">kohlarngo</b></a>
+    <nav class="nav" id="nav">${[['stay', 'ที่พัก', 'fa-bed'], ['vehicle', 'รถ/มอเตอร์ไซค์', 'fa-motorcycle'], ['activity', 'กิจกรรมทางน้ำ', 'fa-person-swimming'], ['boat', 'เรือ/จอดเรือ', 'fa-ship'], ['package', 'แพ็กเกจ', 'fa-suitcase-rolling'], ['food', 'ร้านอาหาร', 'fa-utensils']].map(([k, l, i]) => `<a href="#/search?cat=${k}"><i class="fa-solid ${i}"></i> ${T(l)}</a>`).join('')}${a('/my-bookings', T('การจองของฉัน'))}</nav>
     <div class="header-right">${langSwitcherHtml()}
       ${s.line ? `<a class="btn btn-ghost btn-sm" href="${esc(socialUrl('line', s.line))}" target="_blank" rel="noopener" aria-label="LINE"><i class="fa-brands fa-line" style="color:#06c755"></i></a>` : ''}
       <button class="btn btn-sos btn-sm" data-sos="" aria-label="SOS"><i class="fa-solid fa-bell"></i> SOS</button>
