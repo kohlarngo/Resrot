@@ -32,10 +32,11 @@ function admPartners(main, params) {
 
 // ---------- ทริปทั้งหมด ----------
 function admTrips(main) {
-  const list = CACHE.trips, users = DB.users();
-  main.innerHTML = pageHead('ทริปทั้งหมด', `${list.length} รายการ`) + `<div class="card flush"><div class="table-scroll"><table class="tbl"><thead><tr><th>ทริป</th><th>ผู้ให้บริการ</th><th>หมวด</th><th>ราคาเริ่มต้น</th><th>สถานะ</th><th></th></tr></thead><tbody>
+  const list = CACHE.trips, users = DB.users(), dev = DB.currentUser()?.role === 'dev';
+  main.innerHTML = pageHead('ทริปทั้งหมด', `${list.length} รายการ`, dev ? '<button class="btn btn-primary" id="nt"><i class="fa-solid fa-plus"></i> เพิ่มทริป</button>' : '') + `<div class="card flush"><div class="table-scroll"><table class="tbl"><thead><tr><th>ทริป</th><th>ผู้ให้บริการ</th><th>หมวด</th><th>ราคาเริ่มต้น</th><th>สถานะ</th><th></th></tr></thead><tbody>
     ${list.map(t => `<tr><td><a href="index.html#/trip/${esc(t.id)}" target="_blank"><b>${esc(t.name)}</b></a></td><td>${esc(users.find(u => u.id === t.ownerId)?.biz?.name || DB.owner(t.ownerId)?.name || '-')}</td><td>${catLabel(t.category)}</td><td>${isFinite(lowest(t)) ? money(lowest(t)) : '-'}</td>
-      <td>${t.banned ? '<span class="pill bad">ถูกระงับ</span>' : t.active === false ? '<span class="pill">ปิด</span>' : '<span class="pill ok">เปิด</span>'}</td><td><button class="btn btn-outline btn-sm" data-bn="${esc(t.id)}">${t.banned ? 'ปลดระงับ' : 'ระงับ'}</button></td></tr>`).join('') || '<tr><td colspan="6" class="bo-empty" style="text-align:center;padding:24px">ยังไม่มีทริป</td></tr>'}</tbody></table></div></div>`;
+      <td>${t.banned ? '<span class="pill bad">ถูกระงับ</span>' : t.active === false ? '<span class="pill">ปิด</span>' : '<span class="pill ok">เปิด</span>'}</td><td style="white-space:nowrap">${dev ? `<button class="btn btn-primary btn-sm" data-ed="${esc(t.id)}">แก้ไข</button> ` : ''}<button class="btn btn-outline btn-sm" data-bn="${esc(t.id)}">${t.banned ? 'ปลดระงับ' : 'ระงับ'}</button></td></tr>`).join('') || '<tr><td colspan="6" class="bo-empty" style="text-align:center;padding:24px">ยังไม่มีทริป</td></tr>'}</tbody></table></div></div>`;
+  if (dev) { $('#nt').onclick = () => tripEditor(null); $$('[data-ed]', main).forEach(b => b.onclick = () => tripEditor(DB.trip(b.dataset.ed))); }
   $$('[data-bn]', main).forEach(b => b.onclick = async () => { const t = DB.trip(b.dataset.bn); try { await DB.saveTrip({ ...t, banned: !t.banned }); DB.log('trip.ban', t.id); render(); } catch {} });
 }
 

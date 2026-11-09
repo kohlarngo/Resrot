@@ -145,6 +145,7 @@ const DB = {
   async saveTrip(trip) {
     const { id, ownerId, active, ...data } = trip, i = CACHE.trips.findIndex(t => t.id === id);
     const row = { data, active: active !== false, updated_at: new Date().toISOString() };
+    if (i >= 0 && ownerId && CACHE.me?.role === 'dev') row.owner_id = ownerId; // นักพัฒนาย้ายเจ้าของทริปได้
     await dbWrite(i >= 0 ? supa.from('tour_trips').update(row).eq('id', id).select('id').then(r => (!r.error && !r.data?.length ? { error: new Error('ไม่มีสิทธิ์แก้ไขทริปนี้') } : r))
       : supa.from('tour_trips').insert({ id, owner_id: ownerId || CACHE.me.id, ...row }), 'ทริป');
     if (i >= 0) CACHE.trips[i] = trip; else CACHE.trips.push({ ...trip, ownerId: ownerId || CACHE.me.id });

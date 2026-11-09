@@ -268,11 +268,13 @@ function ownTrips(main, params) {
 }
 function tripEditor(t0) {
   const me = DB.currentUser(), isNew = !t0;
+  let ownerSel = t0 ? t0.ownerId : me.id; // นักพัฒนาเลือกเจ้าของทริปได้
   const t = t0 ? JSON.parse(JSON.stringify(t0)) : { id: '', category: 'activity', name: '', images: [], options: [{ id: uid('o'), name: 'มาตรฐาน', price: 1000, unit: 'คน' }], times: [], dailyCap: 0, active: true, closedDates: [] };
   const m = openModal('<div id="te"></div>', 'wide');
   const draw = () => {
     $('#te', m).innerHTML = `<h2>${isNew ? 'เพิ่มทริปใหม่' : 'แก้ไขทริป'}</h2><form id="tf" class="te-form" novalidate>
       <div class="form-grid" style="grid-template-columns:2fr 1fr">${fg('name', 'ชื่อทริป / บริการ *', t.name, 'maxlength="100"')}<div class="fg"><label>หมวดหมู่</label><select name="category">${Object.entries(CATEGORIES).map(([k, v]) => `<option value="${k}" ${t.category === k ? 'selected' : ''}>${v.label}</option>`).join('')}</select></div></div>
+      ${me.role === 'dev' ? `<div class="fg"><label>เจ้าของทริป (ผู้ให้บริการ)</label><select id="te-owner">${[me, ...DB.users().filter(u => u.role === 'owner' && u.id !== me.id)].map(u => `<option value="${esc(u.id)}" ${u.id === ownerSel ? 'selected' : ''}>${esc(u.biz?.name || u.name || u.email)}${u.id === me.id ? ' (ฉัน / ไม่มีเจ้าของ)' : ''}</option>`).join('')}${ownerSel && ![me, ...DB.users()].some(u => u.id === ownerSel) ? `<option value="${esc(ownerSel)}" selected>(เจ้าของเดิม)</option>` : ''}</select></div>` : ''}
       ${fg('summary', 'คำโปรยสั้นๆ', t.summary, 'maxlength="160"')}${fg('desc', 'รายละเอียด', t.desc, 'rows="5" maxlength="4000"', 'textarea')}
       <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr">${fg('duration', 'ระยะเวลา', t.duration, 'placeholder="เช่น 4 ชั่วโมง"')}${fg('area', 'พื้นที่ / หาด', t.area)}${fg('languages', 'ภาษาที่บริการ', t.languages, 'placeholder="ไทย, English, 中文"')}</div>
       ${fg('meetPoint', 'จุดนัดพบ', t.meetPoint)}
@@ -287,6 +289,7 @@ function tripEditor(t0) {
       <div class="red small" id="te-err"></div>
       <div class="row" style="justify-content:space-between;margin-top:14px"><div>${isNew ? '' : '<button type="button" class="btn btn-ghost" id="del" style="color:var(--bad)">ลบทริป</button>'}</div><div class="row"><button type="button" class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary">บันทึก</button></div></div></form>`;
     const f = $('#tf', m);
+    const os = $('#te-owner', f); if (os) os.onchange = () => { ownerSel = os.value; };
     $('#addimg', m).onclick = async () => {
       const file = await pickFile(); if (!file) return; const b = $('#addimg', m); b.disabled = true;
       try { sync(); t.images.push(await uploadImage(file)); draw(); } catch (e) { toast('อัปโหลดรูปไม่สำเร็จ: ' + e.message, 'err'); b.disabled = false; }
@@ -305,7 +308,7 @@ function tripEditor(t0) {
       if (isNew) t.id = slug(t.name) + '-' + Math.random().toString(36).slice(2, 6);
       t.options = t.options.map(o => ({ ...o, price: +o.price, childPrice: o.childPrice === '' || o.childPrice == null ? undefined : +o.childPrice }));
       const btn = $('button.btn-primary', f); btn.disabled = true;
-      try { await DB.saveTrip({ ...t, ownerId: isNew ? me.id : t0.ownerId }); DB.log('trip.save', t.id); closeModal(); toast('บันทึกแล้ว'); render(); } catch { btn.disabled = false; }
+      try { await DB.saveTrip({ ...t, ownerId: me.role === 'dev' ? ownerSel : (isNew ? me.id : t0.ownerId) }); DB.log('trip.save', t.id); closeModal(); toast('บันทึกแล้ว'); render(); } catch { btn.disabled = false; }
     };
     function sync() {
       const v = Object.fromEntries(new FormData(f));
