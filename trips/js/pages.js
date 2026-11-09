@@ -66,18 +66,12 @@ function pageHome(app) {
     ['สกูบ้า', 'cat-scuba', qs('สกูบ้า'), 'fa-person-swimming'], ['พาราเซล', 'cat-parasail', qs('พาราเซล'), 'fa-parachute-box'], ['สปีดโบ๊ท', 'cat-speedboat', '/search?cat=boat', 'fa-ship'],
     ['จอดเรือ', 'cat-mooring', qs('จอดเรือ'), 'fa-anchor'], ['มอเตอร์ไซค์', 'cat-motorbike', '/search?cat=vehicle', 'fa-motorcycle']];
   const tabs = [['stay', 'ที่พัก', 'fa-bed'], ['vehicle', 'รถ/มอเตอร์ไซค์', 'fa-motorcycle'], ['activity', 'กิจกรรมทางน้ำ', 'fa-person-swimming'], ['boat', 'เรือ/จอดเรือ', 'fa-ship']];
-  const miniCard = (t, extra = '') => {
-    const p = lowest(t), r = t.external ? { score: t.hotelRating, count: t.hotelReviews } : DB.tripRating(t.id);
-    return `<div class="h2-card" ${t.external ? `data-ext="${esc(t.href)}"` : `data-href="/trip/${esc(t.slug || t.id)}"`}><div class="im"><img src="${esc(tripImg(t))}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${DEFAULT_IMG}'"></div>
-      <div class="bd"><b>${esc(t.name)}</b>${t.duration || t.area ? `<span class="sm">${esc(t.duration || t.area)}</span>` : ''}${+r.count ? `<span class="sm"><i class="fa-solid fa-star" style="color:#ffb400"></i> ${(+r.score).toFixed(1)} (${r.count})</span>` : ''}
-      ${isFinite(p) ? `<span class="pr">${T('เริ่มต้น')} <b>${money(p)}</b>${t.external ? '/' + T('คืน') : ''}</span>` : ''}${extra}</div></div>`;
-  };
   const rowItem = t => {
     const p = lowest(t);
     return `<div class="h2-row" data-href="/trip/${esc(t.slug || t.id)}"><img src="${esc(tripImg(t))}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${DEFAULT_IMG}'"><div><b>${esc(t.name)}</b><span class="sm">${T('เริ่มต้น')} ${isFinite(p) ? money(p) : '-'}</span></div></div>`;
   };
   const none = `<div class="h2-empty">${T('เร็ว ๆ นี้')}</div>`;
-  const big = [['stay', 'ที่พัก', 'fa-bed', '#ff7a1a'], ['vehicle', 'รถ', 'fa-motorcycle', '#2f6fe4'], ['activity', 'กิจกรรม', 'fa-person-swimming', '#119a9a'], ['boat', 'เรือ', 'fa-ship', '#6a5be2']];
+  const big = [['stay', 'ที่พัก', 'fa-bed', '#ff7a1a', '#/c/stay'], ['vehicle', 'รถ', 'fa-motorcycle', '#2f6fe4', '#/c/car'], ['activity', 'กิจกรรม', 'fa-person-swimming', '#119a9a', '#/search?cat=activity'], ['boat', 'เรือ', 'fa-ship', '#6a5be2', '#/c/boat']];
   document.body.classList.add('home2');
   app.innerHTML = `<section class="h2-hero" style="background-image:url('images/hero.jpg')"><div class="h2-shade"></div><div class="container">
       <h1 class="h2-title">${T('เที่ยวเกาะล้าน')}<br><span>${T('ครบจบในที่เดียว')}</span></h1>
@@ -87,7 +81,7 @@ function pageHome(app) {
     </div></section>
     <div class="container h2">
       <section class="h2-tiles">${tiles.map(([l, im, href, ic]) => `<a href="#${href}"><img src="images/${im}.jpg" alt="" loading="lazy"><span><i class="fa-solid ${ic}"></i> ${T(l)}</span></a>`).join('')}</section>
-      <section class="h2-mq"><h2>${T('คุณอยากจองอะไร?')}</h2><div class="h2-big">${big.map(([k, l, i, c]) => `<a href="#/search?cat=${k}" style="background:${c}"><i class="fa-solid ${i}"></i>${T(l)}</a>`).join('')}</div></section>
+      <section class="h2-mq"><h2>${T('คุณอยากจองอะไร?')}</h2><div class="h2-big">${big.map(([k, l, i, c, h]) => `<a href="${h}" style="background:${c}"><i class="fa-solid ${i}"></i>${T(l)}</a>`).join('')}</div></section>
       ${adCards()}
       <section class="h2-near"><div class="h2-hd"><h3><i class="fa-solid fa-location-dot" style="color:#ff7a1a"></i> ${T('ใกล้คุณบนเกาะล้าน')}</h3><a href="#/search">${T('ดูทั้งหมด')} ›</a></div><div class="h2-scroll">${near.length ? near.map(t => miniCard(t)).join('') : none}</div></section>
       <div class="h2-cols">
@@ -105,7 +99,7 @@ function pageHome(app) {
     <a class="h2-help" href="#/help"><i class="fa-solid fa-headset"></i> ${T('ช่วยเหลือ')}</a>`;
   let tab = 'stay';
   $$('[data-tab]', app).forEach(b => b.onclick = () => { tab = b.dataset.tab; $$('[data-tab]', app).forEach(x => x.classList.toggle('on', x === b)); });
-  $('#hs').onsubmit = e => { e.preventDefault(); const q = $('#hs-q').value.trim(); go('/search?' + new URLSearchParams({ cat: tab, ...(q ? { q } : {}) })); };
+  $('#hs').onsubmit = e => { e.preventDefault(); const q = $('#hs-q').value.trim(); const page = { stay: '/c/stay', vehicle: '/c/car', boat: '/c/boat' }[tab]; if (page && !q) return go(page); go('/search?' + new URLSearchParams({ cat: tab, ...(q ? { q } : {}) })); };
   bindCards(app);
 }
 
@@ -139,7 +133,7 @@ function pageTrip(app, params, id) {
   const t = DB.trip(decodeURIComponent(id));
   if (!t) return notFound(app);
   const o = DB.owner(t.ownerId), r = DB.tripRating(t.id), reviews = DB.tripReviews(t.id);
-  const draft = DRAFT.get()?.tripId === t.id ? DRAFT.get() : { tripId: t.id, items: [], date: '', time: '' };
+  const pf = PREFILL.get(), draft = DRAFT.get()?.tripId === t.id ? DRAFT.get() : { tripId: t.id, date: pf?.date >= todayISO() ? pf.date : '', time: (t.times || []).includes(pf?.time) ? pf.time : '', items: pf?.qty && t.options?.[0] ? [{ o: t.options[0].id, a: Math.min(50, +pf.qty), c: 0 }] : [] };
   const imgs = (t.images && t.images.length ? t.images : [tripImg(t)]);
   const list = s => (s || []).filter(Boolean);
   app.innerHTML = `<div class="container" style="padding-top:16px">

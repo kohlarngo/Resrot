@@ -277,6 +277,7 @@ function tripEditor(t0) {
       ${me.role === 'dev' ? `<div class="fg"><label>เจ้าของทริป (ผู้ให้บริการ)</label><select id="te-owner">${[me, ...DB.users().filter(u => u.role === 'owner' && u.id !== me.id)].map(u => `<option value="${esc(u.id)}" ${u.id === ownerSel ? 'selected' : ''}>${esc(u.biz?.name || u.name || u.email)}${u.id === me.id ? ' (ฉัน / ไม่มีเจ้าของ)' : ''}</option>`).join('')}${ownerSel && ![me, ...DB.users()].some(u => u.id === ownerSel) ? `<option value="${esc(ownerSel)}" selected>(เจ้าของเดิม)</option>` : ''}</select></div>` : ''}
       ${fg('summary', 'คำโปรยสั้นๆ', t.summary, 'maxlength="160"')}${fg('desc', 'รายละเอียด', t.desc, 'rows="5" maxlength="4000"', 'textarea')}
       <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr">${fg('duration', 'ระยะเวลา', t.duration, 'placeholder="เช่น 4 ชั่วโมง"')}${fg('area', 'พื้นที่ / หาด', t.area)}${fg('languages', 'ภาษาที่บริการ', t.languages, 'placeholder="ไทย, English, 中文"')}</div>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr">${fg('seats', 'จำนวนที่นั่ง (รถเช่า)', t.seats, 'placeholder="เช่น 4"')}${fg('cc', 'ขนาดเครื่อง cc (รถเช่า)', t.cc, 'placeholder="เช่น 1,500"')}${fg('fuel', 'เชื้อเพลิง (รถเช่า)', t.fuel, 'placeholder="เช่น น้ำมันเบนซิน"')}</div>
       ${fg('meetPoint', 'จุดนัดพบ', t.meetPoint)}
       <h3>รูปภาพ <span class="small muted">(รูปแรกเป็นปก)</span></h3><div class="te-imgs">${(t.images || []).map((u, i) => `<span class="te-im"><img src="${esc(u)}" alt=""><button type="button" data-ri="${i}">×</button></span>`).join('')}<button type="button" class="te-add" id="addimg"><i class="fa-solid fa-camera"></i><span>เพิ่มรูป</span></button></div>
       <h3>ตัวเลือกและราคา</h3><div id="opts">${(t.options || []).map((o, i) => `<div class="te-opt" data-i="${i}"><input data-k="name" value="${esc(o.name)}" placeholder="ชื่อตัวเลือก เช่น ผู้ใหญ่ / เหมาลำ"><input data-k="price" type="number" min="0" value="${esc(o.price)}" placeholder="ราคา"><input data-k="childPrice" type="number" min="0" value="${esc(o.childPrice ?? '')}" placeholder="ราคาเด็ก (ถ้ามี)"><select data-k="unit">${PRICE_UNITS.map(x => `<option ${optUnit(o) === x ? 'selected' : ''}>${x}</option>`).join('')}</select><button type="button" data-ro="${i}" class="btn btn-ghost btn-sm" style="color:var(--bad)">ลบ</button></div>`).join('')}</div>
@@ -312,7 +313,7 @@ function tripEditor(t0) {
     };
     function sync() {
       const v = Object.fromEntries(new FormData(f));
-      Object.assign(t, { name: v.name, category: v.category, summary: v.summary, desc: v.desc, duration: v.duration, area: v.area, languages: v.languages, meetPoint: v.meetPoint, cancelPolicy: v.cancelPolicy,
+      Object.assign(t, { name: v.name, category: v.category, summary: v.summary, desc: v.desc, duration: v.duration, area: v.area, languages: v.languages, seats: v.seats, cc: v.cc, fuel: v.fuel, meetPoint: v.meetPoint, cancelPolicy: v.cancelPolicy,
         times: v.times.split(',').map(s => s.trim()).filter(Boolean), dailyCap: +v.dailyCap || 0, includes: v.includes.split('\n').map(s => s.trim()).filter(Boolean), excludes: v.excludes.split('\n').map(s => s.trim()).filter(Boolean),
         pickup: !!v.pickup, active: !!v.active });
       $$('.te-opt', f).forEach(row => { const o = t.options[+row.dataset.i]; $$('[data-k]', row).forEach(i => (o[i.dataset.k] = i.value)); });

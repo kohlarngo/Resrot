@@ -1,6 +1,6 @@
 // ================= Router =================
 const ROUTES = [
-  [/^\/$/, pageHome], [/^\/search$/, pageSearch], [/^\/trip\/([^/]+)$/, pageTrip], [/^\/book$/, pageBook],
+  [/^\/$/, pageHome], [/^\/search$/, pageSearch], [/^\/c\/(boat|car|stay)$/, pageCategory], [/^\/trip\/([^/]+)$/, pageTrip], [/^\/book$/, pageBook],
   [/^\/booking\/(\w+)$/, pageBookingView], [/^\/my-bookings$/, pageMyBookings], [/^\/favorites$/, pageFavorites],
   [/^\/profile$/, pageProfile], [/^\/help$/, pageHelp], [/^\/terms$/, pageTerms],
 ];
