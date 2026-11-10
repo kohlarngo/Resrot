@@ -45,7 +45,7 @@ img { display: block; max-width: 100%; }
 
 /* ---------- Header ---------- */
 .header { background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; }
-.header-inner { display: flex; align-items: center; height: var(--header-h); gap: 24px; }
+.header-inner { display: flex; align-items: center; height: var(--header-h); gap: 16px; }
 .logo { display: flex; align-items: baseline; font-weight: 800; font-size: 26px; letter-spacing: -1px; font-family: 'Inter', sans-serif; }
 .logo span:nth-child(1) { color: #e12d2d; }
 .logo span:nth-child(2) { color: #ff9800; }
@@ -59,7 +59,7 @@ img { display: block; max-width: 100%; }
 @media (max-width: 820px) { :root { --logo-h: 60px; } }
 .logo .dot { width: 7px; height: 7px; border-radius: 50%; background: #e12d2d; margin-left: 3px; display: inline-block; }
 .nav { display: flex; gap: 4px; flex: 1; }
-.nav a { color: var(--text); padding: 8px 12px; border-radius: 8px; font-weight: 500; font-size: 14px; }
+.nav a { color: var(--text); padding: 8px 9px; border-radius: 8px; font-weight: 500; font-size: 13.5px; white-space: nowrap; }
 .nav a:hover, .nav a.active { background: var(--primary-light); color: var(--primary); }
 .header-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .btn { border: 1px solid transparent; border-radius: 8px; padding: 10px 18px; font-weight: 600; font-size: 15px; transition: .15s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
@@ -975,3 +975,19 @@ a.ap-t:active { background: var(--primary-light); }
 .ap-ctl { display: flex; gap: 4px; }
 .ap-ctl button { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border, #d1d5db); background: #fff; color: inherit; font-size: 12px; }
 .ap-ctl button:disabled { opacity: .3; }
+
+/* แท็บหมวดบริการในการ์ดค้นหาหน้าแรก (ที่พัก / รถ / กิจกรรม / เรือ) */
+.sb-tabs { display: flex; gap: 6px; margin: -6px 0 16px; overflow-x: auto; scrollbar-width: none; }
+.sb-tabs::-webkit-scrollbar { display: none; }
+.sb-tab { display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 999px; font-weight: 700; font-size: 14px; color: #1f2937; white-space: nowrap; text-decoration: none; }
+a.sb-tab:hover { background: #f1f5f9; }
+.sb-tab.on { background: var(--primary, #f97316); color: #fff; }
+
+/* เมนูมีหลายรายการ → พับเป็นปุ่ม ☰ ที่จอ ≤1180px (กันปุ่มเข้าสู่ระบบหลุดจอ) */
+@media (min-width: 821px) and (max-width: 1180px) {
+  .nav { display: none; position: absolute; top: var(--header-h); left: 0; right: 0; background: #fff; flex-direction: column; padding: 8px; box-shadow: var(--shadow-lg); }
+  .nav.open { display: flex; }
+  .menu-toggle { display: block; }
+  .header-inner { gap: 12px; }
+  .header-right { margin-left: auto; }
+}

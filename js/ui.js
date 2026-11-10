@@ -150,6 +150,7 @@ function searchBoxHtml(mode = 'hero') {
   if (mode === 'mini') return `<div class="search-bar-mini"><div class="container"><div class="mini-grid sb-root" style="position:relative">${fields}<button class="btn btn-lg" id="sb-go"><span data-edit="search.btn">ค้นหา</span></button></div></div></div>`;
   return `
     <div class="search-card sb-root">
+      <div class="sb-tabs"><span class="sb-tab on"><i class="fa-solid fa-bed"></i> ที่พัก</span>${[['#/c/car', 'รถ/มอเตอร์ไซค์', 'fa-motorcycle'], ['#/search?cat=activity', 'กิจกรรมทางน้ำ', 'fa-person-swimming'], ['#/c/boat', 'เรือ/จอดเรือ', 'fa-ship']].map(([h, l, i]) => `<a class="sb-tab" href="trips/${h}"><i class="fa-solid ${i}"></i> ${l}</a>`).join('')}</div>
       <div class="search-grid" style="position:relative">${fields}</div>
       <button class="btn btn-primary search-btn" id="sb-go"><span data-edit="search.btn">ค้นหา</span></button>
     </div>`;
@@ -321,7 +322,7 @@ function headerHtml() {
     <button class="menu-toggle" id="menu-t"><i class="fa-solid fa-bars"></i></button>
     ${logoLink}
     <nav class="nav" id="nav">
-      ${a('/', 'หน้าแรก')}${a('/search', 'ค้นหาที่พัก')}${a('/deals', 'ดีลสุดคุ้ม')}<a href="trips/">ทริป/กิจกรรม</a>${a('/my-bookings', 'การจองของฉัน')}${a('/favorites', 'รายการโปรด')}
+      ${a('/', 'หน้าแรก')}${a('/search', 'ค้นหาที่พัก')}${a('/deals', 'ดีลสุดคุ้ม')}<a href="trips/#/c/car">รถ/มอเตอร์ไซค์</a><a href="trips/#/search?cat=activity">กิจกรรมทางน้ำ</a><a href="trips/#/c/boat">เรือ/จอดเรือ</a>${a('/my-bookings', 'การจองของฉัน')}${a('/favorites', 'รายการโปรด')}
     </nav>
     <div class="header-right">
       <button class="btn btn-ghost btn-sm hide-m" title="สกุลเงิน">THB ฿</button>
