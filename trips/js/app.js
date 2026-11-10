@@ -1,6 +1,7 @@
 // ================= Router =================
 const ROUTES = [
-  [/^\/$/, pageHome], [/^\/search$/, pageSearch], [/^\/c\/(boat|car)$/, pageCategory], [/^\/c\/stay$/, () => location.replace((window.KOHLARDGO_CONFIG || {}).HOTEL_SITE || '../')], // ที่พักอยู่ที่เว็บ hotel [/^\/trip\/([^/]+)$/, pageTrip], [/^\/book$/, pageBook],
+  [/^\/$/, pageHome], [/^\/search$/, pageSearch], [/^\/c\/(boat|car)$/, (...a) => pageCategory(...a)], [/^\/c\/stay$/, () => location.replace((window.KOHLARDGO_CONFIG || {}).HOTEL_SITE || '../')], /* ที่พักอยู่ที่เว็บ hotel */
+  [/^\/trip\/([^/]+)$/, pageTrip], [/^\/book$/, pageBook],
   [/^\/booking\/(\w+)$/, pageBookingView], [/^\/my-bookings$/, pageMyBookings], [/^\/favorites$/, pageFavorites],
   [/^\/profile$/, pageProfile], [/^\/help$/, pageHelp], [/^\/terms$/, pageTerms],
 ];
